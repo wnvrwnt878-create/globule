@@ -262,7 +262,7 @@ window.GLOBULE_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"-24 -9
 const CFG = window.GLOBULE_CONFIG || {};
 const DEMO = !(CFG.supabaseUrl && CFG.supabaseAnonKey && window.supabase);
 let sb = null;
-const state = { tests: [], sessions: [], name: '', tab: 'home', user: null, mascotEvent: null, proto: null, pick: 'lt1', gz: { low: { lo: 2.0, hi: 2.5 }, high: { lo: 2.5, hi: 3.5 } } };
+const state = { tests: [], sessions: [], name: '', tab: 'home', user: null, mascotEvent: null, proto: null, pick: 'lt1', gz: { lo: 2.3, hi: 3.0 } };
 
 /* ---------- Outils ---------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -285,7 +285,7 @@ const MONTHS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet'
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : 'id' + Date.now() + Math.random().toString(16).slice(2));
 const byDateDesc = (a, b) => (b.date || '').localeCompare(a.date || '') || (b.created_at || '').localeCompare(a.created_at || '');
 const SOURCES = { trainer: 'Home trainer', route: 'Route' };
-const SESSION_KINDS = ['Endurance', 'Golden Zone basse', 'Golden Zone haute', 'Intervalles', 'Autre'];
+const SESSION_KINDS = ['Golden Zone', 'Intervalles', 'Endurance', 'Autre'];
 
 function toast(msg) {
   const t = document.createElement('div');
@@ -318,7 +318,7 @@ async function loadAll() {
 }
 
 function seedDemo() {
-  if (localStorage.getItem('globule:seed-v') === '4') return;
+  if (localStorage.getItem('globule:seed-v') === '5') return;
   const mk = (rows) => rows.map(r => ({ id: uid(), created_at: new Date().toISOString(), ...r }));
   Local.save('tests', mk([
     { date: daysAgo(62), kind: 'steps', source: 'trainer', lt1_manual: null, lt2_manual: null, note: 'Premier test, un peu fatigué',
@@ -331,12 +331,12 @@ function seedDemo() {
     { date: daysAgo(3), kind: 'Intervalles', duration_min: 75, watts: 238, hr: 152, lactate: 3.2, rpe: 7, source: 'trainer', note: '3 x 12 min' },
     { date: daysAgo(5), kind: 'Endurance', duration_min: 90, watts: 200, hr: 136, lactate: 1.6, rpe: 4, source: 'trainer', note: '' },
     { date: daysAgo(12), kind: 'Endurance', duration_min: 120, watts: 210, hr: 140, lactate: 1.9, rpe: 4, source: 'route', note: 'Un peu haut pour de la Z1' },
-    { date: daysAgo(0), kind: 'Golden Zone basse', duration_min: 70, watts: 244, hr: 151, lactate: 2.3, rpe: 5, source: 'trainer', note: 'Double seuil matin : 5 x 8 min' },
-    { date: daysAgo(0), kind: 'Golden Zone haute', duration_min: 55, watts: 263, hr: 157, lactate: 3.1, rpe: 6, source: 'trainer', note: 'Double seuil soir : 10 x 3 min' },
-    { date: daysAgo(2), kind: 'Golden Zone haute', duration_min: 60, watts: 276, hr: 161, lactate: 3.9, rpe: 7, source: 'trainer', note: 'Trop haut sur les 2 derniers' },
-    { date: daysAgo(6), kind: 'Golden Zone basse', duration_min: 75, watts: 240, hr: 149, lactate: 2.2, rpe: 5, source: 'route', note: '4 x 10 min' }
+    { date: daysAgo(0), kind: 'Golden Zone', duration_min: 70, watts: 244, hr: 151, lactate: 2.3, rpe: 5, source: 'trainer', note: 'Double seuil matin : 5 x 8 min' },
+    { date: daysAgo(0), kind: 'Golden Zone', duration_min: 55, watts: 263, hr: 157, lactate: 3.1, rpe: 6, source: 'trainer', note: 'Double seuil soir : 10 x 3 min' },
+    { date: daysAgo(2), kind: 'Golden Zone', duration_min: 60, watts: 276, hr: 161, lactate: 3.9, rpe: 7, source: 'trainer', note: 'Trop haut sur les 2 derniers' },
+    { date: daysAgo(6), kind: 'Golden Zone', duration_min: 75, watts: 240, hr: 149, lactate: 2.2, rpe: 5, source: 'route', note: '4 x 10 min' }
   ]));
-  localStorage.setItem('globule:seed-v', '4');
+  localStorage.setItem('globule:seed-v', '5');
 }
 /* ---------- Calculs ---------- */
 // LT1 auto : palier qui précède le premier saut >= 0,4 mmol. Confirmé si le palier suivant reste au-dessus.
@@ -428,12 +428,11 @@ function currentZones() {
   return { lt1, lt1Hr: s ? s.lt1Hr : null, lt2, lt2Hr: s2 ? s2.lt2Hr : null, s, sTest, s2, s2Test, incoherent: lt1 != null && lt2 != null && lt1 >= lt2 };
 }
 // Golden Zone (méthode norvégienne, M. Bakken) : juste sous le 2e seuil (LT2), jamais dessus, pilotée au lactate.
-// Deux plages : basse (séances longues, souvent le matin) et haute (intervalles plus courts, souvent le soir).
-const BANDS = {
-  low: { name: 'basse', label: 'GZ basse', kind: 'Golden Zone basse', color: '#FFE07A' },
-  high: { name: 'haute', label: 'GZ haute', kind: 'Golden Zone haute', color: '#FFB000' }
-};
-const KIND_BAND = { 'Golden Zone basse': 'low', 'Golden Zone haute': 'high', 'Golden Zone': 'high' };
+// Une plage, pas un seuil : 2,3 à 3,0 mmol par défaut (Bakken, athlètes entraînés), volontairement sous le seuil mesuré.
+const GZ_DEFAULT = { lo: 2.3, hi: 3.0 };
+const GZ_COLOR = '#FFC21A';
+// Les anciennes séances "Golden Zone basse/haute" restent lues comme Golden Zone.
+const GZ_KINDS = ['Golden Zone', 'Golden Zone basse', 'Golden Zone haute'];
 const GZ_QUALITY = ['Intervalles', 'Seuil', 'Tempo'];
 function crossW(steps, la) {
   for (let i = 1; i < steps.length; i++) {
@@ -442,9 +441,9 @@ function crossW(steps, la) {
   }
   return null;
 }
-function bandWatts(Z, key) {
-  const { lo, hi } = state.gz[key];
-  const B = { key, lo, hi, wLo: null, wHi: null, hrLo: null, hrHi: null, capped: false, above: false };
+function bandWatts(Z) {
+  const { lo, hi } = state.gz;
+  const B = { lo, hi, wLo: null, wHi: null, hrLo: null, hrHi: null, capped: false, above: false };
   const curve = Z.s2 || Z.s;
   if (curve) {
     B.wLo = crossW(curve.steps, lo); B.wHi = crossW(curve.steps, hi);
@@ -456,19 +455,15 @@ function bandWatts(Z, key) {
   if (curve && B.wLo != null) { B.hrLo = interpHr(curve.steps, B.wLo); B.hrHi = interpHr(curve.steps, B.wHi); }
   return B;
 }
-function goldenZone(Z) { return { low: bandWatts(Z, 'low'), high: bandWatts(Z, 'high') }; }
+function goldenZone(Z) { return bandWatts(Z); }
 function inRange(la, r) { return la >= r.lo - 1e-9 && la <= r.hi + 1e-9; }
 function gzStatus(s) {
-  const la = num(s.lactate), band = KIND_BAND[s.kind];
-  if (band) {
-    const r = state.gz[band];
-    if (la == null || inRange(la, r)) return { band, st: 'in' };
-    return { band, st: la > r.hi ? 'high' : 'low' };
+  const la = num(s.lactate), r = state.gz;
+  if (GZ_KINDS.includes(s.kind)) {
+    if (la == null || inRange(la, r)) return { st: 'in' };
+    return { st: la > r.hi ? 'high' : 'low' };
   }
-  if (GZ_QUALITY.includes(s.kind) && la != null) {
-    if (inRange(la, state.gz.low)) return { band: 'low', st: 'in' };
-    if (inRange(la, state.gz.high)) return { band: 'high', st: 'in' };
-  }
+  if (GZ_QUALITY.includes(s.kind) && la != null && inRange(la, r)) return { st: 'in' };
   return null;
 }
 function mondayISO() { const d = new Date(); const day = (d.getDay() + 6) % 7; d.setDate(d.getDate() - day); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); }
@@ -477,11 +472,8 @@ function gzWeek() {
   const list = state.sessions.filter(s => (s.date || '') >= m && gzStatus(s));
   return { n: list.length, min: list.reduce((a, s) => a + (num(s.duration_min) || 0), 0), high: list.filter(s => gzStatus(s).st === 'high').length };
 }
-const gzBands = () => [
-  { y0: state.gz.low.lo, y1: state.gz.low.hi, color: BANDS.low.color, op: .5, label: 'GZ basse' },
-  { y0: state.gz.high.lo, y1: state.gz.high.hi, color: '#FFC21A', op: .42, label: 'GZ haute' }
-];
-const gzTop = () => Math.max(state.gz.low.hi, state.gz.high.hi);
+const gzBands = () => [{ y0: state.gz.lo, y1: state.gz.hi, color: GZ_COLOR, op: .45, label: 'Golden Zone' }];
+const gzTop = () => state.gz.hi;
 
 function zoneOf(w, Z) {
   if (w == null || !Z) return null;
@@ -656,33 +648,27 @@ function gzThermo(Z) {
   const G = goldenZone(Z);
   if (Z.lt1 == null || Z.lt2 == null || Z.lt2 <= Z.lt1) return '';
   const pos = w => 38.3 + Math.max(0, Math.min(1, (w - Z.lt1) / (Z.lt2 - Z.lt1))) * 33.4;
-  return ['low', 'high'].map(k => {
-    const B = G[k]; if (B.wLo == null || B.wHi == null) return '';
-    const a = pos(B.wLo), b = pos(B.wHi);
-    return `<div class="gz-band ${k}" style="left:${a}%;width:${Math.max(3, b - a)}%"></div>`;
-  }).join('');
+  if (G.wLo == null || G.wHi == null) return '';
+  const a = pos(G.wLo), b = pos(G.wHi);
+  return `<div class="gz-band high" style="left:${a}%;width:${Math.max(3, b - a)}%"></div>`;
 }
 function goldenPanel(Z) {
   const G = goldenZone(Z), wk = gzWeek(), r = v => fmt(v, 1);
-  const row = k => {
-    const B = G[k];
-    const watts = B.wLo != null ? `${fmt(B.wLo)} à ${fmt(B.wHi)} W` : B.above ? 'au-dessus de ton LT2' : 'à calculer';
-    const det = `${r(B.lo)} à ${r(B.hi)} mmol${B.hrLo != null && B.hrHi != null ? `, FC ${fmt(B.hrLo)} à ${fmt(B.hrHi)}` : ''}`;
-    return `<div class="gz-row"><span class="gz-tag ${k}">${BANDS[k].name}</span><div><b class="gz-w">${watts}</b><small>${det}</small></div></div>`;
-  };
-  const any = G.low.wLo != null || G.high.wLo != null;
-  const above = G.low.above || G.high.above;
-  const note = above ? 'Une plage commence au-dessus de ton LT2 : elle est trop haute pour toi. Baisse-la dans mon onglet.'
-    : !any ? 'Il me faut une courbe de lactate qui traverse tes plages : un test paliers jusqu\'à 4 mmol.'
-    : (G.low.capped || G.high.capped) ? 'Plafonnées à ton LT2 : la Golden Zone reste sous ton 2e seuil, jamais dessus.'
-    : 'Lues sur ta dernière courbe de lactate.';
+  const cell = (v, l) => `<div><b>${v}</b><span>${l}</span></div>`;
+  const watts = G.wLo != null ? `${fmt(G.wLo)} à ${fmt(G.wHi)} W` : G.above ? 'au-dessus de ton LT2' : 'à calculer';
+  const hr = G.hrLo != null && G.hrHi != null ? `${fmt(G.hrLo)} à ${fmt(G.hrHi)}` : 'n.d.';
+  const note = G.above ? 'Ta plage commence au-dessus de ton LT2 : elle est trop haute pour toi. Baisse-la dans mon onglet.'
+    : G.wLo == null ? 'Il me faut une courbe de lactate qui traverse ta plage : un test paliers jusqu\'à 4 mmol.'
+    : G.capped ? 'Plafonnée à ton LT2 : la Golden Zone reste sous ton 2e seuil, jamais dessus.'
+    : 'Watts et FC lus sur ta dernière courbe de lactate. Une plage, pas un chiffre : vise le bas sur les intervalles longs.';
   return `<section class="panel golden" aria-label="Ta Golden Zone">
     <div class="gz-head"><span class="gz-star" aria-hidden="true">★</span><h3>Ta Golden Zone</h3></div>
     <p class="gz-sub">Juste sous ton 2e seuil (LT2), jamais dessus.</p>
-    <div class="gz-rows">${row('low')}${row('high')}</div>
+    <div class="gz-watts">${watts}</div>
+    <div class="kv" style="margin:10px 0 12px">${cell(`${r(G.lo)}–${r(G.hi)}`, 'mmol/L')}${cell(hr, 'FC (bpm)')}${cell(Z.lt2 != null ? fmt(Z.lt2) : 'n.d.', 'LT2 (W), plafond')}</div>
     <div class="kv"><div><b>${wk.n}</b><span>séance${wk.n > 1 ? 's' : ''} cette semaine</span></div><div><b>${wk.min}</b><span>min en GZ</span></div><div><b>${wk.high}</b><span>trop haut</span></div></div>
     <p class="gz-note">${note}</p>
-    <div class="row-btns" style="margin-top:0"><button class="btn" data-act="new-gz" data-band="low">+ GZ basse</button><button class="btn" data-act="new-gz" data-band="high">+ GZ haute</button></div></section>`;
+    <div class="row-btns" style="margin-top:0"><button class="btn" data-act="new-gz">+ Séance Golden Zone</button></div></section>`;
 }
 function sessionItem(s, Z) {
   const z = zoneOf(num(s.watts), Z);
@@ -695,8 +681,8 @@ function sessionItem(s, Z) {
 function gzBadge(s) {
   const g = gzStatus(s);
   if (!g) return '';
-  const look = g.st === 'high' ? ['var(--z3)', 'GZ<br>↑', '#fff'] : g.st === 'low' ? ['#FFF1B8', 'GZ<br>↓', '#2A0A4A'] : [g.band === 'low' ? BANDS.low.color : '#FFC21A', `GZ<br>${BANDS[g.band].name}`, '#2A0A4A'];
-  return `<span class="badge gz" style="background:${look[0]};color:${look[2]};font-size:${g.st === 'in' ? 10.5 : 13}px" title="${BANDS[g.band].label}${g.st === 'high' ? ', trop haut' : g.st === 'low' ? ', trop bas' : ''}">${look[1]}</span>`;
+  const look = g.st === 'high' ? ['var(--z3)', 'GZ<br>↑', '#fff'] : g.st === 'low' ? ['#FFF1B8', 'GZ<br>↓', '#2A0A4A'] : [GZ_COLOR, 'GZ', '#2A0A4A'];
+  return `<span class="badge gz" style="background:${look[0]};color:${look[2]};font-size:13px" title="Golden Zone${g.st === 'high' ? ', trop haut' : g.st === 'low' ? ', trop bas' : ''}">${look[1]}</span>`;
 }
 function testItem(t) {
   const a = analyzeSteps(t);
@@ -728,14 +714,14 @@ function viewHome() {
 
 function viewJournal() {
   const Z = currentZones();
-  const withLa = state.sessions.filter(s => num(s.lactate) != null).map(s => ({ x: Date.parse(s.date), y: num(s.lactate), z: zoneOf(num(s.watts), Z), gz: (gzStatus(s) || {}).st === 'in' ? gzStatus(s).band : null })).sort((a, b) => a.x - b.x);
+  const withLa = state.sessions.filter(s => num(s.lactate) != null).map(s => ({ x: Date.parse(s.date), y: num(s.lactate), z: zoneOf(num(s.watts), Z), gz: (gzStatus(s) || {}).st === 'in' })).sort((a, b) => a.x - b.x);
   let chart = '';
   if (withLa.length) {
     let x0 = withLa[0].x, x1 = withLa[withLa.length - 1].x; if (x0 === x1) { x0 -= 3 * 864e5; x1 += 3 * 864e5; }
     chart = `<section class="panel" style="margin-top:16px"><h3 class="hand" style="margin:0 0 6px">Lactate à l'entraînement</h3>
       ${chartSVG({ timeX: true, xRange: [x0, x1], yRange: [0, Math.max(4, gzTop() + .5, ...withLa.map(p => p.y))], xFmt: v => fdateShort(new Date(v).toISOString()), yTitle: 'mmol/L', h: 190,
-        hbands: gzBands(), series: [{ pts: withLa.map(p => ({ x: p.x, y: p.y, fill: p.gz ? (p.gz === 'low' ? BANDS.low.color : '#FFC21A') : p.z ? ZHEX[p.z] : '#ffffff', r: p.gz ? 7.5 : 6 })), color: '#2A0A4A', line: false }] })}
-      <div class="legend"><span><i style="background:var(--z1)"></i>Z1</span><span><i style="background:var(--z2)"></i>Z2</span><span><i style="background:var(--z3)"></i>Z3</span><span><i style="background:#FFE07A"></i>GZ basse</span><span><i style="background:#FFC21A"></i>GZ haute</span></div></section>`;
+        hbands: gzBands(), series: [{ pts: withLa.map(p => ({ x: p.x, y: p.y, fill: p.gz ? GZ_COLOR : p.z ? ZHEX[p.z] : '#ffffff', r: p.gz ? 7.5 : 6 })), color: '#2A0A4A', line: false }] })}
+      <div class="legend"><span><i style="background:var(--z1)"></i>Z1</span><span><i style="background:var(--z2)"></i>Z2</span><span><i style="background:var(--z3)"></i>Z3</span><span><i style="background:#FFC21A"></i>Golden Zone</span></div></section>`;
   }
   const steps = state.tests.filter(t => t.kind === 'steps');
   let trend = '';
@@ -768,11 +754,11 @@ function viewGlobule() {
     <p class="say">Juste sous ton 2e seuil (LT2). Jamais dessus. C'est là que ça se passe.</p>
     <ol>
       <li>Attention au mot "seuil" : ici c'est ton <b>2e seuil</b> (LT2). Ton 1er seuil (LT1), juste au-dessus du lactate de repos, c'est la fin de la Z1 : le terrain des jours faciles, pas de la Golden Zone.</li>
-      <li><b>GZ basse</b> (${fmt(state.gz.low.lo, 1)} à ${fmt(state.gz.low.hi, 1)} mmol) : intervalles longs, par exemple 5 × 8 à 10 min, souvent la séance du matin.</li>
-      <li><b>GZ haute</b> (${fmt(state.gz.high.lo, 1)} à ${fmt(state.gz.high.hi, 1)} mmol) : intervalles plus courts et un peu plus rapides, souvent la séance du soir.</li>
-      <li>Ces plages sont des repères tirés des pratiques citées autour de la méthode, pas des chiffres du livre. Ajuste-les selon tes tests dans les réglages, en bas de cette page.</li>
+      <li><b>Une plage, pas un seuil</b> : ${fmt(state.gz.lo, 1)} à ${fmt(state.gz.hi, 1)} mmol. C'est la plage que donne Marius Bakken pour des athlètes entraînés, volontairement prudente : le lactate varie avec la chaleur, le glycogène et l'erreur du lecteur. Viser un chiffre fixe, c'est se surcharger petit à petit.</li>
+      <li>Même si ton test place ton seuil plus haut (4 mmol par exemple), reste dans cette plage plusieurs mois avant de retester.</li>
+      <li>Intervalles longs : reste dans le bas de la plage, surtout en première moitié. Intervalles courts : après 4 ou 5 répétitions, tu peux t'approcher de 3,0.</li>
       <li>Pique pendant la récup, après le 2e intervalle puis vers la fin. Au-dessus de la plage : baisse les watts au suivant. Le piège, c'est d'aller trop fort, pas trop doucement.</li>
-      <li>Double seuil : GZ basse le matin, GZ haute le soir. Le reste de la semaine en Z1.</li>
+      <li>Double seuil : le matin plus prudent (bas de la plage), le soir un peu plus haut. Le reste de la semaine en Z1.</li>
     </ol>
     <p>Tes watts sont lus sur ta dernière courbe de lactate, là où elle traverse chaque plage, et plafonnés à ton LT2.</p>
   </details>
@@ -804,10 +790,9 @@ function viewGlobule() {
     <button class="btn violet block" data-act="save-name">Enregistrer le prénom</button>
     <div style="height:14px"></div>
     <p class="hand" style="margin:0 0 6px">Golden Zone (mmol)</p>
-    <div class="grid2"><label class="field"><span>GZ basse, de</span><input class="inp" id="set-low-lo" inputmode="decimal" value="${inVal(state.gz.low.lo)}"></label>
-    <label class="field"><span>GZ basse, à</span><input class="inp" id="set-low-hi" inputmode="decimal" value="${inVal(state.gz.low.hi)}"></label>
-    <label class="field"><span>GZ haute, de</span><input class="inp" id="set-high-lo" inputmode="decimal" value="${inVal(state.gz.high.lo)}"></label>
-    <label class="field"><span>GZ haute, à</span><input class="inp" id="set-high-hi" inputmode="decimal" value="${inVal(state.gz.high.hi)}"></label></div>
+    <div class="grid2"><label class="field"><span>De (mmol)</span><input class="inp" id="set-gz-lo" inputmode="decimal" value="${inVal(state.gz.lo)}"></label>
+    <label class="field"><span>À (mmol)</span><input class="inp" id="set-gz-hi" inputmode="decimal" value="${inVal(state.gz.hi)}"></label></div>
+    <p class="muted" style="font-size:13px;margin:-4px 0 10px">Par défaut 2,3 à 3,0 mmol (Marius Bakken).</p>
     <button class="btn block" style="background:#FFC21A;color:#2A0A4A" data-act="save-gz">Enregistrer ma Golden Zone</button>
     <div style="height:14px"></div>
     <p class="hand" style="margin:0 0 6px">Mon protocole paliers (5 min + 30 s de pause)</p>
@@ -1020,19 +1005,18 @@ function sessionForm(s, kind) {
       let h = '';
       if (z) h = `<div class="result" style="margin-top:0"><span class="zdot" style="display:inline-grid;width:28px;height:28px;background:${ZCOL[z]};vertical-align:middle;margin-right:8px">${z}</span><b>${fmt(w)} W = zone ${z}</b>, ${names[z].toLowerCase()}`;
       if (z === 1 && la != null && Z.s && Z.s.lt1La != null && la > Z.s.lt1La + 0.3) h += `<br><span class="hand">Lactate au-dessus de ton LT1 (${fmt(Z.s.lt1La, 1)} mmol) pour de la Z1. Fatigue, chaleur, ou zones à revoir ?</span>`;
-      const kind = $('#f-kind', root).value, G = goldenZone(Z), band = KIND_BAND[kind];
+      const kind = $('#f-kind', root).value, G = goldenZone(Z), band = GZ_KINDS.includes(kind);
       let gz = '';
       if (band && la != null) {
-        const r = state.gz[band], nm = BANDS[band].label;
+        const r = state.gz, nm = 'Golden Zone';
         gz = la > r.hi ? `<b>${fmt(la - r.hi, 1)} mmol au-dessus de ta ${nm}.</b> Baisse un peu les watts au prochain intervalle : on reste sous ton 2e seuil (LT2).`
           : la < r.lo ? `Sous ta ${nm} (${fmt(r.lo, 1)} à ${fmt(r.hi, 1)} mmol). Tu peux monter légèrement.`
           : `<b>Pile dans ta ${nm}.</b> Globule approuve.`;
       } else if (GZ_QUALITY.includes(kind) && la != null) {
         const g = gzStatus({ kind, lactate: la });
-        gz = g ? `Ce lactate tombe dans ta <b>${BANDS[g.band].label}</b>.` : la > gzTop() ? 'Au-dessus de ta Golden Zone : séance plus dure que du sous-seuil.' : '';
-      } else if (band && w != null && G[band].wLo != null) {
-        const B = G[band];
-        gz = w > B.wHi ? `Watts au-dessus de ta ${BANDS[band].label} (${fmt(B.wLo)} à ${fmt(B.wHi)} W). Vérifie au lactate.` : w < B.wLo ? `Watts sous ta ${BANDS[band].label}.` : `Watts dans ta ${BANDS[band].label}.`;
+        gz = g ? 'Ce lactate tombe dans ta <b>Golden Zone</b>.' : la > gzTop() ? 'Au-dessus de ta Golden Zone : séance plus dure que du sous-seuil.' : '';
+      } else if (band && w != null && G.wLo != null) {
+        gz = w > G.wHi ? `Watts au-dessus de ta Golden Zone (${fmt(G.wLo)} à ${fmt(G.wHi)} W). Vérifie au lactate.` : w < G.wLo ? 'Watts sous ta Golden Zone.' : 'Watts dans ta Golden Zone.';
       }
       $('#preview', root).innerHTML = (z ? h + '</div>' : '') + (gz ? `<div class="result gz-result" style="margin-top:${z ? 0 : 0}px">${gz}</div>` : '');
     };
@@ -1060,7 +1044,7 @@ function exportCSV() {
     const a = analyzeSteps(t);
     a.steps.forEach((s, i) => rows.push(r({ type: 'test_paliers', date: t.date, source: t.source, palier: i + 1, watts: s.w, fc: s.hr, lactate_mmol: s.la, rpe: s.rpe, lt1_auto_w: a.autoW, lt1_manuel_w: a.manualW, lt2_auto_w: a.lt2Auto, lt2_manuel_w: a.lt2Manual, note: i === 0 ? t.note : '' })));
   });
-  [...state.sessions].sort(byDateDesc).forEach(s => rows.push(r({ type: 'seance', date: s.date, source: s.source, watts: s.watts, fc: s.hr, lactate_mmol: s.lactate, rpe: s.rpe, duree_min: s.duration_min, type_seance: s.kind, golden_zone: (g => g ? BANDS[g.band].name + (g.st === 'in' ? '' : g.st === 'high' ? '_trop_haut' : '_trop_bas') : '')(gzStatus(s)), note: s.note })));
+  [...state.sessions].sort(byDateDesc).forEach(s => rows.push(r({ type: 'seance', date: s.date, source: s.source, watts: s.watts, fc: s.hr, lactate_mmol: s.lactate, rpe: s.rpe, duree_min: s.duration_min, type_seance: s.kind, golden_zone: (g => g ? (g.st === 'in' ? 'dedans' : g.st === 'high' ? 'trop_haut' : 'trop_bas') : '')(gzStatus(s)), note: s.note })));
   const q = v => { const s = String(v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
   const csv = [cols, ...rows].map(row => row.map(q).join(',')).join('\n');
   const name = `globule_export_${todayISO()}.csv`;
@@ -1196,7 +1180,7 @@ document.addEventListener('click', async e => {
       render(); toast(name ? `Salut ${name} !` : 'Prénom effacé');
       break;
     }
-    case 'new-gz': sessionForm(null, BANDS[el.dataset.band || 'low'].kind); break;
+    case 'new-gz': sessionForm(null, 'Golden Zone'); break;
     case 'save-proto': {
       const P = { start: Math.round(num($('#set-p-start').value)), step: Math.round(num($('#set-p-step').value)), n: Math.round(num($('#set-p-n').value)) };
       if (!validProto(P)) { toast('Protocole invalide : départ 50 à 500 W, +5 à 100 W, 3 à 15 paliers'); break; }
@@ -1208,12 +1192,11 @@ document.addEventListener('click', async e => {
     }
     case 'save-gz': {
       const v = id => num($(id).value);
-      const gz = { low: { lo: v('#set-low-lo'), hi: v('#set-low-hi') }, high: { lo: v('#set-high-lo'), hi: v('#set-high-hi') } };
-      const ok = ['low', 'high'].every(k => gz[k].lo != null && gz[k].hi != null && gz[k].lo > 0 && gz[k].hi > gz[k].lo && gz[k].hi <= 10);
-      if (!ok) { toast('Plages invalides : "de" plus petit que "à", en mmol'); break; }
+      const gz = { lo: v('#set-gz-lo'), hi: v('#set-gz-hi') };
+      if (!validGz(gz)) { toast('Plage invalide : "de" plus petit que "à", entre 0,5 et 10 mmol'); break; }
       state.gz = gz;
-      if (DEMO) localStorage.setItem('globule:gz2', JSON.stringify(gz));
-      else { const { error } = await sb.auth.updateUser({ data: { gz2: gz } }); if (error) { toast('Pas enregistré : ' + error.message); break; } }
+      if (DEMO) localStorage.setItem('globule:gz3', JSON.stringify(gz));
+      else { const { error } = await sb.auth.updateUser({ data: { gz3: gz } }); if (error) { toast('Pas enregistré : ' + error.message); break; } }
       render(); toast('Golden Zone enregistrée');
       break;
     }
@@ -1243,14 +1226,14 @@ async function start() {
     app().innerHTML = header() + hero('Impossible de récupérer tes données. Vérifie ta connexion.', 124) + `<button class="btn rose block" onclick="start()">Réessayer</button><p class="err">${esc(e.message || '')}</p>`;
   }
 }
-function validGz(g) { return g && ['low', 'high'].every(k => g[k] && num(g[k].hi) > num(g[k].lo)); }
+function validGz(g) { return !!g && num(g.lo) >= 0.5 && num(g.hi) > num(g.lo) && num(g.hi) <= 10; }
 function loadProto(u) { const p = u && u.user_metadata && u.user_metadata.proto; if (validProto(p)) state.proto = { start: num(p.start), step: num(p.step), n: num(p.n) }; }
-function loadGz(u) { const g = u && u.user_metadata && u.user_metadata.gz2; if (validGz(g)) state.gz = { low: { lo: num(g.low.lo), hi: num(g.low.hi) }, high: { lo: num(g.high.lo), hi: num(g.high.hi) } }; }
+function loadGz(u) { const g = u && u.user_metadata && u.user_metadata.gz3; state.gz = validGz(g) ? { lo: num(g.lo), hi: num(g.hi) } : { ...GZ_DEFAULT }; }
 async function boot() {
   if (DEMO) {
     seedDemo();
     state.name = localStorage.getItem('globule:name') || '';
-    try { const g = JSON.parse(localStorage.getItem('globule:gz2') || 'null'); if (validGz(g)) state.gz = g; } catch { /* plages par défaut */ }
+    try { const g = JSON.parse(localStorage.getItem('globule:gz3') || 'null'); if (validGz(g)) state.gz = { lo: num(g.lo), hi: num(g.hi) }; } catch { /* plages par défaut */ }
     try { const pr = JSON.parse(localStorage.getItem('globule:proto') || 'null'); if (validProto(pr)) state.proto = pr; } catch { /* protocole déduit */ }
     return start();
   }
