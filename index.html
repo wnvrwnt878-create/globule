@@ -842,13 +842,14 @@ function wireSeg(root) {
     b.parentElement.dispatchEvent(new Event('input', { bubbles: true }));
   }));
 }
-async function persist(table, id, row, msg, event) {
+async function persist(table, id, row, msg, event, after) {
   try {
     const before = bestMarks();
-    if (id) await Store().update(table, id, row); else await Store().insert(table, row);
+    const saved = id ? await Store().update(table, id, row) : await Store().insert(table, row);
     await loadAll();
     if (typeof event === 'function') state.mascotEvent = event(before);
     closeSheet(); render(); toast(msg);
+    if (typeof after === 'function' && saved && saved.id) after(saved);
   } catch (e) { const er = $('.sheet .err'); if (er) er.textContent = 'Pas enregistré : ' + (e.message || 'erreur réseau') + '. Réessaie.'; }
 }
 async function destroy(table, id, what) {
@@ -903,8 +904,8 @@ function stepForm(test) {
     wireSeg(root);
     const upd = () => {
       const a = analyzeSteps({ data: { steps: readSteps(root) } });
-      $('#preview', root).innerHTML = a.steps.length < 3 ? '<span class="hand">Remplis au moins 3 paliers et je cherche tes seuils.</span>'
-        : `<div class="kv"><div><b>${a.autoW != null ? fmt(a.autoW) : '?'}</b><span>LT1 auto (W)</span></div><div><b>${a.lt2Auto != null ? fmt(a.lt2Auto) : '?'}</b><span>LT2 auto (W)</span></div><div><b>${fmt(a.maxLa, 1)}</b><span>mmol max</span></div></div>
+      $('#preview', root).innerHTML = a.steps.length < 3 ? liveStepChart(a) + '<span class="hand">Remplis au moins 3 paliers et je cherche tes seuils.</span>'
+        : liveStepChart(a) + `<div class="kv"><div><b>${a.autoW != null ? fmt(a.autoW) : '?'}</b><span>LT1 auto (W)</span></div><div><b>${a.lt2Auto != null ? fmt(a.lt2Auto) : '?'}</b><span>LT2 auto (W)</span></div><div><b>${fmt(a.maxLa, 1)}</b><span>mmol max</span></div></div>
           <p class="hand" style="margin:8px 0 0">${a.autoW == null ? 'Pas encore de saut de 0,4 mmol. Continue.' : a.lt2Auto == null ? 'LT1 trouvé. Encore 2 paliers pour LT2.' : a.maxLa < 3.5 ? 'Encore un palier ou deux : vise 4 mmol.' : 'Les deux seuils sont là. Tu peux arrêter.'}</p>`;
     };
     root.addEventListener('input', upd); upd();
@@ -924,10 +925,32 @@ function saveSteps(root) {
     data: { baseline: num($('#f-base', root).value), steps }, note: $('#f-note', root).value.trim() || null,
     lt1_manual: old && old.lt1_manual != null && valid.some(s => s.w === num(old.lt1_manual)) ? old.lt1_manual : null,
     lt2_manual: old && old.lt2_manual != null ? old.lt2_manual : null
-  }, 'Test enregistré', before => { const now = bestMarks(); return beats(now.lt1, before.lt1) || beats(now.lt2, before.lt2) ? 'record' : null; });
+  }, 'Test enregistré', before => { const now = bestMarks(); return beats(now.lt1, before.lt1) || beats(now.lt2, before.lt2) ? 'record' : null; },
+  saved => { state.pick = 'lt1'; stepDetail(saved.id); });
 }
 
 /* Test paliers : détail + choix manuel de LT1 ou LT2 */
+// Golden Zone lue sur un test donné, plafonnée à son LT2
+function testGZ(a) {
+  const { lo, hi } = state.gz;
+  let wLo = crossW(a.steps, lo), wHi = crossW(a.steps, hi);
+  if (wLo != null && wHi == null && a.lt2W != null) wHi = a.lt2W;
+  if (wHi != null && a.lt2W != null && wHi > a.lt2W) wHi = a.lt2W;
+  if (wLo == null || wHi == null || wHi <= wLo) return null;
+  return { wLo, wHi, hrLo: interpHr(a.steps, wLo), hrHi: interpHr(a.steps, wHi) };
+}
+function liveStepChart(a) {
+  if (a.steps.length < 2) return '';
+  const ws = a.steps.map(s => s.w), las = a.steps.map(s => s.la), hrs = a.steps.map(s => s.hr).filter(v => v != null);
+  const series = [];
+  if (hrs.length > 1) series.push({ pts: a.steps.map(s => ({ x: s.w, y: s.hr })), color: '#6A2BF0', dash: '5 5', right: true, dots: false, width: 2 });
+  series.push({ pts: a.steps.map(s => ({ x: s.w, y: s.la })), color: '#FF2D8E', width: 3.5, r: 5 });
+  const vlines = [];
+  if (a.lt1W != null) vlines.push({ x: a.lt1W, color: '#13B98A', label: 'LT1' });
+  if (a.lt2W != null) vlines.push({ x: a.lt2W, color: '#C2006A', label: 'LT2' });
+  return `<p class="hand" style="margin:0 0 4px">Ta courbe en direct</p>` + chartSVG({ xRange: [Math.min(...ws), Math.max(...ws)], yRange: [0, Math.max(4, gzTop() + .5, ...las)], y2Range: hrs.length > 1 ? [Math.min(...hrs) - 5, Math.max(...hrs) + 5] : null,
+    xTitle: 'watts', yTitle: 'mmol/L', y2Title: hrs.length > 1 ? 'FC' : '', h: 200, series, vlines, hbands: gzBands() });
+}
 function stepDetail(id) {
   const t = state.tests.find(x => x.id === id); if (!t) return;
   const a = analyzeSteps(t), pick = state.pick === 'lt2' ? 'lt2' : 'lt1';
@@ -968,6 +991,7 @@ function stepDetail(id) {
       <div class="seg" role="group" aria-label="Seuil à régler"><button type="button" data-act="pick" data-id="${t.id}" data-mode="lt1" aria-pressed="${pick === 'lt1'}">LT1</button><button type="button" data-act="pick" data-id="${t.id}" data-mode="lt2" aria-pressed="${pick === 'lt2'}">LT2</button></div></div>
     <div class="kv">${box(a.lt1W, a.lt1Hr, 'LT1 (W)')}${box(a.lt2W, a.lt2Hr, 'LT2 (W)')}<div><b>${a.maxLa != null ? fmt(a.maxLa, 1) : 'n.d.'}</b><span>mmol max</span></div></div>
     <div class="result"><span class="hand">${m1}<br>${m2}</span></div>
+    ${(G => G ? `<div class="result gz-result" style="margin-top:0">★ <b>Ta Golden Zone sur ce test : ${fmt(G.wLo)} à ${fmt(G.wHi)} W</b>${G.hrLo != null && G.hrHi != null ? `, FC ${fmt(G.hrLo)} à ${fmt(G.hrHi)}` : ''} (${fmt(state.gz.lo, 1)} à ${fmt(state.gz.hi, 1)} mmol).</div>` : '')(testGZ(a))}
     ${a.steps.length ? (matchesProto(a.steps, proto()) ? '<p class="chip" style="display:inline-block;margin:0 0 12px">Protocole standard</p>' : `<p class="warn" style="margin:0 0 12px">Hors protocole (départ ${fmt(a.steps[0].w)} W) : à comparer avec prudence aux autres tests.</p>`) : ''}
     ${a.manualW != null ? `<button class="btn block" data-act="reset-thr" data-field="lt1_manual" data-id="${t.id}">LT1 automatique</button><div style="height:10px"></div>` : ''}
     ${a.lt2Manual != null ? `<button class="btn block" data-act="reset-thr" data-field="lt2_manual" data-id="${t.id}">LT2 automatique</button><div style="height:10px"></div>` : ''}
@@ -1201,7 +1225,8 @@ function saveIntervals(root) {
     date: $('#f-date', root).value || todayISO(), kind: T.target, duration_min: dur == null ? null : Math.round(dur),
     watts: avgOf(iv, 'w'), hr: avgOf(iv, 'hr'), lactate: la, rpe: rpes.length ? Math.max(...rpes) : null,
     source: segVal(root, 'src'), note: $('#f-note', root).value.trim() || null, intervals: (all => all.slice(0, all.map(ivFilled).lastIndexOf(true) + 1))(readRows(root)), template: T
-  }, 'Séance enregistrée', () => { const g = gzStatus({ kind: T.target, lactate: la }); return g ? (g.st === 'in' && la != null ? 'golden' : g.st === 'high' ? 'high' : null) : null; });
+  }, 'Séance enregistrée', () => { const g = gzStatus({ kind: T.target, lactate: la }); return g ? (g.st === 'in' && la != null ? 'golden' : g.st === 'high' ? 'high' : null) : null; },
+  saved => { const ss = state.sessions.find(x => x.id === saved.id); if (ss) intervalForm(null, ss); });
 }
 
 /* ---------- Export CSV (format machine : point décimal, dates ISO) ---------- */
