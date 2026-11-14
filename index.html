@@ -133,6 +133,8 @@ h2.title{ font-family:var(--f-display); font-size:22px; margin:22px 0 10px; line
 .chart{ width:100%; height:auto; display:block; overflow:visible; }
 .chart text{ font-family:var(--f-body); font-size:10.5px; fill:var(--muted); }
 .chart .axis{ stroke:var(--muted); stroke-opacity:.35; stroke-width:1; }
+.chart .hit{ cursor:pointer; }
+.chart .hit:focus-visible{ outline:none; stroke:var(--violet); stroke-width:3; }
 .chart .grid{ stroke:var(--muted); stroke-opacity:.15; stroke-width:1; }
 .legend{ display:flex; flex-wrap:wrap; gap:6px 14px; font-size:13px; margin-top:8px; }
 .legend i{ display:inline-block; width:14px; height:4px; border-radius:2px; vertical-align:middle; margin-right:6px; }
@@ -593,6 +595,7 @@ function chartSVG({ series, xRange, yRange, y2Range, xFmt = v => fmt(v), yFmt = 
     }
     if (s.dots !== false) pts.forEach(p => {
       g += `<circle cx="${sx(p.x).toFixed(1)}" cy="${f(p.y).toFixed(1)}" r="${p.r || s.r || 4.5}" fill="${p.fill || s.color}" stroke="#2A0A4A" stroke-width="2" ${p.attrs || ''}/>`;
+      if (p.act) g += `<circle class="hit" cx="${sx(p.x).toFixed(1)}" cy="${f(p.y).toFixed(1)}" r="16" fill="transparent" data-act="${p.act}" data-id="${esc(p.id)}" role="button" tabindex="0" aria-label="${esc(p.label || 'Ouvrir')}"><title>${esc(p.label || '')}</title></circle>`;
     });
   });
   return `<svg class="chart" viewBox="0 0 ${W} ${h}" role="img">${g}${extra ? extra(sx, sy) : ''}</svg>`;
@@ -718,23 +721,23 @@ function viewHome() {
 
 function viewJournal() {
   const Z = currentZones();
-  const withLa = state.sessions.filter(s => num(s.lactate) != null).map(s => ({ x: Date.parse(s.date), y: num(s.lactate), z: zoneOf(num(s.watts), Z), gz: (gzStatus(s) || {}).st === 'in' })).sort((a, b) => a.x - b.x);
+  const withLa = state.sessions.filter(s => num(s.lactate) != null).map(s => ({ id: s.id, label: `${(s.template && s.template.name) || s.kind || 'Séance'}, ${fdate(s.date)}, ${fmt(num(s.lactate), 1)} mmol`, x: Date.parse(s.date), y: num(s.lactate), z: zoneOf(num(s.watts), Z), gz: (gzStatus(s) || {}).st === 'in' })).sort((a, b) => a.x - b.x);
   let chart = '';
   if (withLa.length) {
     let x0 = withLa[0].x, x1 = withLa[withLa.length - 1].x; if (x0 === x1) { x0 -= 3 * 864e5; x1 += 3 * 864e5; }
-    chart = `<section class="panel" style="margin-top:16px"><h3 class="hand" style="margin:0 0 6px">Lactate à l'entraînement</h3>
+    chart = `<section class="panel" style="margin-top:16px"><h3 class="hand" style="margin:0 0 6px">Lactate à l'entraînement</h3><p class="tap-hint" style="margin:0 0 4px">Touche un point pour ouvrir la séance.</p>
       ${chartSVG({ timeX: true, xRange: [x0, x1], yRange: [0, Math.max(4, gzTop() + .5, ...withLa.map(p => p.y))], xFmt: v => fdateShort(new Date(v).toISOString()), yTitle: 'mmol/L', h: 190,
-        hbands: gzBands(), series: [{ pts: withLa.map(p => ({ x: p.x, y: p.y, fill: p.gz ? GZ_COLOR : p.z ? ZHEX[p.z] : '#ffffff', r: p.gz ? 7.5 : 6 })), color: '#2A0A4A', line: false }] })}
+        hbands: gzBands(), series: [{ pts: withLa.map(p => ({ act: 'edit-session', id: p.id, label: p.label, x: p.x, y: p.y, fill: p.gz ? GZ_COLOR : p.z ? ZHEX[p.z] : '#ffffff', r: p.gz ? 7.5 : 6 })), color: '#2A0A4A', line: false }] })}
       <div class="legend"><span><i style="background:var(--z1)"></i>Z1</span><span><i style="background:var(--z2)"></i>Z2</span><span><i style="background:var(--z3)"></i>Z3</span><span><i style="background:#FFC21A"></i>Golden Zone</span></div></section>`;
   }
   const steps = state.tests.filter(t => t.kind === 'steps');
   let trend = '';
-  const l1 = steps.map(t => ({ x: Date.parse(t.date), y: analyzeSteps(t).lt1W })).filter(p => p.y != null).sort((a, b) => a.x - b.x);
-  const l2 = steps.map(t => ({ x: Date.parse(t.date), y: analyzeSteps(t).lt2W })).filter(p => p.y != null).sort((a, b) => a.x - b.x);
+  const l1 = steps.map(t => ({ act: 'open-steps', id: t.id, label: `Test du ${fdate(t.date)}`, x: Date.parse(t.date), y: analyzeSteps(t).lt1W })).filter(p => p.y != null).sort((a, b) => a.x - b.x);
+  const l2 = steps.map(t => ({ act: 'open-steps', id: t.id, label: `Test du ${fdate(t.date)}`, x: Date.parse(t.date), y: analyzeSteps(t).lt2W })).filter(p => p.y != null).sort((a, b) => a.x - b.x);
   if (l1.length + l2.length >= 2) {
     const all = [...l1, ...l2], xs = all.map(p => p.x), ys = all.map(p => p.y);
     let x0 = Math.min(...xs), x1 = Math.max(...xs); if (x0 === x1) { x0 -= 7 * 864e5; x1 += 7 * 864e5; }
-    trend = `<section class="panel" style="margin-top:14px"><h3 class="hand" style="margin:0 0 6px">Tes seuils dans le temps</h3>
+    trend = `<section class="panel" style="margin-top:14px"><h3 class="hand" style="margin:0 0 6px">Tes seuils dans le temps</h3><p class="tap-hint" style="margin:0 0 4px">Touche un point pour ouvrir le test.</p>
       ${chartSVG({ timeX: true, xRange: [x0, x1], yRange: [Math.min(...ys) - 10, Math.max(...ys) + 10], xFmt: v => fdateShort(new Date(v).toISOString()), yFmt: v => fmt(v), yTitle: 'W', h: 170,
         series: [{ pts: l1, color: '#13B98A', r: 5.5 }, { pts: l2, color: '#FF2D8E', r: 5.5 }] })}
       <div class="legend"><span><i style="background:#13B98A"></i>LT1</span><span><i style="background:#FF2D8E"></i>LT2</span></div></section>`;
@@ -1368,6 +1371,7 @@ document.addEventListener('click', async e => {
 });
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') closeSheet();
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('.chart .hit')) { e.preventDefault(); e.target.dispatchEvent(new MouseEvent('click', { bubbles: true })); }
   if (e.key === 'Enter' && e.target.closest('.login .inp')) { e.preventDefault(); const b = $('.login [data-main]'); if (b && !b.disabled) b.click(); }
 });
 
