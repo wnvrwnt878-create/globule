@@ -1,0 +1,1209 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Globule, labo lactate</title>
+<meta name="theme-color" content="#F3E3FF" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1A0633" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Globule">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bowlby+One&family=Caveat+Brush&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --rose:#FF2D8E; --violet:#6A2BF0; --menthe:#3FE8B9; --jaune:#FFE45C; --sang:#E8173F;
+  --ink:#2A0A4A;
+  --bg-a:#E9D5FF; --bg-b:#F8D9F0; --bg-c:#FFC4E1;
+  --surface:#FFFFFF; --surface-2:#FBF3FF;
+  --text:#2A0A4A; --muted:#6E5A8A; --line:#2A0A4A; --shadow:#2A0A4A;
+  --z1:#3FE8B9; --z2:#FFE45C; --z3:#FF2D8E;
+  --f-display:"Bowlby One", "Arial Black", Impact, system-ui, sans-serif;
+  --f-body:"Outfit", -apple-system, "Segoe UI", Roboto, sans-serif;
+  --f-hand:"Caveat Brush", "Comic Sans MS", "Marker Felt", cursive;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg-a:#1A0633; --bg-b:#260A45; --bg-c:#3A0B42;
+    --surface:#2C1150; --surface-2:#351760;
+    --text:#F8EEFF; --muted:#C9B6E6; --line:#0B0218; --shadow:#0B0218;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg-a:#1A0633; --bg-b:#260A45; --bg-c:#3A0B42;
+  --surface:#2C1150; --surface-2:#351760;
+  --text:#F8EEFF; --muted:#C9B6E6; --line:#0B0218; --shadow:#0B0218;
+  color-scheme: dark;
+}
+:root{ box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); }
+*,*::before,*::after{ box-sizing:inherit; }
+html{ scroll-padding-top:env(safe-area-inset-top,0px); -webkit-text-size-adjust:100%; }
+html,body{ margin:0; }
+body{
+  min-height:100vh; font-family:var(--f-body); font-size:16px; line-height:1.45; color:var(--text);
+  background:linear-gradient(172deg,var(--bg-a) 0%,var(--bg-b) 55%,var(--bg-c) 100%) fixed;
+  background-color:var(--bg-a);
+  padding-bottom:calc(92px + env(safe-area-inset-bottom,0px));
+}
+body::before{ content:""; position:fixed; inset:0 0 auto; height:env(safe-area-inset-top,0px); z-index:30; background:var(--bg-a); }
+button,input,select,textarea{ font:inherit; color:inherit; }
+:focus-visible{ outline:3px solid var(--violet); outline-offset:2px; }
+.wrap{ max-width:560px; margin:0 auto; padding:0 16px; }
+
+/* En-tête */
+.top{ display:flex; align-items:center; justify-content:space-between; padding:14px 0 6px; }
+.wordmark{ font-family:var(--f-display); font-size:30px; letter-spacing:.5px; color:var(--rose);
+  text-shadow:3px 3px 0 var(--ink); -webkit-text-stroke:1.5px var(--ink); line-height:1; margin:0; }
+.wordmark small{ display:block; font-family:var(--f-hand); font-size:18px; color:var(--violet); -webkit-text-stroke:0; text-shadow:none; margin-top:4px; letter-spacing:0; }
+.demo-badge{ font-family:var(--f-hand); font-size:16px; background:var(--jaune); color:var(--ink); border:2px solid var(--ink); border-radius:12px; padding:2px 10px; transform:rotate(3deg); }
+
+/* Globule + bulle */
+.hero{ display:flex; align-items:flex-end; gap:6px; margin:6px 0 14px; }
+.hero .globule{ flex:none; }
+.hero .globule{ margin-left:-8px; }
+.bubble{ position:relative; flex:1; background:var(--surface); border:2.5px solid var(--line); border-radius:22px 22px 22px 6px;
+  padding:12px 14px; font-family:var(--f-hand); font-size:21px; line-height:1.2; box-shadow:3px 3px 0 var(--shadow); margin-bottom:62px; }
+.bubble::before{ content:""; position:absolute; left:-12px; bottom:10px; width:16px; height:16px; background:var(--surface);
+  border-left:2.5px solid var(--line); border-bottom:2.5px solid var(--line); transform:skewY(30deg) rotate(10deg); }
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .globule{ filter:drop-shadow(0 0 7px rgba(255,190,230,.35)); } }
+
+/* Blocs */
+h2.title{ font-family:var(--f-display); font-size:22px; margin:22px 0 10px; line-height:1.1; }
+.panel{ background:var(--surface); border:2.5px solid var(--line); border-radius:20px; box-shadow:4px 4px 0 var(--shadow); padding:14px; }
+.panel + .panel{ margin-top:14px; }
+.muted{ color:var(--muted); }
+.hand{ font-family:var(--f-hand); font-size:20px; line-height:1.2; }
+
+/* Zones : le thermomètre */
+.zones{ padding:16px 14px 14px; }
+.zones h3{ font-family:var(--f-display); font-size:18px; margin:0 0 12px; }
+.thermo{ position:relative; display:flex; height:46px; border:2.5px solid var(--line); border-radius:999px; overflow:hidden; }
+.thermo div{ display:flex; align-items:center; justify-content:center; font-family:var(--f-display); font-size:17px; color:var(--ink); }
+.thermo .z1{ background:var(--z1); flex:1.15; } .thermo .z2{ background:var(--z2); flex:1; border-left:2.5px solid var(--line); border-right:2.5px solid var(--line);} .thermo .z3{ background:var(--z3); flex:.85; }
+.marks{ position:relative; height:44px; margin-top:4px; }
+.mark{ position:absolute; top:0; transform:translateX(-50%); text-align:center; white-space:nowrap; }
+.mark b{ display:block; font-family:var(--f-display); font-size:16px; line-height:1.1; }
+.mark span{ font-size:12px; color:var(--muted); }
+.zone-rows{ margin-top:10px; display:grid; gap:8px; }
+.zrow{ display:grid; grid-template-columns:34px 1fr auto; align-items:center; gap:10px; }
+.zdot{ width:34px; height:34px; border-radius:50%; border:2.5px solid var(--line); display:grid; place-items:center; font-family:var(--f-display); font-size:14px; color:var(--ink); }
+.zrow .what{ font-size:14px; color:var(--muted); line-height:1.25; }
+.zrow .what strong{ color:var(--text); display:block; font-size:15px; }
+.zrow .val{ text-align:right; font-weight:700; font-variant-numeric:tabular-nums; }
+.zrow .val small{ display:block; font-weight:500; color:var(--muted); font-size:12px; }
+.extras{ display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
+.chip{ border:2px solid var(--line); border-radius:999px; padding:4px 10px; font-size:13px; font-weight:600; background:var(--surface-2); }
+.chip b{ font-variant-numeric:tabular-nums; }
+.warn{ margin-top:10px; font-size:14px; background:var(--jaune); color:var(--ink); border:2px solid var(--ink); border-radius:12px; padding:8px 10px; }
+
+/* Boutons */
+.actions{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:16px 0 4px; }
+.btn{ appearance:none; border:2.5px solid var(--line); background:var(--surface); border-radius:999px; padding:11px 14px; font-weight:700;
+  box-shadow:3px 3px 0 var(--shadow); cursor:pointer; touch-action:manipulation; transition:transform .08s, box-shadow .08s; }
+.btn:active{ transform:translate(3px,3px); box-shadow:0 0 0 var(--shadow); }
+.btn.big{ border-radius:18px; padding:12px 6px; display:flex; flex-direction:column; align-items:center; gap:2px; font-size:14px; line-height:1.15; }
+.btn.big .ico{ font-family:var(--f-display); font-size:22px; line-height:1; }
+.btn.rose{ background:var(--rose); color:#fff; } .btn.violet{ background:var(--violet); color:#fff; } .btn.menthe{ background:var(--menthe); color:var(--ink); } .btn.jaune{ background:var(--jaune); color:var(--ink);}
+.btn.ghost{ box-shadow:none; background:transparent; }
+.btn.danger{ background:transparent; color:var(--sang); border-color:var(--sang); box-shadow:none; }
+.btn.block{ width:100%; }
+.row-btns{ display:flex; gap:10px; margin-top:14px; }
+.row-btns .btn{ flex:1; }
+
+/* Listes */
+.list{ background:var(--surface); border:2.5px solid var(--line); border-radius:18px; overflow:hidden; box-shadow:4px 4px 0 var(--shadow); }
+.item{ display:grid; grid-template-columns:44px 1fr auto; gap:10px; align-items:center; width:100%; text-align:left; padding:11px 12px; background:none; border:0; border-bottom:2px dashed color-mix(in srgb, var(--line) 25%, transparent); cursor:pointer; }
+.item:last-child{ border-bottom:0; }
+.item .badge{ width:44px; height:44px; border-radius:14px; border:2.5px solid var(--line); display:grid; place-items:center; font-family:var(--f-display); font-size:13px; color:var(--ink); line-height:1; text-align:center; }
+.item .main{ min-width:0; }
+.item .main strong{ display:block; font-size:15px; }
+.item .main span{ display:block; font-size:13px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.item .num{ text-align:right; font-weight:700; font-variant-numeric:tabular-nums; }
+.item .num small{ display:block; font-weight:500; font-size:12px; color:var(--muted); }
+.month{ font-family:var(--f-hand); font-size:22px; margin:18px 4px 6px; color:var(--violet); }
+.empty{ text-align:center; padding:22px 14px; }
+.empty .hand{ margin-bottom:12px; }
+
+/* Graphiques */
+.chart{ width:100%; height:auto; display:block; overflow:visible; }
+.chart text{ font-family:var(--f-body); font-size:10.5px; fill:var(--muted); }
+.chart .axis{ stroke:var(--muted); stroke-opacity:.35; stroke-width:1; }
+.chart .grid{ stroke:var(--muted); stroke-opacity:.15; stroke-width:1; }
+.legend{ display:flex; flex-wrap:wrap; gap:6px 14px; font-size:13px; margin-top:8px; }
+.legend i{ display:inline-block; width:14px; height:4px; border-radius:2px; vertical-align:middle; margin-right:6px; }
+.tap-hint{ font-size:13px; color:var(--muted); margin-top:6px; }
+
+/* Onglets */
+.tabbar{ position:fixed; left:0; right:0; bottom:0; z-index:40; padding:8px 12px calc(10px + env(safe-area-inset-bottom,0px));
+  background:color-mix(in srgb, var(--bg-c) 82%, transparent); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); border-top:2.5px solid var(--line); }
+.tabbar .inner{ max-width:560px; margin:0 auto; display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }
+.tab{ appearance:none; border:2.5px solid transparent; background:none; border-radius:16px; padding:6px 2px 5px; display:flex; flex-direction:column; align-items:center; gap:2px; font-size:12px; font-weight:600; cursor:pointer; color:var(--text); }
+.tab svg{ width:24px; height:24px; }
+.tab[aria-current="page"]{ background:var(--rose); color:#fff; border-color:var(--line); box-shadow:2px 2px 0 var(--shadow); }
+
+/* Feuille modale */
+.backdrop{ position:fixed; inset:0; z-index:50; background:rgba(26,6,51,.45); display:flex; align-items:flex-end; justify-content:center; animation:fade .15s ease-out; }
+.sheet{ width:100%; max-width:560px; max-height:calc(100% - 24px - env(safe-area-inset-top,0px)); overflow-y:auto; -webkit-overflow-scrolling:touch;
+  background:var(--surface); border:2.5px solid var(--line); border-bottom:0; border-radius:26px 26px 0 0; padding:10px 16px calc(22px + env(safe-area-inset-bottom,0px)); animation:up .22s cubic-bezier(.2,.9,.3,1.1); }
+.sheet .grab{ width:44px; height:5px; border-radius:3px; background:var(--muted); opacity:.4; margin:2px auto 8px; }
+.sheet h3{ font-family:var(--f-display); font-size:22px; margin:4px 0 12px; display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.sheet h3 .x{ font-family:var(--f-body); font-size:15px; font-weight:600; }
+@keyframes up{ from{ transform:translateY(40px); opacity:.4; } to{ transform:none; opacity:1; } }
+@keyframes fade{ from{ opacity:0; } to{ opacity:1; } }
+@media (prefers-reduced-motion: reduce){ .sheet,.backdrop{ animation:none; } }
+
+/* Formulaires */
+.field{ display:block; margin-bottom:12px; }
+.field > span{ display:block; font-size:13px; font-weight:600; color:var(--muted); margin-bottom:4px; }
+.inp{ width:100%; border:2.5px solid var(--line); border-radius:14px; padding:10px 12px; background:var(--surface-2); font-size:16px; min-height:46px; }
+textarea.inp{ min-height:70px; resize:vertical; }
+.grid2{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.grid3{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
+.seg{ display:flex; border:2.5px solid var(--line); border-radius:14px; overflow:hidden; }
+.seg button{ flex:1; border:0; background:var(--surface-2); padding:10px 6px; font-weight:600; cursor:pointer; min-height:44px; }
+.seg button + button{ border-left:2.5px solid var(--line); }
+.seg button[aria-pressed="true"]{ background:var(--violet); color:#fff; }
+.rpe{ display:grid; grid-template-columns:repeat(10,1fr); gap:4px; }
+.rpe button{ border:2px solid var(--line); border-radius:10px; background:var(--surface-2); padding:8px 0; font-weight:700; cursor:pointer; min-height:40px; }
+.rpe button[aria-pressed="true"]{ background:var(--rose); color:#fff; }
+.proto-line{ font-size:14px; background:var(--surface-2); border:2px dashed var(--line); border-radius:12px; padding:8px 10px; margin:0 0 10px; }
+.steps-head,.step-row{ display:grid; grid-template-columns:22px 1fr 1fr 1fr 1fr 30px; gap:6px; align-items:center; }
+.steps-head{ font-size:12px; font-weight:600; color:var(--muted); margin-bottom:4px; }
+.step-row{ margin-bottom:6px; }
+.step-row .n{ font-family:var(--f-display); font-size:13px; text-align:center; }
+.step-row .inp{ padding:8px 6px; text-align:center; min-height:42px; border-radius:11px; }
+.step-row .del{ border:0; background:none; font-size:20px; color:var(--muted); cursor:pointer; padding:0; }
+.result{ background:var(--surface-2); border:2.5px dashed var(--line); border-radius:16px; padding:12px; margin:12px 0; }
+.result .big{ font-family:var(--f-display); font-size:26px; line-height:1.1; }
+.kv{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+.kv div{ background:var(--surface-2); border:2px solid var(--line); border-radius:14px; padding:8px; text-align:center; }
+.kv b{ display:block; font-family:var(--f-display); font-size:19px; }
+.kv span{ font-size:12px; color:var(--muted); }
+.err{ color:var(--sang); font-weight:600; font-size:14px; margin-top:8px; }
+
+
+/* Golden Zone */
+.gz-band{ position:absolute; top:0; bottom:0; border-left:2px solid var(--line); border-right:2px solid var(--line); }
+.gz-band.low{ background:repeating-linear-gradient(135deg,#FFE07A 0 6px,#FFF3C2 6px 12px); }
+.gz-band.high{ background:repeating-linear-gradient(135deg,#FFB000 0 6px,#FFD45A 6px 12px); }
+.golden{ position:relative; overflow:hidden; margin-top:14px; color:#2A0A4A; background:linear-gradient(140deg,#FFE680 0%,#FFC21A 55%,#FFAE00 100%); }
+.golden::after{ content:""; position:absolute; top:0; bottom:0; width:40%; left:-60%; background:linear-gradient(100deg,transparent,rgba(255,255,255,.65),transparent); transform:skewX(-18deg); animation:sheen 1.6s .5s ease-out 1 both; pointer-events:none; }
+@keyframes sheen{ to{ left:130%; } }
+@media (prefers-reduced-motion: reduce){ .golden::after{ display:none; } }
+.gz-head{ display:flex; align-items:center; gap:8px; }
+.gz-head h3{ font-family:var(--f-display); font-size:18px; margin:0; }
+.gz-star{ font-size:24px; line-height:1; color:#fff; -webkit-text-stroke:1.5px #2A0A4A; }
+.gz-rows{ display:grid; gap:10px; margin-bottom:12px; }
+.gz-row{ display:grid; grid-template-columns:64px 1fr; gap:10px; align-items:center; background:rgba(255,255,255,.55); border:2px solid #2A0A4A; border-radius:16px; padding:8px 10px; }
+.gz-tag{ font-family:var(--f-display); font-size:13px; text-align:center; border:2px solid #2A0A4A; border-radius:999px; padding:3px 0; }
+.gz-tag.low{ background:#FFE07A; } .gz-tag.high{ background:#FF9F00; color:#fff; -webkit-text-stroke:.6px #2A0A4A; }
+.gz-w{ display:block; font-family:var(--f-display); font-size:22px; line-height:1.1; }
+.gz-row small{ display:block; font-size:13px; color:#5A3D00; font-weight:600; }
+.gz-watts{ font-family:var(--f-display); font-size:36px; line-height:1.05; margin-top:8px; color:#fff; -webkit-text-stroke:1.5px #2A0A4A; text-shadow:3px 3px 0 #2A0A4A; }
+.gz-sub{ margin:4px 0 12px; font-weight:700; font-size:14px; }
+.golden .kv div{ background:rgba(255,255,255,.6); border-color:#2A0A4A; }
+.golden .kv span{ color:#5A3D00; }
+.gz-note{ font-size:13px; margin:10px 0 12px; color:#5A3D00; }
+.golden .btn{ background:#fff; color:#2A0A4A; border-color:#2A0A4A; box-shadow:3px 3px 0 #2A0A4A; }
+.gz-result{ background:#FFF1B8; color:#2A0A4A; border-color:#C98A00; margin-top:0; }
+.golden-proto{ background:linear-gradient(140deg,#FFF3C2,#FFE07A); color:#2A0A4A; }
+.golden-proto summary .s, .golden-proto .say{ color:#7A4E00; }
+.item .badge.gz{ line-height:1.05; }
+
+/* Protocoles */
+.proto{ margin-top:14px; }
+.proto summary{ list-style:none; cursor:pointer; display:flex; align-items:center; gap:12px; }
+.proto summary::-webkit-details-marker{ display:none; }
+.proto summary .t, .proto summary .s{ display:block; }
+.proto summary .t{ font-family:var(--f-display); font-size:18px; line-height:1.15; }
+.proto summary .s{ font-size:13px; color:var(--muted); }
+.proto summary .plus{ margin-left:auto; font-family:var(--f-display); font-size:22px; transition:transform .15s; }
+.proto[open] summary .plus{ transform:rotate(45deg); }
+.proto .say{ font-family:var(--f-hand); font-size:20px; line-height:1.2; margin:12px 0 8px; color:var(--violet); }
+.proto ol{ padding-left:20px; margin:8px 0; } .proto li{ margin-bottom:6px; }
+.formula{ background:var(--surface-2); border:2px solid var(--line); border-radius:12px; padding:8px 10px; font-weight:600; margin:8px 0; overflow-x:auto; }
+
+/* Connexion */
+.login{ max-width:420px; margin:6vh auto 0; text-align:center; }
+.login .globule{ margin:0 auto; display:block; }
+.login .panel{ text-align:left; margin-top:14px; }
+.toast{ position:fixed; left:50%; bottom:calc(96px + env(safe-area-inset-bottom,0px)); transform:translateX(-50%); z-index:60; background:var(--ink); color:#fff; border-radius:999px; padding:10px 18px; font-weight:600; box-shadow:3px 3px 0 var(--rose); }
+.sr{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); }
+</style>
+</head>
+<body>
+<div id="app" class="wrap" aria-live="polite"></div>
+<nav class="tabbar" id="tabbar" hidden aria-label="Navigation">
+  <div class="inner">
+    <button class="tab" data-tab="home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M12 2.5C14 6 19 10 19 14.5a7 7 0 0 1-14 0C5 10 10 6 12 2.5Z"/></svg>Zones</button>
+    <button class="tab" data-tab="journal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="3"/><path d="M9 8h6M9 12h6M9 16h3"/></svg>Journal</button>
+    <button class="tab" data-tab="globule"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 10.5Q12 7 21.5 10.5L20.5 14Q17 17 13 14.5Q12 14 11 14.5Q7 17 3.5 14Z"/></svg>Globule</button>
+  </div>
+</nav>
+<script>window.GLOBULE_CONFIG = { supabaseUrl: "", supabaseAnonKey: "" };</script>
+<script>
+// Globule animée (source : mascotte/globule-anime.svg). Généré, ne pas éditer à la main.
+window.GLOBULE_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"-24 -96 388 436\" width=\"388\" height=\"436\" class=\"globule is-idle\" role=\"img\" aria-labelledby=\"glb-title\" xmlns:c2pa=\"http://c2pa.org/manifest\">\n<title id=\"glb-title\">Globule, la mascotte lactate</title>\n<style>\n.globule { overflow: visible; }\n.globule .glb-char, .globule .glb-squash, .globule .glb-arm-r, .globule .glb-arm-l,\n.globule .glb-eye, .globule .glb-shadow, .globule .glb-halo, .globule .glb-spark,\n.globule .glb-confetti, .globule .glb-drop, .globule .glb-sweep { transform-box: fill-box; }\n/* Pivots : chaque groupe animé contient un cadre invisible qui fixe sa fill-box */\n.globule .glb-char { transform-origin: 310px 538px; }   /* sol, sous les chaussures (170, 318) */\n.globule .glb-squash { transform-origin: 230px 408px; } /* base du corps (170, 308) */\n.globule .glb-arm-r, .globule .glb-arm-l { transform-origin: 50% 50%; } /* épaules */\n.globule .glb-eye, .globule .glb-shadow, .globule .glb-halo, .globule .glb-spark,\n.globule .glb-confetti, .globule .glb-drop { transform-origin: 50% 50%; }\n\n.globule .glb-shadow { opacity: .15; }\n.globule .glb-halo, .globule .glb-spark, .globule .glb-confetti, .globule .glb-drop { opacity: 0; }\n\n/* Clignement : actif dans tous les états */\n.globule .glb-eye { animation: glb-blink 4.5s ease-in-out infinite; }\n\n/* is-idle */\n.globule.is-idle .glb-squash { animation: glb-breath 3s ease-in-out infinite; }\n.globule.is-idle .glb-char { animation: glb-sway 6s ease-in-out infinite; }\n\n/* Reflet des lunettes et écran : repos, coucou et après les états \"une fois\" */\n.globule.is-idle .glb-sweep, .globule.is-hello .glb-sweep,\n.globule.is-golden .glb-sweep, .globule.is-record .glb-sweep { animation: glb-glint 5s ease-in-out 1s infinite; }\n.globule.is-idle .glb-meter-value, .globule.is-hello .glb-meter-value,\n.globule.is-golden .glb-meter-value, .globule.is-record .glb-meter-value { animation: glb-screen 2.4s ease-in-out infinite; }\n\n/* is-hello (boucle 2 s) */\n.globule.is-hello .glb-char { animation: glb-hello-hop 2s ease-in-out infinite; }\n.globule.is-hello .glb-squash { animation: glb-hello-squash 2s ease-in-out infinite; }\n.globule.is-hello .glb-arm-l { animation: glb-hello-arm-l 2s ease-in-out infinite; }\n.globule.is-hello .glb-arm-r { animation: glb-hello-arm-r 2s ease-in-out infinite; }\n.globule.is-hello .glb-shadow { animation: glb-shadow-hop 2s ease-in-out infinite; }\n\n/* is-golden (une fois 2 s, puis repos) */\n.globule.is-golden .glb-char { animation: glb-golden-hop 2s ease-out, glb-sway 6s ease-in-out 2s infinite; }\n.globule.is-golden .glb-squash { animation: glb-golden-squash 2s ease-out, glb-breath 3s ease-in-out 2s infinite; }\n.globule.is-golden .glb-arm-l { animation: glb-golden-arm-l 2s ease-out; }\n.globule.is-golden .glb-arm-r { animation: glb-golden-arm-r 2s ease-out; }\n.globule.is-golden .glb-shadow { animation: glb-shadow-golden 2s ease-out; }\n.globule.is-golden .glb-halo { animation: glb-halo 2s ease-out; }\n.globule.is-golden .glb-spark { animation: glb-spark 1.4s cubic-bezier(.2, .8, .3, 1) var(--d); }\n\n/* is-high (boucle) */\n.globule.is-high .glb-char { animation: glb-tremble .14s linear infinite; }\n.globule.is-high .glb-squash { animation: glb-pant 1s ease-in-out infinite; }\n.globule.is-high .glb-arm-l { animation: glb-fan .18s ease-in-out infinite alternate; }\n.globule.is-high .glb-drop { animation: glb-sweat 1.5s ease-in var(--d) infinite; }\n.globule.is-high .glb-meter-value { animation: glb-screen .8s ease-in-out infinite; }\n\n/* is-record (une fois 2,5 s, puis repos) */\n.globule.is-record .glb-char { animation: glb-record-jump 2.5s ease-in-out, glb-sway 6s ease-in-out 2.5s infinite; }\n.globule.is-record .glb-squash { animation: glb-record-squash 2.5s ease-in-out, glb-breath 3s ease-in-out 2.5s infinite; }\n.globule.is-record .glb-arm-l { animation: glb-record-arm-l 2.5s ease-in-out; }\n.globule.is-record .glb-arm-r { animation: glb-record-arm-r 2.5s ease-in-out; }\n.globule.is-record .glb-shadow { animation: glb-shadow-record 2.5s ease-in-out; }\n.globule.is-record .glb-confetti { animation: glb-confetti 1.9s cubic-bezier(.2, .6, .4, 1) calc(.5s + var(--d)); }\n\n@keyframes glb-blink {\n  0%, 92%, 100% { transform: scaleY(1); }\n  94% { transform: scaleY(.1); }\n  96% { transform: scaleY(1); }\n}\n@keyframes glb-breath {\n  0%, 100% { transform: scale(1, 1); }\n  50% { transform: scale(.99, 1.025); }\n}\n@keyframes glb-sway {\n  0%, 100% { transform: rotate(-1.5deg); }\n  50% { transform: rotate(1.5deg); }\n}\n@keyframes glb-glint {\n  0% { transform: translateX(-100px); opacity: 0; }\n  4% { opacity: 1; }\n  18% { transform: translateX(100px); opacity: 1; }\n  20%, 100% { transform: translateX(100px); opacity: 0; }\n}\n@keyframes glb-screen {\n  0%, 100% { opacity: 1; }\n  50% { opacity: .55; }\n}\n@keyframes glb-hello-hop {\n  0%, 36%, 100% { transform: translateY(0); }\n  12% { transform: translateY(2px); }\n  24% { transform: translateY(-16px); }\n}\n@keyframes glb-shadow-hop {\n  0%, 36%, 100% { transform: scale(1); opacity: .15; }\n  24% { transform: scale(.8); opacity: .09; }\n}\n@keyframes glb-golden-hop {\n  0%, 42%, 100% { transform: translateY(0); }\n  12% { transform: translateY(2px); }\n  28% { transform: translateY(-22px); }\n}\n@keyframes glb-shadow-golden {\n  0%, 42%, 100% { transform: scale(1); opacity: .15; }\n  28% { transform: scale(.75); opacity: .08; }\n}\n@keyframes glb-halo {\n  0% { transform: scale(.8); opacity: 0; }\n  25% { transform: scale(1); opacity: .9; }\n  70% { transform: scale(1.05); opacity: .6; }\n  100% { transform: scale(1.1); opacity: 0; }\n}\n@keyframes glb-spark {\n  0% { transform: translate(0, 0) scale(0) rotate(0deg); opacity: 0; }\n  15% { opacity: 1; }\n  60% { transform: translate(var(--dx), var(--dy)) scale(1) rotate(90deg); opacity: 1; }\n  100% { transform: translate(calc(var(--dx) * 1.15), calc(var(--dy) * 1.15)) scale(.4) rotate(160deg); opacity: 0; }\n}\n@keyframes glb-tremble {\n  0%, 100% { transform: translate(0, 0); }\n  25% { transform: translate(-1.5px, .5px); }\n  50% { transform: translate(1.5px, -.5px); }\n  75% { transform: translate(-1px, 0); }\n}\n@keyframes glb-pant {\n  0%, 100% { transform: scale(1, 1); }\n  50% { transform: scale(.985, 1.035); }\n}\n@keyframes glb-fan {\n  from { transform: rotate(-14deg); }\n  to { transform: rotate(14deg); }\n}\n@keyframes glb-sweat {\n  0% { transform: translate(0, 0) scale(.2); opacity: 0; }\n  20% { transform: translate(0, 2px) scale(1); opacity: 1; }\n  45% { transform: translate(calc(var(--dx) * .3), 8px) scale(1); opacity: 1; }\n  80% { opacity: 1; }\n  100% { transform: translate(var(--dx), 90px) scale(.9); opacity: 0; }\n}\n@keyframes glb-record-jump {\n  0%, 62%, 82%, 100% { transform: translateY(0); }\n  14% { transform: translateY(6px); }\n  26% { transform: translateY(-40px); }\n  40% { transform: translateY(-70px); }\n  56% { transform: translateY(-30px); }\n  72% { transform: translateY(-6px); }\n}\n@keyframes glb-shadow-record {\n  0%, 62%, 82%, 100% { transform: scale(1); opacity: .15; }\n  14% { transform: scale(1.08); opacity: .17; }\n  40% { transform: scale(.55); opacity: .06; }\n  72% { transform: scale(.92); opacity: .13; }\n}\n@keyframes glb-confetti {\n  0% { transform: translate(0, 0) rotate(0deg) scale(.4); opacity: 0; }\n  8% { opacity: 1; }\n  35% { transform: translate(calc(var(--dx) * .6), var(--up)) rotate(calc(var(--rot) * .4)) scale(1); }\n  85% { opacity: 1; }\n  100% { transform: translate(var(--dx), var(--fall)) rotate(var(--rot)) scale(1); opacity: 0; }\n}\n@keyframes glb-hello-squash {\n  0% { transform: scale(1, 1); }\n  12% { transform: scale(1.05, 0.94); }\n  22% { transform: scale(0.96, 1.05); }\n  36% { transform: scale(1.06, 0.93); }\n  46% { transform: scale(1, 1); }\n  100% { transform: scale(1, 1); }\n}\n@keyframes glb-hello-arm-l {\n  0% { transform: translate(0px, 0px) rotate(0deg); }\n  12% { transform: translate(2.48px, 6.76px) rotate(-19.2deg); }\n  15% { transform: translate(1.15px, 3.05px) rotate(-24deg); }\n  22% { transform: translate(-1.96px, -5.62px) rotate(-6.27deg); }\n  30% { transform: translate(0.88px, 2.11px) rotate(14deg); }\n  36% { transform: translate(3px, 7.9px) rotate(-1.2deg); }\n  45% { transform: translate(0.3px, 0.79px) rotate(-24deg); }\n  46% { transform: translate(0px, 0px) rotate(-21.47deg); }\n  60% { transform: translate(0px, 0px) rotate(14deg); }\n  78% { transform: translate(0px, 0px) rotate(-6deg); }\n  100% { transform: translate(0px, 0px) rotate(0deg); }\n}\n@keyframes glb-hello-arm-r {\n  0% { transform: translate(0px, 0px) rotate(0deg); }\n  12% { transform: translate(-4.75px, 3.78px) rotate(0deg); }\n  22% { transform: translate(3.82px, -3.16px) rotate(0deg); }\n  36% { transform: translate(-5.69px, 4.39px) rotate(0deg); }\n  46% { transform: translate(0px, 0px) rotate(0deg); }\n  100% { transform: translate(0px, 0px) rotate(0deg); }\n}\n@keyframes glb-golden-squash {\n  0% { transform: scale(1, 1); }\n  12% { transform: scale(1.1, 0.88); }\n  28% { transform: scale(0.92, 1.1); }\n  42% { transform: scale(1.08, 0.92); }\n  56% { transform: scale(0.97, 1.04); }\n  70% { transform: scale(1.02, 0.98); }\n  85% { transform: scale(1, 1); }\n  100% { transform: scale(1, 1); }\n}\n@keyframes glb-golden-arm-l {\n  0% { transform: translate(0px, 0px) rotate(0deg); }\n  12% { transform: translate(4.96px, 13.52px) rotate(0deg); }\n  28% { transform: translate(-3.92px, -11.24px) rotate(0deg); }\n  42% { transform: translate(4.18px, 9.12px) rotate(0deg); }\n  56% { transform: translate(-1.44px, -4.48px) rotate(0deg); }\n  70% { transform: translate(1.04px, 2.28px) rotate(0deg); }\n  85% { transform: translate(0px, 0px) rotate(0deg); }\n  100% { transform: translate(0px, 0px) rotate(0deg); }\n}\n@keyframes glb-golden-arm-r {\n  0% { transform: translate(0px, 0px) rotate(0deg); }\n  12% { transform: translate(-9.51px, 7.55px) rotate(0deg); }\n  28% { transform: translate(7.64px, -6.33px) rotate(0deg); }\n  42% { transform: translate(-7.47px, 4.9px) rotate(0deg); }\n  56% { transform: translate(2.89px, -2.55px) rotate(0deg); }\n  70% { transform: translate(-1.87px, 1.22px) rotate(0deg); }\n  85% { transform: translate(0px, 0px) rotate(0deg); }\n  100% { transform: translate(0px, 0px) rotate(0deg); }\n}\n@keyframes glb-record-squash {\n  0% { transform: scale(1, 1); }\n  14% { transform: scale(1.12, 0.84); }\n  26% { transform: scale(0.9, 1.14); }\n  40% { transform: scale(1, 1); }\n  56% { transform: scale(0.94, 1.08); }\n  62% { transform: scale(1.16, 0.82); }\n  72% { transform: scale(0.96, 1.05); }\n  82% { transform: scale(1.02, 0.98); }\n  100% { transform: scale(1, 1); }\n}\n@keyframes glb-record-arm-l {\n  0% { transform: translate(0px, 0px) rotate(0deg); }\n  14% { transform: translate(5.75px, 17.92px) rotate(6deg); }\n  26% { transform: translate(-4.7px, -15.64px) rotate(-22deg); }\n  40% { transform: translate(0px, 0px) rotate(-30deg); }\n  50% { transform: translate(-1.8px, -5.6px) rotate(-18deg); }\n  56% { transform: translate(-2.87px, -8.96px) rotate(-28deg); }\n  62% { transform: translate(8.09px, 20.36px) rotate(-20deg); }\n  72% { transform: translate(-1.96px, -5.62px) rotate(-26deg); }\n  82% { transform: translate(1.04px, 2.28px) rotate(-24.57deg); }\n  86% { transform: translate(0.81px, 1.77px) rotate(-24deg); }\n  100% { transform: translate(0px, 0px) rotate(0deg); }\n}\n@keyframes glb-record-arm-r {\n  0% { transform: translate(0px, 0px) rotate(0deg); }\n  14% { transform: translate(-11.55px, 10.21px) rotate(8deg); }\n  26% { transform: translate(9.69px, -8.99px) rotate(62deg); }\n  40% { transform: translate(0px, 0px) rotate(70deg); }\n  50% { transform: translate(3.61px, -3.19px) rotate(58deg); }\n  56% { transform: translate(5.78px, -5.11px) rotate(68deg); }\n  62% { transform: translate(-15.11px, 11.23px) rotate(54deg); }\n  72% { transform: translate(3.82px, -3.16px) rotate(66deg); }\n  82% { transform: translate(-1.87px, 1.22px) rotate(63.14deg); }\n  86% { transform: translate(-1.45px, 0.95px) rotate(62deg); }\n  100% { transform: translate(0px, 0px) rotate(0deg); }\n}\n\n/* Accessibilité : seul le clignement continue */\n@media (prefers-reduced-motion: reduce) {\n  .globule *:not(.glb-eye) { animation: none !important; }\n  .globule.is-high .glb-drop { opacity: 1; }\n}\n</style>\n<defs>\n<linearGradient id=\"glb-body-grad\" x1=\"0\" y1=\"0\" x2=\"0\" y2=\"1\"><stop offset=\"0\" stop-color=\"#FF4A66\"/><stop offset=\"1\" stop-color=\"#C8102E\"/></linearGradient>\n<linearGradient id=\"glb-visor-grad\" x1=\"0\" y1=\"0\" x2=\"1\" y2=\"0.4\"><stop offset=\"0\" stop-color=\"#FFE45C\"/><stop offset=\"0.45\" stop-color=\"#FF2D8E\"/><stop offset=\"1\" stop-color=\"#6A2BF0\"/></linearGradient>\n<radialGradient id=\"glb-halo-grad\"><stop offset=\"0\" stop-color=\"#FFC21A\" stop-opacity=\".6\"/><stop offset=\".55\" stop-color=\"#FFC21A\" stop-opacity=\".25\"/><stop offset=\"1\" stop-color=\"#FFC21A\" stop-opacity=\"0\"/></radialGradient>\n<clipPath id=\"glb-visor-clip\"><path d=\"M88 182 Q170 162 252 182 L248 198 Q238 216 206 214 Q186 212 177 202 Q170 196 163 202 Q154 212 134 214 Q102 216 92 198 Z\"/></clipPath>\n</defs>\n<circle class=\"glb-halo\" cx=\"170\" cy=\"180\" r=\"160\" fill=\"url(#glb-halo-grad)\"/>\n<ellipse class=\"glb-shadow\" cx=\"166\" cy=\"322\" rx=\"80\" ry=\"8\" fill=\"#2A0A4A\"/>\n<g stroke=\"#6A2BF0\" stroke-width=\"5\" stroke-linecap=\"round\" opacity=\".55\">\n<path d=\"M282 256 L326 256\"/><path d=\"M276 274 L316 274\"/><path d=\"M290 292 L330 292\"/>\n</g>\n<g class=\"glb-char\">\n<rect class=\"glb-frame\" x=\"-140\" y=\"-220\" width=\"620\" height=\"680\" fill=\"none\" stroke=\"none\" pointer-events=\"none\"/>\n<g class=\"glb-feet\">\n<path d=\"M112 300 Q108 318 128 318 L160 318 Q168 318 166 308 L160 298 Z\" fill=\"#2A0A4A\"/>\n<path d=\"M122 310 L150 310\" stroke=\"#3FE8B9\" stroke-width=\"4\" stroke-linecap=\"round\"/>\n<path d=\"M176 300 Q172 318 192 318 L224 318 Q232 318 230 308 L224 298 Z\" fill=\"#2A0A4A\"/>\n<path d=\"M186 310 L214 310\" stroke=\"#3FE8B9\" stroke-width=\"4\" stroke-linecap=\"round\"/>\n</g>\n<g transform=\"rotate(-7 170 306)\">\n<g class=\"glb-arm-r\">\n<rect class=\"glb-frame\" x=\"-46\" y=\"86\" width=\"280\" height=\"280\" fill=\"none\" stroke=\"none\" pointer-events=\"none\"/>\n<path d=\"M94 226 Q72 236 64 254\" stroke=\"#2A0A4A\" stroke-width=\"7\" fill=\"none\" stroke-linecap=\"round\"/>\n<g transform=\"rotate(-14 42 252)\">\n<rect x=\"36\" y=\"198\" width=\"12\" height=\"22\" rx=\"2\" fill=\"#FFFFFF\" stroke=\"#2A0A4A\" stroke-width=\"4\"/>\n<rect x=\"12\" y=\"214\" width=\"58\" height=\"80\" rx=\"14\" fill=\"#FFE45C\" stroke=\"#2A0A4A\" stroke-width=\"4\"/>\n<rect x=\"20\" y=\"226\" width=\"42\" height=\"28\" rx=\"6\" fill=\"#102624\" stroke=\"#2A0A4A\" stroke-width=\"3\"/>\n<text id=\"meter-value\" class=\"glb-meter-value\" x=\"41\" y=\"245\" text-anchor=\"middle\" font-size=\"16\" font-weight=\"700\" fill=\"#3FE8B9\" font-family=\"ui-rounded, 'SF Pro Rounded', system-ui, sans-serif\">2,4</text>\n<rect x=\"26\" y=\"268\" width=\"30\" height=\"12\" rx=\"6\" fill=\"#FF2D8E\" stroke=\"#2A0A4A\" stroke-width=\"3\"/>\n</g>\n<circle cx=\"66\" cy=\"258\" r=\"10\" fill=\"#E8213F\" stroke=\"#2A0A4A\" stroke-width=\"4\"/>\n</g>\n<g class=\"glb-arm-l\">\n<rect class=\"glb-frame\" x=\"108\" y=\"70\" width=\"280\" height=\"280\" fill=\"none\" stroke=\"none\" pointer-events=\"none\"/>\n<path d=\"M248 210 Q272 192 282 166\" stroke=\"#2A0A4A\" stroke-width=\"7\" fill=\"none\" stroke-linecap=\"round\"/>\n<g transform=\"translate(288 142) rotate(16)\">\n<rect x=\"-15\" y=\"-46\" width=\"13\" height=\"42\" rx=\"6.5\" transform=\"rotate(-11)\" fill=\"#9AD8FF\" stroke=\"#2A0A4A\" stroke-width=\"4\"/>\n<rect x=\"2\" y=\"-46\" width=\"13\" height=\"42\" rx=\"6.5\" transform=\"rotate(11)\" fill=\"#9AD8FF\" stroke=\"#2A0A4A\" stroke-width=\"4\"/>\n<rect x=\"-17\" y=\"-12\" width=\"34\" height=\"32\" rx=\"13\" fill=\"#9AD8FF\" stroke=\"#2A0A4A\" stroke-width=\"4\"/>\n<ellipse cx=\"-12\" cy=\"8\" rx=\"9\" ry=\"6\" fill=\"#9AD8FF\" stroke=\"#2A0A4A\" stroke-width=\"4\"/>\n<rect x=\"-14\" y=\"18\" width=\"28\" height=\"13\" rx=\"4\" fill=\"#D6F0FF\" stroke=\"#2A0A4A\" stroke-width=\"4\"/>\n<path d=\"M-10 -40 L-9 -18\" stroke=\"#FFFFFF\" stroke-width=\"3\" stroke-linecap=\"round\" opacity=\".8\"/>\n</g>\n</g>\n</g>\n<g class=\"glb-squash\">\n<rect class=\"glb-frame\" x=\"-60\" y=\"-100\" width=\"460\" height=\"500\" fill=\"none\" stroke=\"none\" pointer-events=\"none\"/>\n<g transform=\"rotate(-7 170 306)\">\n<path d=\"M170 20 C170 20 84 128 82 210 C80 270 120 308 170 308 C220 308 260 270 258 210 C256 128 170 20 170 20 Z\" fill=\"url(#glb-body-grad)\" stroke=\"#2A0A4A\" stroke-width=\"4\" stroke-linejoin=\"round\"/>\n<path d=\"M124 120 Q140 86 160 58\" stroke=\"#FFFFFF\" stroke-width=\"9\" fill=\"none\" stroke-linecap=\"round\" opacity=\".7\"/>\n<path d=\"M118 146 L118 150\" stroke=\"#FFFFFF\" stroke-width=\"9\" stroke-linecap=\"round\" opacity=\".7\"/>\n<path d=\"M116 156 L146 164\" stroke=\"#2A0A4A\" stroke-width=\"7\" stroke-linecap=\"round\"/>\n<path d=\"M224 156 L194 164\" stroke=\"#2A0A4A\" stroke-width=\"7\" stroke-linecap=\"round\"/>\n<g class=\"glb-glasses\">\n<path d=\"M88 182 Q170 162 252 182 L248 198 Q238 216 206 214 Q186 212 177 202 Q170 196 163 202 Q154 212 134 214 Q102 216 92 198 Z\" fill=\"url(#glb-visor-grad)\" stroke=\"#2A0A4A\" stroke-width=\"4\" stroke-linejoin=\"round\"/>\n<ellipse class=\"glb-eye\" cx=\"132\" cy=\"193\" rx=\"7\" ry=\"9.5\" fill=\"#2A0A4A\" opacity=\".5\"/>\n<ellipse class=\"glb-eye\" cx=\"208\" cy=\"193\" rx=\"7\" ry=\"9.5\" fill=\"#2A0A4A\" opacity=\".5\"/>\n<g clip-path=\"url(#glb-visor-clip)\">\n<g class=\"glb-sweep\">\n<path d=\"M148 224 L176 158\" stroke=\"#FFFFFF\" stroke-width=\"11\" stroke-linecap=\"round\" opacity=\".9\"/>\n<path d=\"M168 224 L192 166\" stroke=\"#FFFFFF\" stroke-width=\"4\" stroke-linecap=\"round\" opacity=\".9\"/>\n</g>\n</g>\n<path d=\"M200 208 L214 188\" stroke=\"#FFFFFF\" stroke-width=\"2.5\" stroke-linecap=\"round\" opacity=\".85\"/>\n<path d=\"M88 182 Q170 162 252 182 L248 198 Q238 216 206 214 Q186 212 177 202 Q170 196 163 202 Q154 212 134 214 Q102 216 92 198 Z\" fill=\"none\" stroke=\"#2A0A4A\" stroke-width=\"4\" stroke-linejoin=\"round\"/>\n</g>\n<path d=\"M150 248 Q180 262 206 236\" stroke=\"#2A0A4A\" stroke-width=\"5\" fill=\"none\" stroke-linecap=\"round\"/>\n<path d=\"M202 232 L210 240\" stroke=\"#2A0A4A\" stroke-width=\"4\" stroke-linecap=\"round\"/>\n<g class=\"glb-sweat\">\n<g transform=\"translate(126 120)\"><g class=\"glb-drop\" style=\"--d:0s;--dx:-14px\"><path d=\"M0 -10 C4 -3 7 1 7 5 A7 7 0 0 1 -7 5 C-7 1 -4 -3 0 -10 Z\" fill=\"#8FD8FF\" stroke=\"#2A0A4A\" stroke-width=\"2.5\" stroke-linejoin=\"round\"/><circle cx=\"-2.5\" cy=\"3\" r=\"1.8\" fill=\"#FFFFFF\"/></g></g>\n<g transform=\"translate(214 128)\"><g class=\"glb-drop\" style=\"--d:0.5s;--dx:12px\"><path d=\"M0 -10 C4 -3 7 1 7 5 A7 7 0 0 1 -7 5 C-7 1 -4 -3 0 -10 Z\" fill=\"#8FD8FF\" stroke=\"#2A0A4A\" stroke-width=\"2.5\" stroke-linejoin=\"round\"/><circle cx=\"-2.5\" cy=\"3\" r=\"1.8\" fill=\"#FFFFFF\"/></g></g>\n<g transform=\"translate(192 98)\"><g class=\"glb-drop\" style=\"--d:1s;--dx:6px\"><path d=\"M0 -10 C4 -3 7 1 7 5 A7 7 0 0 1 -7 5 C-7 1 -4 -3 0 -10 Z\" fill=\"#8FD8FF\" stroke=\"#2A0A4A\" stroke-width=\"2.5\" stroke-linejoin=\"round\"/><circle cx=\"-2.5\" cy=\"3\" r=\"1.8\" fill=\"#FFFFFF\"/></g></g>\n</g>\n</g>\n</g>\n</g>\n<g transform=\"translate(170 170)\">\n<g transform=\"scale(0.7)\"><path class=\"glb-spark\" d=\"M0 -14 C2 -4 4 -2 14 0 C4 2 2 4 0 14 C-2 4 -4 2 -14 0 C-4 -2 -2 -4 0 -14 Z\" fill=\"#FFC21A\" stroke=\"#2A0A4A\" stroke-width=\"3.71\" stroke-linejoin=\"round\" style=\"--dx:-152.79px;--dy:64.29px;--d:0.03s\"/></g>\n<g transform=\"scale(0.7)\"><path class=\"glb-spark\" d=\"M0 -12 L2.94 -4.05 L11.41 -3.71 L4.76 1.55 L7.05 9.71 L0 5 L-7.05 9.71 L-4.76 1.55 L-11.41 -3.71 L-2.94 -4.05 Z\" fill=\"#FFC21A\" stroke=\"#2A0A4A\" stroke-width=\"3.71\" stroke-linejoin=\"round\" style=\"--dx:-177.86px;--dy:-8px;--d:0.41s\"/></g>\n<g transform=\"scale(1.3)\"><path class=\"glb-spark\" d=\"M0 -14 C2 -4 4 -2 14 0 C4 2 2 4 0 14 C-2 4 -4 2 -14 0 C-4 -2 -2 -4 0 -14 Z\" fill=\"#FFC21A\" stroke=\"#2A0A4A\" stroke-width=\"2\" stroke-linejoin=\"round\" style=\"--dx:-82.29px;--dy:-29.03px;--d:0.03s\"/></g>\n<g transform=\"scale(0.7)\"><path class=\"glb-spark\" d=\"M0 -12 L2.94 -4.05 L11.41 -3.71 L4.76 1.55 L7.05 9.71 L0 5 L-7.05 9.71 L-4.76 1.55 L-11.41 -3.71 L-2.94 -4.05 Z\" fill=\"#FFC21A\" stroke=\"#2A0A4A\" stroke-width=\"3.71\" stroke-linejoin=\"round\" style=\"--dx:-140.07px;--dy:-115.27px;--d:0.43s\"/></g>\n<g transform=\"scale(0.7)\"><path class=\"glb-spark\" d=\"M0 -14 C2 -4 4 -2 14 0 C4 2 2 4 0 14 C-2 4 -4 2 -14 0 C-4 -2 -2 -4 0 -14 Z\" fill=\"#FFC21A\" stroke=\"#2A0A4A\" stroke-width=\"3.71\" stroke-linejoin=\"round\" style=\"--dx:-64.86px;--dy:-179.07px;--d:0.26s\"/></g>\n<g transform=\"scale(0.7)\"><path class=\"glb-spark\" d=\"M0 -12 L2.94 -4.05 L11.41 -3.71 L4.76 1.55 L7.05 9.71 L0 5 L-7.05 9.71 L-4.76 1.55 L-11.41 -3.71 L-2.94 -4.05 Z\" fill=\"#FFC21A\" stroke=\"#2A0A4A\" stroke-width=\"3.71\" stroke-linejoin=\"round\" style=\"--dx:-6.14px;--dy:-212.84px;--d:0.25s\"/></g>\n<g transform=\"scale(0.7)\"><path class=\"glb-spark\" d=\"M0 -14 C2 -4 4 -2 14 0 C4 2 2 4 0 14 C-2 4 -4 2 -14 0 C-4 -2 -2 -4 0 -14 Z\" fill=\"#FFC21A\" stroke=\"#2A0A4A\" stroke-width=\"3.71\" stroke-linejoin=\"round\" style=\"--dx:50.31px;--dy:-173.96px;--d:0.26s\"/></g>\n<g transform=\"scale(0.7)\"><path class=\"glb-spark\" d=\"M0 -12 L2.94 -4.05 L11.41 -3.71 L4.76 1.55 L7.05 9.71 L0 5 L-7.05 9.71 L-4.76 1.55 L-11.41 -3.71 L-2.94 -4.05 Z\" fill=\"#FFC21A\" stroke=\"#2A0A4A\" stroke-width=\"3.71\" stroke-linejoin=\"round\" style=\"--dx:138.59px;--dy:-138.76px;--d:0.26s\"/></g>\n<g transform=\"scale(0.7)\"><path class=\"glb-spark\" d=\"M0 -14 C2 -4 4 -2 14 0 C4 2 2 4 0 14 C-2 4 -4 2 -14 0 C-4 -2 -2 -4 0 -14 Z\" fill=\"#FFC21A\" stroke=\"#2A0A4A\" stroke-width=\"3.71\" stroke-linejoin=\"round\" style=\"--dx:165.69px;--dy:-66.2px;--d:0.25s\"/></g>\n<g transform=\"scale(1.3)\"><path class=\"glb-spark\" d=\"M0 -12 L2.94 -4.05 L11.41 -3.71 L4.76 1.55 L7.05 9.71 L0 5 L-7.05 9.71 L-4.76 1.55 L-11.41 -3.71 L-2.94 -4.05 Z\" fill=\"#FFC21A\" stroke=\"#2A0A4A\" stroke-width=\"2\" stroke-linejoin=\"round\" style=\"--dx:99.89px;--dy:-0.17px;--d:0.35s\"/></g>\n<g transform=\"scale(1.1)\"><path class=\"glb-spark\" d=\"M0 -14 C2 -4 4 -2 14 0 C4 2 2 4 0 14 C-2 4 -4 2 -14 0 C-4 -2 -2 -4 0 -14 Z\" fill=\"#FFC21A\" stroke=\"#2A0A4A\" stroke-width=\"2.36\" stroke-linejoin=\"round\" style=\"--dx:125.96px;--dy:44.48px;--d:0.13s\"/></g>\n</g>\n<g transform=\"translate(170 40)\">\n<circle cx=\"0\" cy=\"0\" r=\"3.75\" class=\"glb-confetti\" fill=\"#FF2D8E\" style=\"--dx:91.26px;--up:-81.94px;--fall:187.09px;--rot:439.57deg;--d:0.22s\"/>\n<rect x=\"-4\" y=\"-4\" width=\"8\" height=\"8\" rx=\"1.5\" class=\"glb-confetti\" fill=\"#6A2BF0\" style=\"--dx:-15.86px;--up:-76.54px;--fall:175.12px;--rot:302.69deg;--d:0.09s\"/>\n<rect x=\"-4\" y=\"-4\" width=\"8\" height=\"8\" rx=\"1.5\" class=\"glb-confetti\" fill=\"#3FE8B9\" style=\"--dx:-24.27px;--up:-97.72px;--fall:175.43px;--rot:369.25deg;--d:0.09s\"/>\n<circle cx=\"0\" cy=\"0\" r=\"4.38\" class=\"glb-confetti\" fill=\"#FFE45C\" style=\"--dx:24.77px;--up:-67.37px;--fall:228.8px;--rot:420.16deg;--d:0.17s\"/>\n<rect x=\"-3\" y=\"-7.5\" width=\"6\" height=\"15\" rx=\"1.5\" class=\"glb-confetti\" fill=\"#FF2D8E\" style=\"--dx:71.66px;--up:-58.58px;--fall:210.46px;--rot:348.15deg;--d:0.1s\"/>\n<rect x=\"-4\" y=\"-4\" width=\"8\" height=\"8\" rx=\"1.5\" class=\"glb-confetti\" fill=\"#6A2BF0\" style=\"--dx:-47.43px;--up:-96.44px;--fall:194.88px;--rot:-427.6deg;--d:0.05s\"/>\n<circle cx=\"0\" cy=\"0\" r=\"3.75\" class=\"glb-confetti\" fill=\"#3FE8B9\" style=\"--dx:-114.9px;--up:-54.86px;--fall:197.37px;--rot:270.62deg;--d:0.11s\"/>\n<rect x=\"-3\" y=\"-7.5\" width=\"6\" height=\"15\" rx=\"1.5\" class=\"glb-confetti\" fill=\"#FFE45C\" style=\"--dx:-68.87px;--up:-48.22px;--fall:200.14px;--rot:508.43deg;--d:0.25s\"/>\n<rect x=\"-3.5\" y=\"-6.5\" width=\"7\" height=\"13\" rx=\"1.5\" class=\"glb-confetti\" fill=\"#FF2D8E\" style=\"--dx:119.1px;--up:-97.46px;--fall:180.56px;--rot:-297.49deg;--d:0.16s\"/>\n<circle cx=\"0\" cy=\"0\" r=\"3.75\" class=\"glb-confetti\" fill=\"#6A2BF0\" style=\"--dx:-4.66px;--up:-75.35px;--fall:188.39px;--rot:-295.36deg;--d:0.13s\"/>\n<rect x=\"-3\" y=\"-7.5\" width=\"6\" height=\"15\" rx=\"1.5\" class=\"glb-confetti\" fill=\"#3FE8B9\" style=\"--dx:20.57px;--up:-97.19px;--fall:218.33px;--rot:-413.52deg;--d:0.22s\"/>\n<rect x=\"-3.5\" y=\"-6.5\" width=\"7\" height=\"13\" rx=\"1.5\" class=\"glb-confetti\" fill=\"#FFE45C\" style=\"--dx:92.34px;--up:-63.54px;--fall:197.93px;--rot:-422.98deg;--d:0.1s\"/>\n<circle cx=\"0\" cy=\"0\" r=\"3.75\" class=\"glb-confetti\" fill=\"#FF2D8E\" style=\"--dx:-134.12px;--up:-52.53px;--fall:181.36px;--rot:468.28deg;--d:0.03s\"/>\n<rect x=\"-4\" y=\"-4\" width=\"8\" height=\"8\" rx=\"1.5\" class=\"glb-confetti\" fill=\"#6A2BF0\" style=\"--dx:-108.11px;--up:-46.09px;--fall:195.45px;--rot:-266.72deg;--d:0.05s\"/>\n<rect x=\"-4\" y=\"-4\" width=\"8\" height=\"8\" rx=\"1.5\" class=\"glb-confetti\" fill=\"#3FE8B9\" style=\"--dx:-108.95px;--up:-55.14px;--fall:194.32px;--rot:420.18deg;--d:0.03s\"/>\n<circle cx=\"0\" cy=\"0\" r=\"3.75\" class=\"glb-confetti\" fill=\"#FFE45C\" style=\"--dx:152.86px;--up:-67.96px;--fall:203.87px;--rot:-294.76deg;--d:0.19s\"/>\n<rect x=\"-4\" y=\"-4\" width=\"8\" height=\"8\" rx=\"1.5\" class=\"glb-confetti\" fill=\"#FF2D8E\" style=\"--dx:-72.93px;--up:-89.73px;--fall:181.3px;--rot:-317.98deg;--d:0.24s\"/>\n<rect x=\"-3\" y=\"-7.5\" width=\"6\" height=\"15\" rx=\"1.5\" class=\"glb-confetti\" fill=\"#6A2BF0\" style=\"--dx:-109.55px;--up:-72.59px;--fall:171.89px;--rot:611.83deg;--d:0.22s\"/>\n<circle cx=\"0\" cy=\"0\" r=\"3.75\" class=\"glb-confetti\" fill=\"#3FE8B9\" style=\"--dx:107.09px;--up:-71.1px;--fall:233.58px;--rot:533.34deg;--d:0.13s\"/>\n<rect x=\"-3\" y=\"-7.5\" width=\"6\" height=\"15\" rx=\"1.5\" class=\"glb-confetti\" fill=\"#FFE45C\" style=\"--dx:-52.8px;--up:-53.38px;--fall:226.81px;--rot:-546.31deg;--d:0.2s\"/>\n</g>\n<metadata><c2pa:manifest>AAAWgmp1bWIAAAAeanVtZGMycGEAEQAQgAAAqgA4m3EDYzJwYQAAABZcanVtYgAAAEdqdW1kYzJtYQARABCAAACqADibcQN1cm46YzJwYTpiOTBjZGQ2Ni0wN2YyLTQzNWMtYjE5Ni0yMDhiNTlkMzg1MDgAAAADl2p1bWIAAAApanVtZGMyYXMAEQAQgAAAqgA4m3EDYzJwYS5hc3NlcnRpb25zAAAAALxqdW1iAAAARGp1bWRjYm9yABEAEIAAAKoAOJtxE2MycGEuaW5ncmVkaWVudC52MwAAAAAYYzJzaP2VsjejXL0ugto56McmIusAAABwY2JvcqNpZGM6Zm9ybWF0bWltYWdlL3N2Zyt4bWxqaW5zdGFuY2VJRHgseG1wOmlpZDo5OWY5MDJhYy1mYTZjLTRjMjUtOTc0My1iZGYyODMxYWZjOTVscmVsYXRpb25zaGlwaHBhcmVudE9mAAAB4mp1bWIAAABBanVtZGNib3IAEQAQgAAAqgA4m3ETYzJwYS5hY3Rpb25zLnYyAAAAABhjMnNo5NVQ+8Buq0jrVQ3KjVLjZQAAAZljYm9yomdhY3Rpb25zgqJmYWN0aW9ua2MycGEub3BlbmVkanBhcmFtZXRlcnOha2luZ3JlZGllbnRzgaJjdXJseC1zZWxmI2p1bWJmPWMycGEuYXNzZXJ0aW9ucy9jMnBhLmluZ3JlZGllbnQudjNkaGFzaFggm6AVN9aXtaHCdfUbP+DQu8J9I6UVH5D2dtL7aQjN/LekZmFjdGlvbngdY29tLmFudGhyb3BpYy5jbGF1ZGUucHJvdmlkZWRqcGFyYW1ldGVyc6F4H2NvbS5hbnRocm9waWMub3JpZ2luLWNvbmZpZGVuY2VndW5rbm93bmtkZXNjcmlwdGlvbnhmQ2xhdWRlIHByb3ZpZGVkIHRoaXMgZmlsZSBhdCB0aGUgcmVxdWVzdCBvZiBhIHVzZXIgYW5kIG1heSBoYXZlIGNyZWF0ZWQgb3IgbW9kaWZpZWQgdGhlIGZpbGUgY29udGVudHMubXNvZnR3YXJlQWdlbnShZG5hbWVmQ2xhdWRlcmFsbEFjdGlvbnNJbmNsdWRlZPUAAADIanVtYgAAAEBqdW1kY2JvcgARABCAAACqADibcRNjMnBhLmhhc2guZGF0YQAAAAAYYzJzaAuromNLs2BB8eaDdoM/hXMAAACAY2JvcqVjYWxnZnNoYTI1NmNwYWRMAAAAAAAAAAAAAAAAZGhhc2hYIJLUv+B6IVnazG+KZgCUYW9coRYL7cbUoCV6kWzvADGPZG5hbWVuanVtYmYgbWFuaWZlc3RqZXhjbHVzaW9uc4GiZXN0YXJ0GWEzZmxlbmd0aBkeBAAAAj5qdW1iAAAAJ2p1bWRjMmNsABEAEIAAAKoAOJtxA2MycGEuY2xhaW0udjIAAAACD2Nib3KlY2FsZ2ZzaGEyNTZpc2lnbmF0dXJleE1zZWxmI2p1bWJmPS9jMnBhL3VybjpjMnBhOmI5MGNkZDY2LTA3ZjItNDM1Yy1iMTk2LTIwOGI1OWQzODUwOC9jMnBhLnNpZ25hdHVyZWppbnN0YW5jZUlEeCx4bXA6aWlkOjM1YjI2MGVkLWUyZTQtNDBjNy1iNmRmLTZhYjkzNjA5YTFjMHJjcmVhdGVkX2Fzc2VydGlvbnODomN1cmx4LXNlbGYjanVtYmY9YzJwYS5hc3NlcnRpb25zL2MycGEuaW5ncmVkaWVudC52M2RoYXNoWCCboBU31pe1ocJ19Rs/4NC7wn0jpRUfkPZ20vtpCM38t6JjdXJseCpzZWxmI2p1bWJmPWMycGEuYXNzZXJ0aW9ucy9jMnBhLmFjdGlvbnMudjJkaGFzaFggrJbAS8/UifYv/wJa4qwIw8BlUmYmAzxI56mPehi+fgGiY3VybHgpc2VsZiNqdW1iZj1jMnBhLmFzc2VydGlvbnMvYzJwYS5oYXNoLmRhdGFkaGFzaFggTcIQrsTzPIReA+mhILRVCFNNXsd3b/cS5bpZoCDVRCN0Y2xhaW1fZ2VuZXJhdG9yX2luZm+jZG5hbWVvQW50aHJvcGljIEZpbGVzZ3ZlcnNpb25lMS4wLjBrc3BlY1ZlcnNpb25lMi40LjAAABA4anVtYgAAAChqdW1kYzJjcwARABCAAACqADibcQNjMnBhLnNpZ25hdHVyZQAAABAIY2JvctKEWQISogEmGCFZAgowggIGMIIBjaADAgECAhRA5aAK7sI50L64g/oGQgU9Z1UTADAKBggqhkjOPQQDAzBJMRcwFQYDVQQKEw5BbnRocm9waWMsIFBCQzEuMCwGA1UEAxMlQW50aHJvcGljIENvbnRlbnQgQ3JlZGVudGlhbHMgUm9vdCBDQTAeFw0yNjA4MDcxODQzNTZaFw0yODA4MDYxOTQzNTZaMEQxFzAVBgNVBAoTDkFudGhyb3BpYywgUEJDMSkwJwYDVQQDEyBBbnRocm9waWMgQ2xhdWRlIENvbnRlbnQgU2lnbmluZzBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABJh6CmvLUBgFFNU0vUKlOVtE6djd17L5SuwX0LemFisBM3dkd/3cyjxFA3Qo5S46fX0/ihY0VZ7mfb9KF703t5OjWDBWMA4GA1UdDwEB/wQEAwIHgDAVBgNVHSUEDjAMBgorBgEEAYPoXgIBMAwGA1UdEwEB/wQCMAAwHwYDVR0jBBgwFoAUzlHiBIFOZFsj+OPEz5o+nMHXXMIwCgYIKoZIzj0EAwMDZwAwZAIwMXMdFJ4BetLLVY7ORuE9noqbbAZOZn/aArXyTwFAZfKrPzxF2vPoJNf1+UCdg1XGAjBwX1zd9WGqYkqmL5SFqw1QySjr1zJfpJM9+1rdDwSPLMOPOjKuiXjoU/pUUeG9RwmhY3BhZFkNngAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPZYQEgEJQ8YbS9giQjqCY1VCPKEvBDnMV0ofd5ndmqVtT0xOSFKGtOVYUSneYEEeUKpzj+NOle0l9Hewy+XvKI7ViU=</c2pa:manifest></metadata></svg>";
+
+</script>
+<script>
+'use strict';
+/* Globule, labo lactate. Vanilla JS, aucune étape de build. */
+
+const CFG = window.GLOBULE_CONFIG || {};
+const DEMO = !(CFG.supabaseUrl && CFG.supabaseAnonKey && window.supabase);
+let sb = null;
+const state = { tests: [], sessions: [], name: '', tab: 'home', user: null, mascotEvent: null, proto: null, pick: 'lt1', gz: { low: { lo: 2.0, hi: 2.5 }, high: { lo: 2.5, hi: 3.5 } } };
+
+/* ---------- Outils ---------- */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const num = v => {
+  if (v === null || v === undefined) return null;
+  const s = String(v).trim().replace(',', '.');
+  if (s === '') return null;
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
+};
+const fmt = (n, d = 0) => (n == null || !Number.isFinite(n)) ? 'n.d.' : n.toLocaleString('fr-FR', { minimumFractionDigits: d, maximumFractionDigits: d });
+const inVal = (n) => n == null ? '' : String(n).replace('.', ',');
+const todayISO = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
+const daysAgo = n => { const d = new Date(); d.setDate(d.getDate() - n); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
+const fdate = iso => { if (!iso) return ''; const [y, m, d] = iso.slice(0, 10).split('-'); return `${d}/${m}/${y}`; };
+const fdateShort = iso => { if (!iso) return ''; const [, m, d] = iso.slice(0, 10).split('-'); return `${d}/${m}`; };
+const MONTHS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+const uid = () => (crypto.randomUUID ? crypto.randomUUID() : 'id' + Date.now() + Math.random().toString(16).slice(2));
+const byDateDesc = (a, b) => (b.date || '').localeCompare(a.date || '') || (b.created_at || '').localeCompare(a.created_at || '');
+const SOURCES = { trainer: 'Home trainer', route: 'Route' };
+const SESSION_KINDS = ['Endurance', 'Golden Zone basse', 'Golden Zone haute', 'Intervalles', 'Autre'];
+
+function toast(msg) {
+  const t = document.createElement('div');
+  t.className = 'toast'; t.textContent = msg; t.setAttribute('role', 'status');
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2200);
+}
+
+/* ---------- Stockage : local (démo) ou Supabase ---------- */
+const Local = {
+  key: t => 'globule:' + t,
+  list(t) { try { return JSON.parse(localStorage.getItem(this.key(t)) || '[]'); } catch { return []; } },
+  save(t, rows) { try { localStorage.setItem(this.key(t), JSON.stringify(rows)); } catch { /* stockage plein ou bloqué */ } },
+  async all(t) { return this.list(t).sort(byDateDesc); },
+  async insert(t, row) { const rows = this.list(t); const r = { ...row, id: uid(), created_at: new Date().toISOString() }; rows.push(r); this.save(t, rows); return r; },
+  async update(t, id, patch) { const rows = this.list(t); const i = rows.findIndex(r => r.id === id); if (i < 0) throw new Error('Entrée introuvable'); rows[i] = { ...rows[i], ...patch }; this.save(t, rows); return rows[i]; },
+  async remove(t, id) { this.save(t, this.list(t).filter(r => r.id !== id)); }
+};
+const Remote = {
+  async all(t) { const { data, error } = await sb.from(t).select('*').order('date', { ascending: false }).order('created_at', { ascending: false }); if (error) throw error; return data || []; },
+  async insert(t, row) { const { data, error } = await sb.from(t).insert(row).select().single(); if (error) throw error; return data; },
+  async update(t, id, patch) { const { data, error } = await sb.from(t).update(patch).eq('id', id).select().single(); if (error) throw error; return data; },
+  async remove(t, id) { const { error } = await sb.from(t).delete().eq('id', id); if (error) throw error; }
+};
+const Store = () => (DEMO ? Local : Remote);
+
+async function loadAll() {
+  const [tests, sessions] = await Promise.all([Store().all('tests'), Store().all('sessions')]);
+  state.tests = tests; state.sessions = sessions;
+}
+
+function seedDemo() {
+  if (localStorage.getItem('globule:seed-v') === '4') return;
+  const mk = (rows) => rows.map(r => ({ id: uid(), created_at: new Date().toISOString(), ...r }));
+  Local.save('tests', mk([
+    { date: daysAgo(62), kind: 'steps', source: 'trainer', lt1_manual: null, lt2_manual: null, note: 'Premier test, un peu fatigué',
+      data: { baseline: 1.3, steps: [ { w: 140, hr: 120, la: 1.3, rpe: 2 }, { w: 165, hr: 128, la: 1.4, rpe: 3 }, { w: 190, hr: 137, la: 1.9, rpe: 4 }, { w: 215, hr: 146, la: 2.6, rpe: 5 }, { w: 240, hr: 155, la: 3.6, rpe: 7 }, { w: 265, hr: 163, la: 5.0, rpe: 8 } ] } },
+    { date: daysAgo(18), kind: 'steps', source: 'trainer', lt1_manual: null, lt2_manual: null, note: '',
+      data: { baseline: 1.1, steps: [ { w: 140, hr: 118, la: 1.2, rpe: 2 }, { w: 165, hr: 126, la: 1.2, rpe: 2 }, { w: 190, hr: 134, la: 1.4, rpe: 3 }, { w: 215, hr: 142, la: 1.5, rpe: 4 }, { w: 240, hr: 150, la: 2.1, rpe: 5 }, { w: 265, hr: 158, la: 2.9, rpe: 7 }, { w: 290, hr: 166, la: 4.1, rpe: 8 }, { w: 315, hr: 173, la: 6.2, rpe: 9 } ] } }
+  ]));
+  Local.save('sessions', mk([
+    { date: daysAgo(1), kind: 'Endurance', duration_min: 150, watts: 185, hr: 132, lactate: 1.3, rpe: 3, source: 'route', note: 'Sortie longue, jambes ok' },
+    { date: daysAgo(3), kind: 'Intervalles', duration_min: 75, watts: 238, hr: 152, lactate: 3.2, rpe: 7, source: 'trainer', note: '3 x 12 min' },
+    { date: daysAgo(5), kind: 'Endurance', duration_min: 90, watts: 200, hr: 136, lactate: 1.6, rpe: 4, source: 'trainer', note: '' },
+    { date: daysAgo(12), kind: 'Endurance', duration_min: 120, watts: 210, hr: 140, lactate: 1.9, rpe: 4, source: 'route', note: 'Un peu haut pour de la Z1' },
+    { date: daysAgo(0), kind: 'Golden Zone basse', duration_min: 70, watts: 244, hr: 151, lactate: 2.3, rpe: 5, source: 'trainer', note: 'Double seuil matin : 5 x 8 min' },
+    { date: daysAgo(0), kind: 'Golden Zone haute', duration_min: 55, watts: 263, hr: 157, lactate: 3.1, rpe: 6, source: 'trainer', note: 'Double seuil soir : 10 x 3 min' },
+    { date: daysAgo(2), kind: 'Golden Zone haute', duration_min: 60, watts: 276, hr: 161, lactate: 3.9, rpe: 7, source: 'trainer', note: 'Trop haut sur les 2 derniers' },
+    { date: daysAgo(6), kind: 'Golden Zone basse', duration_min: 75, watts: 240, hr: 149, lactate: 2.2, rpe: 5, source: 'route', note: '4 x 10 min' }
+  ]));
+  localStorage.setItem('globule:seed-v', '4');
+}
+/* ---------- Calculs ---------- */
+// LT1 auto : palier qui précède le premier saut >= 0,4 mmol. Confirmé si le palier suivant reste au-dessus.
+// LT2 auto : Dmax modifiée (courbe lissée en polynôme de degré 3, point le plus éloigné de la corde LT1 -> dernier palier).
+function analyzeSteps(test) {
+  const steps = ((test.data && test.data.steps) || [])
+    .map(s => ({ w: num(s.w), hr: num(s.hr), la: num(s.la), rpe: num(s.rpe) }))
+    .filter(s => s.w != null && s.la != null)
+    .sort((a, b) => a.w - b.w);
+  let auto = null, firstAny = null;
+  for (let i = 1; i < steps.length; i++) {
+    if (steps[i].la - steps[i - 1].la >= 0.4 - 1e-9) {
+      const confirmed = i + 1 < steps.length && steps[i + 1].la - steps[i - 1].la >= 0.4 - 1e-9;
+      const cand = { idx: i - 1, jumpIdx: i, confirmed };
+      if (!firstAny) firstAny = cand;
+      if (confirmed) { auto = cand; break; }
+    }
+  }
+  auto = auto || firstAny;
+  const autoW = auto ? steps[auto.idx].w : null;
+  const manualW = num(test.lt1_manual);
+  const lt1W = manualW != null ? manualW : autoW;
+  const ref = lt1W != null ? steps.find(s => s.w === lt1W) : null;
+  const mIdx = manualW != null ? steps.findIndex(s => s.w === manualW) : -1;
+  const lt2Auto = modDmax(steps, mIdx >= 0 ? mIdx : auto ? auto.idx : null);
+  const lt2Manual = num(test.lt2_manual);
+  const lt2W = lt2Manual != null ? lt2Manual : lt2Auto;
+  const maxLa = steps.length ? Math.max(...steps.map(s => s.la)) : null;
+  return {
+    steps, auto, autoW, manualW, lt1W,
+    lt1Hr: ref ? ref.hr : interpHr(steps, lt1W),
+    lt1La: ref ? ref.la : null,
+    status: manualW != null ? 'manual' : auto ? (auto.confirmed ? 'confirmed' : 'toconfirm') : 'none',
+    lt2Auto, lt2Manual, lt2W, maxLa,
+    lt2Hr: interpHr(steps, lt2W), lt2La: laAt(steps, lt2W),
+    lt2Status: lt2Manual != null ? 'manual' : lt2Auto == null ? 'none' : maxLa < 3.5 ? 'short' : 'auto'
+  };
+}
+function interpHr(steps, w) {
+  if (w == null) return null;
+  const pts = steps.filter(s => s.hr != null);
+  if (pts.length < 2 || w < pts[0].w || w > pts[pts.length - 1].w) return null;
+  for (let i = 1; i < pts.length; i++) {
+    if (w <= pts[i].w) { const a = pts[i - 1], b = pts[i]; return a.hr + (b.hr - a.hr) * (w - a.w) / (b.w - a.w || 1); }
+  }
+  return null;
+}
+function laAt(steps, w) {
+  if (w == null || steps.length < 2 || w < steps[0].w || w > steps[steps.length - 1].w) return null;
+  for (let i = 1; i < steps.length; i++) {
+    if (w <= steps[i].w) { const a = steps[i - 1], b = steps[i]; return a.la + (b.la - a.la) * (w - a.w) / (b.w - a.w || 1); }
+  }
+  return null;
+}
+function polyfit3(xs, ys) {
+  const n = xs.length, mx = xs.reduce((a, b) => a + b, 0) / n, sx = (Math.max(...xs) - Math.min(...xs)) || 1;
+  const A = Array.from({ length: 4 }, () => Array(5).fill(0));
+  for (let i = 0; i < n; i++) {
+    const u = (xs[i] - mx) / sx, p = [1, u, u * u, u * u * u];
+    for (let r = 0; r < 4; r++) { for (let c = 0; c < 4; c++) A[r][c] += p[r] * p[c]; A[r][4] += p[r] * ys[i]; }
+  }
+  for (let c = 0; c < 4; c++) {
+    let piv = c; for (let r = c + 1; r < 4; r++) if (Math.abs(A[r][c]) > Math.abs(A[piv][c])) piv = r;
+    [A[c], A[piv]] = [A[piv], A[c]];
+    if (Math.abs(A[c][c]) < 1e-12) return null;
+    for (let r = 0; r < 4; r++) { if (r === c) continue; const f = A[r][c] / A[c][c]; for (let k = c; k < 5; k++) A[r][k] -= f * A[c][k]; }
+  }
+  const b = A.map((row, i) => row[4] / row[i]);
+  return x => { const u = (x - mx) / sx; return b[0] + b[1] * u + b[2] * u * u + b[3] * u * u * u; };
+}
+function modDmax(steps, startIdx) {
+  if (startIdx == null || startIdx < 0) return null;
+  const last = steps.length - 1;
+  if (steps.length < 4 || last - startIdx < 2) return null;
+  const f = polyfit3(steps.map(s => s.w), steps.map(s => s.la)) || (w => laAt(steps, w));
+  const x0 = steps[startIdx].w, x1 = steps[last].w, y0 = f(x0), y1 = f(x1);
+  let best = null, bd = 0;
+  for (let x = x0; x <= x1; x += 1) {
+    const d = (y0 + (y1 - y0) * (x - x0) / (x1 - x0)) - f(x);
+    if (d > bd) { bd = d; best = x; }
+  }
+  return best == null ? null : Math.round(best);
+}
+function currentZones() {
+  const tests = state.tests.filter(t => t.kind === 'steps').sort(byDateDesc);
+  let s = null, sTest = null, s2 = null, s2Test = null;
+  for (const t of tests) { const a = analyzeSteps(t); if (!s && a.lt1W != null) { s = a; sTest = t; } if (!s2 && a.lt2W != null) { s2 = a; s2Test = t; } if (s && s2) break; }
+  const lt1 = s ? s.lt1W : null, lt2 = s2 ? s2.lt2W : null;
+  return { lt1, lt1Hr: s ? s.lt1Hr : null, lt2, lt2Hr: s2 ? s2.lt2Hr : null, s, sTest, s2, s2Test, incoherent: lt1 != null && lt2 != null && lt1 >= lt2 };
+}
+// Golden Zone (méthode norvégienne, M. Bakken) : juste sous le 2e seuil (LT2), jamais dessus, pilotée au lactate.
+// Deux plages : basse (séances longues, souvent le matin) et haute (intervalles plus courts, souvent le soir).
+const BANDS = {
+  low: { name: 'basse', label: 'GZ basse', kind: 'Golden Zone basse', color: '#FFE07A' },
+  high: { name: 'haute', label: 'GZ haute', kind: 'Golden Zone haute', color: '#FFB000' }
+};
+const KIND_BAND = { 'Golden Zone basse': 'low', 'Golden Zone haute': 'high', 'Golden Zone': 'high' };
+const GZ_QUALITY = ['Intervalles', 'Seuil', 'Tempo'];
+function crossW(steps, la) {
+  for (let i = 1; i < steps.length; i++) {
+    const a = steps[i - 1], b = steps[i];
+    if (a.la <= la && b.la >= la && b.la !== a.la) return a.w + (b.w - a.w) * (la - a.la) / (b.la - a.la);
+  }
+  return null;
+}
+function bandWatts(Z, key) {
+  const { lo, hi } = state.gz[key];
+  const B = { key, lo, hi, wLo: null, wHi: null, hrLo: null, hrHi: null, capped: false, above: false };
+  const curve = Z.s2 || Z.s;
+  if (curve) {
+    B.wLo = crossW(curve.steps, lo); B.wHi = crossW(curve.steps, hi);
+    if (B.wLo != null && B.wHi == null && Z.lt2 != null) { B.wHi = Z.lt2; B.capped = true; }
+  }
+  if (B.wLo != null && Z.lt2 != null && B.wLo >= Z.lt2) { B.above = true; B.wLo = null; B.wHi = null; return B; }
+  if (B.wHi != null && Z.lt2 != null && B.wHi > Z.lt2) { B.wHi = Z.lt2; B.capped = true; }
+  if (B.wLo != null && B.wHi != null && B.wHi <= B.wLo) { B.wLo = null; B.wHi = null; }
+  if (curve && B.wLo != null) { B.hrLo = interpHr(curve.steps, B.wLo); B.hrHi = interpHr(curve.steps, B.wHi); }
+  return B;
+}
+function goldenZone(Z) { return { low: bandWatts(Z, 'low'), high: bandWatts(Z, 'high') }; }
+function inRange(la, r) { return la >= r.lo - 1e-9 && la <= r.hi + 1e-9; }
+function gzStatus(s) {
+  const la = num(s.lactate), band = KIND_BAND[s.kind];
+  if (band) {
+    const r = state.gz[band];
+    if (la == null || inRange(la, r)) return { band, st: 'in' };
+    return { band, st: la > r.hi ? 'high' : 'low' };
+  }
+  if (GZ_QUALITY.includes(s.kind) && la != null) {
+    if (inRange(la, state.gz.low)) return { band: 'low', st: 'in' };
+    if (inRange(la, state.gz.high)) return { band: 'high', st: 'in' };
+  }
+  return null;
+}
+function mondayISO() { const d = new Date(); const day = (d.getDay() + 6) % 7; d.setDate(d.getDate() - day); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); }
+function gzWeek() {
+  const m = mondayISO();
+  const list = state.sessions.filter(s => (s.date || '') >= m && gzStatus(s));
+  return { n: list.length, min: list.reduce((a, s) => a + (num(s.duration_min) || 0), 0), high: list.filter(s => gzStatus(s).st === 'high').length };
+}
+const gzBands = () => [
+  { y0: state.gz.low.lo, y1: state.gz.low.hi, color: BANDS.low.color, op: .5, label: 'GZ basse' },
+  { y0: state.gz.high.lo, y1: state.gz.high.hi, color: '#FFC21A', op: .42, label: 'GZ haute' }
+];
+const gzTop = () => Math.max(state.gz.low.hi, state.gz.high.hi);
+
+function zoneOf(w, Z) {
+  if (w == null || !Z) return null;
+  if (Z.lt1 != null && w < Z.lt1) return 1;
+  if (Z.lt2 != null && w > Z.lt2) return 3;
+  if (Z.lt1 != null && Z.lt2 != null) return 2;
+  if (Z.lt1 != null) return 2;
+  return null;
+}
+const ZCOL = { 1: 'var(--z1)', 2: 'var(--z2)', 3: 'var(--z3)' };
+const ZHEX = { 1: '#3FE8B9', 2: '#FFD21F', 3: '#FF2D8E' };
+
+/* ---------- Globule, la mascotte animée ---------- */
+// SVG inline (piloté par classes is-idle, is-hello, is-golden, is-high, is-record). Ids rendus uniques par instance.
+let gid = 0;
+const MASCOT_STATES = ['is-idle', 'is-hello', 'is-golden', 'is-high', 'is-record'];
+function globuleSVG(size = 120, cls = '') {
+  const n = ++gid;
+  let s = window.GLOBULE_SVG || '';
+  s = s.replace(/\sid="([^"]+)"/g, (m, id) => ` id="${id}-${n}"`)
+    .replace(/url\(#([^)]+)\)/g, (m, id) => `url(#${id}-${n})`)
+    .replace(/aria-labelledby="([^"]+)"/, (m, id) => `aria-labelledby="${id}-${n}"`)
+    .replace('width="388" height="436"', `width="${size}" height="${Math.round(size * 436 / 388)}"`)
+    .replace('class="globule is-idle"', `class="globule is-idle ${cls}"`);
+  return s;
+}
+function setMascot(svg, st) {
+  if (!svg) return;
+  const cls = 'is-' + st;
+  if (!MASCOT_STATES.includes(cls)) return;
+  svg.classList.remove(...MASCOT_STATES);
+  void svg.getBoundingClientRect(); // relance les animations "une fois"
+  svg.classList.add(cls);
+}
+function setMascotLactate(svg, la) {
+  const el = svg && svg.querySelector('.glb-meter-value');
+  if (el) el.textContent = la == null ? '--' : fmt(la, 1);
+}
+// Dernière vraie mesure de lactate (séance ou dernier palier d'un test).
+function lastLactate() {
+  const pts = [];
+  state.sessions.forEach(s => { if (num(s.lactate) != null) pts.push({ date: s.date, created_at: s.created_at, la: num(s.lactate) }); });
+  state.tests.forEach(t => { if (t.kind === 'steps') { const a = analyzeSteps(t); if (a.steps.length) pts.push({ date: t.date, created_at: t.created_at, la: a.steps[a.steps.length - 1].la }); } });
+  pts.sort(byDateDesc);
+  return pts.length ? pts[0].la : null;
+}
+// Humeur par défaut : en sueur si la dernière séance du jour est au-dessus de sa Golden Zone.
+function mascotMood() {
+  const last = [...state.sessions].sort(byDateDesc)[0];
+  if (state.tab === 'home' && last && last.date === todayISO()) { const g = gzStatus(last); if (g && g.st === 'high') return 'high'; }
+  return 'idle';
+}
+function applyMascot() {
+  const svg = $('#app .globule');
+  if (!svg) return;
+  const ev = state.mascotEvent; state.mascotEvent = null;
+  setMascot(svg, ev || mascotMood());
+  if (ev && window.scrollY > 120) window.scrollTo({ top: 0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+  setMascotLactate(svg, lastLactate());
+}
+function bestMarks() {
+  const as = state.tests.filter(t => t.kind === 'steps').map(analyzeSteps);
+  const lt1 = as.map(a => a.lt1W).filter(v => v != null), lt2 = as.map(a => a.lt2W).filter(v => v != null);
+  return { lt1: lt1.length ? Math.max(...lt1) : null, lt2: lt2.length ? Math.max(...lt2) : null };
+}
+const beats = (now, before) => now != null && before != null && now > before + 0.5;
+
+/* ---------- Graphiques SVG ---------- */
+function niceTicks(min, max, count = 5) {
+  if (!Number.isFinite(min) || !Number.isFinite(max)) { min = 0; max = 1; }
+  if (min === max) { min -= 1; max += 1; }
+  const step0 = (max - min) / count, mag = Math.pow(10, Math.floor(Math.log10(step0))), err = step0 / mag;
+  const step = (err >= 7.5 ? 10 : err >= 3.5 ? 5 : err >= 1.5 ? 2 : 1) * mag;
+  const lo = Math.floor(min / step) * step, hi = Math.ceil(max / step) * step, ticks = [];
+  for (let v = lo; v <= hi + step / 2; v += step) ticks.push(+v.toFixed(6));
+  return { lo, hi, ticks };
+}
+// series : [{ pts:[{x,y,attrs}], color, dash, right, dots, line }]
+function chartSVG({ series, xRange, yRange, y2Range, xFmt = v => fmt(v), yFmt = v => fmt(v, 1), y2Fmt = v => fmt(v), xTitle = '', yTitle = '', y2Title = '', h = 220, vlines = [], hbands = [], timeX = false, extra = '' }) {
+  const W = 340, P = { l: 38, r: y2Range ? 38 : 12, t: 18, b: 34 };
+  const X = timeX ? { lo: xRange[0], hi: xRange[1], ticks: [] } : niceTicks(xRange[0], xRange[1], 5);
+  if (timeX) { const k = 4; for (let i = 0; i < k; i++) X.ticks.push(X.lo + (X.hi - X.lo) * i / (k - 1)); }
+  const Y = niceTicks(yRange[0], yRange[1], 4);
+  const Y2 = y2Range ? niceTicks(y2Range[0], y2Range[1], 4) : null;
+  const sx = v => P.l + (v - X.lo) / ((X.hi - X.lo) || 1) * (W - P.l - P.r);
+  const sy = v => h - P.b - (v - Y.lo) / ((Y.hi - Y.lo) || 1) * (h - P.t - P.b);
+  const sy2 = Y2 ? (v => h - P.b - (v - Y2.lo) / ((Y2.hi - Y2.lo) || 1) * (h - P.t - P.b)) : null;
+  let g = '';
+  hbands.forEach(b => {
+    const top = sy(Math.min(b.y1, Y.hi)), bot = sy(Math.max(b.y0, Y.lo));
+    if (bot > top) {
+      g += `<rect x="${P.l}" y="${top}" width="${W - P.l - P.r}" height="${bot - top}" fill="${b.color}" opacity="${b.op || .35}"/>`;
+      if (b.label) g += `<text x="${P.l + 5}" y="${top + 12}" style="fill:#8A5A00;font-weight:700">${b.label}</text>`;
+    }
+  });
+  Y.ticks.forEach(t => { g += `<line class="grid" x1="${P.l}" x2="${W - P.r}" y1="${sy(t)}" y2="${sy(t)}"/><text x="${P.l - 6}" y="${sy(t) + 3.5}" text-anchor="end">${yFmt(t)}</text>`; });
+  if (Y2) Y2.ticks.forEach(t => { g += `<text x="${W - P.r + 6}" y="${sy2(t) + 3.5}">${y2Fmt(t)}</text>`; });
+  X.ticks.forEach(t => { g += `<text x="${sx(t)}" y="${h - P.b + 15}" text-anchor="middle">${xFmt(t)}</text>`; });
+  g += `<line class="axis" x1="${P.l}" x2="${W - P.r}" y1="${h - P.b}" y2="${h - P.b}"/>`;
+  if (xTitle) g += `<text x="${(P.l + W - P.r) / 2}" y="${h - 3}" text-anchor="middle">${xTitle}</text>`;
+  if (yTitle) g += `<text x="4" y="10">${yTitle}</text>`;
+  if (y2Title) g += `<text x="${W - 4}" y="10" text-anchor="end">${y2Title}</text>`;
+  vlines.forEach(v => {
+    const x = sx(v.x);
+    g += `<line x1="${x}" x2="${x}" y1="${P.t - 6}" y2="${h - P.b}" stroke="${v.color}" stroke-width="2.5" stroke-dasharray="${v.dash || ''}"/>`;
+    if (v.label) g += `<text x="${x + 4}" y="${P.t + 2}" style="fill:var(--text);font-weight:700">${v.label}</text>`;
+  });
+  series.forEach(s => {
+    const f = s.right ? sy2 : sy;
+    const pts = s.pts.filter(p => p.x != null && p.y != null);
+    if (s.line !== false && pts.length > 1) {
+      g += `<polyline fill="none" stroke="${s.color}" stroke-width="${s.width || 3}" stroke-linejoin="round" stroke-linecap="round" ${s.dash ? `stroke-dasharray="${s.dash}"` : ''} points="${pts.map(p => `${sx(p.x).toFixed(1)},${f(p.y).toFixed(1)}`).join(' ')}"/>`;
+    }
+    if (s.dots !== false) pts.forEach(p => {
+      g += `<circle cx="${sx(p.x).toFixed(1)}" cy="${f(p.y).toFixed(1)}" r="${p.r || s.r || 4.5}" fill="${p.fill || s.color}" stroke="#2A0A4A" stroke-width="2" ${p.attrs || ''}/>`;
+    });
+  });
+  return `<svg class="chart" viewBox="0 0 ${W} ${h}" role="img">${g}${extra ? extra(sx, sy) : ''}</svg>`;
+}
+const TEST_COLORS = ['#FF2D8E', '#6A2BF0', '#13B98A', '#F2A100', '#3AA0FF', '#B03AC9'];
+
+/* ---------- Rendu ---------- */
+const app = () => $('#app');
+function header() {
+  return `<header class="top"><h1 class="wordmark">Globule<small>le labo lactate${state.name ? ' de ' + esc(state.name) : ''}</small></h1>${DEMO ? '<span class="demo-badge">mode démo</span>' : ''}</header>`;
+}
+function hero(text, size = 140) {
+  return `<div class="hero">${globuleSVG(size)}<p class="bubble">${text}</p></div>`;
+}
+function render() {
+  const v = { home: viewHome, journal: viewJournal, globule: viewGlobule }[state.tab] || viewHome;
+  app().innerHTML = header() + v();
+  $$('.tab').forEach(b => b.setAttribute('aria-current', b.dataset.tab === state.tab ? 'page' : 'false'));
+  applyMascot();
+}
+const lastSource = () => { const all = [...state.sessions, ...state.tests].sort(byDateDesc); return (all[0] && all[0].source) || 'trainer'; };
+
+function zonesPanel(Z) {
+  if (Z.lt1 == null && Z.lt2 == null) {
+    return `<section class="panel empty"><p class="hand">Pas encore de zones. Un test paliers jusqu'à 4 mmol me donne tes deux seuils d'un coup.</p>
+      <button class="btn rose" data-act="new-steps">Saisir un test paliers</button></section>`;
+  }
+  const lt1 = Z.lt1 != null ? `${fmt(Z.lt1)} W` : '?';
+  const lt2 = Z.lt2 != null ? `${fmt(Z.lt2)} W` : '?';
+  const hr2 = Z.lt1Hr != null && Z.lt2Hr != null ? `FC ${fmt(Z.lt1Hr)} à ${fmt(Z.lt2Hr)}` : Z.lt2Hr != null ? `FC &lt; ${fmt(Z.lt2Hr)}` : Z.lt1Hr != null ? `FC &gt; ${fmt(Z.lt1Hr)}` : '';
+  const flags = [];
+  if (Z.s && Z.s.status === 'toconfirm') flags.push('LT1 à confirmer');
+  if (Z.s && Z.s.status === 'manual') flags.push('LT1 choisi à la main');
+  if (Z.s2 && Z.s2.lt2Status === 'manual') flags.push('LT2 choisi à la main');
+  return `<section class="panel zones" aria-label="Tes zones d'entraînement">
+    <h3>Tes 3 zones</h3>
+    <div class="thermo" aria-hidden="true"><div class="z1">Z1</div><div class="z2">Z2</div><div class="z3">Z3</div>${gzThermo(Z)}</div>
+    <div class="marks" aria-hidden="true">
+      <div class="mark" style="left:38.3%"><b>${lt1}</b><span>LT1</span></div>
+      <div class="mark" style="left:71.7%"><b>${lt2}</b><span>LT2</span></div>
+    </div>
+    <div class="zone-rows">
+      <div class="zrow"><span class="zdot" style="background:var(--z1)">1</span><span class="what"><strong>Endurance</strong>Sous LT1, lactate proche du repos</span><span class="val">&lt; ${lt1}<small>${Z.lt1Hr != null ? 'FC &lt; ' + fmt(Z.lt1Hr) : ''}</small></span></div>
+      <div class="zrow"><span class="zdot" style="background:var(--z2)">2</span><span class="what"><strong>Tempo et seuil</strong>Le lactate monte puis se stabilise</span><span class="val">${lt1} à ${lt2}<small>${hr2}</small></span></div>
+      <div class="zrow"><span class="zdot" style="background:var(--z3)">3</span><span class="what"><strong>Au-dessus de LT2</strong>Le lactate grimpe sans plateau</span><span class="val">&gt; ${lt2}<small>${Z.lt2Hr != null ? 'FC &gt; ' + fmt(Z.lt2Hr) : ''}</small></span></div>
+    </div>
+    <div class="extras">
+      ${Z.sTest ? `<span class="chip">Test du ${fdate(Z.sTest.date)}</span>` : ''}
+      ${flags.map(f => `<span class="chip">${f}</span>`).join('')}
+    </div>
+    ${Z.incoherent ? '<p class="warn">LT1 est au-dessus de LT2 : regarde la courbe du test et corrige un des deux seuils.</p>' : ''}
+    ${Z.lt2 == null ? '<p class="warn">Pas encore de LT2 : au prochain test, continue jusque vers 4 mmol, au moins 2 paliers après ton LT1.</p>'
+      : Z.s2 && Z.s2.lt2Status === 'short' ? `<p class="warn">LT2 à confirmer : ta courbe s'arrête à ${fmt(Z.s2.maxLa, 1)} mmol. Pousse un ou deux paliers de plus au prochain test.</p>` : ''}
+  </section>`;
+}
+function gzThermo(Z) {
+  const G = goldenZone(Z);
+  if (Z.lt1 == null || Z.lt2 == null || Z.lt2 <= Z.lt1) return '';
+  const pos = w => 38.3 + Math.max(0, Math.min(1, (w - Z.lt1) / (Z.lt2 - Z.lt1))) * 33.4;
+  return ['low', 'high'].map(k => {
+    const B = G[k]; if (B.wLo == null || B.wHi == null) return '';
+    const a = pos(B.wLo), b = pos(B.wHi);
+    return `<div class="gz-band ${k}" style="left:${a}%;width:${Math.max(3, b - a)}%"></div>`;
+  }).join('');
+}
+function goldenPanel(Z) {
+  const G = goldenZone(Z), wk = gzWeek(), r = v => fmt(v, 1);
+  const row = k => {
+    const B = G[k];
+    const watts = B.wLo != null ? `${fmt(B.wLo)} à ${fmt(B.wHi)} W` : B.above ? 'au-dessus de ton LT2' : 'à calculer';
+    const det = `${r(B.lo)} à ${r(B.hi)} mmol${B.hrLo != null && B.hrHi != null ? `, FC ${fmt(B.hrLo)} à ${fmt(B.hrHi)}` : ''}`;
+    return `<div class="gz-row"><span class="gz-tag ${k}">${BANDS[k].name}</span><div><b class="gz-w">${watts}</b><small>${det}</small></div></div>`;
+  };
+  const any = G.low.wLo != null || G.high.wLo != null;
+  const above = G.low.above || G.high.above;
+  const note = above ? 'Une plage commence au-dessus de ton LT2 : elle est trop haute pour toi. Baisse-la dans mon onglet.'
+    : !any ? 'Il me faut une courbe de lactate qui traverse tes plages : un test paliers jusqu\'à 4 mmol.'
+    : (G.low.capped || G.high.capped) ? 'Plafonnées à ton LT2 : la Golden Zone reste sous ton 2e seuil, jamais dessus.'
+    : 'Lues sur ta dernière courbe de lactate.';
+  return `<section class="panel golden" aria-label="Ta Golden Zone">
+    <div class="gz-head"><span class="gz-star" aria-hidden="true">★</span><h3>Ta Golden Zone</h3></div>
+    <p class="gz-sub">Juste sous ton 2e seuil (LT2), jamais dessus.</p>
+    <div class="gz-rows">${row('low')}${row('high')}</div>
+    <div class="kv"><div><b>${wk.n}</b><span>séance${wk.n > 1 ? 's' : ''} cette semaine</span></div><div><b>${wk.min}</b><span>min en GZ</span></div><div><b>${wk.high}</b><span>trop haut</span></div></div>
+    <p class="gz-note">${note}</p>
+    <div class="row-btns" style="margin-top:0"><button class="btn" data-act="new-gz" data-band="low">+ GZ basse</button><button class="btn" data-act="new-gz" data-band="high">+ GZ haute</button></div></section>`;
+}
+function sessionItem(s, Z) {
+  const z = zoneOf(num(s.watts), Z);
+  const meta = [fdate(s.date), s.duration_min ? `${s.duration_min} min` : '', s.hr ? `FC ${s.hr}` : '', s.source ? SOURCES[s.source] : ''].filter(Boolean).join(', ');
+  return `<button class="item" data-act="edit-session" data-id="${s.id}">
+    ${gzBadge(s) || `<span class="badge" style="background:${z ? ZCOL[z] : 'var(--surface-2)'}">${z ? 'Z' + z : '?'}</span>`}
+    <span class="main"><strong>${esc(s.kind || 'Séance')}</strong><span>${esc(meta)}</span></span>
+    <span class="num">${s.lactate != null ? fmt(num(s.lactate), 1) + ' mmol' : ''}<small>${s.watts != null ? fmt(num(s.watts)) + ' W' : ''}</small></span></button>`;
+}
+function gzBadge(s) {
+  const g = gzStatus(s);
+  if (!g) return '';
+  const look = g.st === 'high' ? ['var(--z3)', 'GZ<br>↑', '#fff'] : g.st === 'low' ? ['#FFF1B8', 'GZ<br>↓', '#2A0A4A'] : [g.band === 'low' ? BANDS.low.color : '#FFC21A', `GZ<br>${BANDS[g.band].name}`, '#2A0A4A'];
+  return `<span class="badge gz" style="background:${look[0]};color:${look[2]};font-size:${g.st === 'in' ? 10.5 : 13}px" title="${BANDS[g.band].label}${g.st === 'high' ? ', trop haut' : g.st === 'low' ? ', trop bas' : ''}">${look[1]}</span>`;
+}
+function testItem(t) {
+  const a = analyzeSteps(t);
+  const v = w => w != null ? fmt(w) : '?';
+  return `<button class="item" data-act="open-steps" data-id="${t.id}">
+    <span class="badge" style="background:var(--violet);color:#fff">5'</span>
+    <span class="main"><strong>Test paliers</strong><span>${fdate(t.date)}, ${a.steps.length} paliers${t.source ? ', ' + SOURCES[t.source] : ''}</span></span>
+    <span class="num">${v(a.lt1W)} / ${v(a.lt2W)} W<small>LT1 / LT2</small></span></button>`;
+}
+
+function viewHome() {
+  const Z = currentZones();
+  const hi = state.name ? `Salut ${esc(state.name)} !` : 'Salut !';
+  const say = Z.lt1 != null && Z.lt2 != null ? `${hi} Tes zones du moment, et ta Golden Zone en or, juste sous ton 2e seuil.`
+    : Z.lt1 == null && Z.lt2 == null ? `${hi} Moi c'est Globule. Un test paliers jusqu'à 4 mmol et je te sors tes zones.`
+    : Z.lt2 == null ? 'Il me manque ton LT2. Au prochain test, monte jusque vers 4 mmol.'
+    : 'Il me manque ton LT1. Regarde ta dernière courbe de lactate.';
+  const recent = [...state.sessions.map(s => ({ ...s, _t: 's' })), ...state.tests.filter(t => t.kind === 'steps').map(t => ({ ...t, _t: 't' }))].sort(byDateDesc).slice(0, 4);
+  return hero(say) + zonesPanel(Z) + (Z.lt1 != null || Z.lt2 != null ? goldenPanel(Z) : '') + `
+    <div class="actions" style="grid-template-columns:1fr 1fr">
+      <button class="btn big rose" data-act="new-session"><span class="ico">+</span>Séance</button>
+      <button class="btn big violet" data-act="new-steps"><span class="ico">5'</span>Test paliers</button>
+    </div>
+    <h2 class="title">Derniers ajouts</h2>
+    ${recent.length ? `<div class="list">${recent.map(r => r._t === 's' ? sessionItem(r, Z) : testItem(r)).join('')}</div>`
+      : `<div class="panel empty"><p class="hand">Rien pour l'instant. Ta première goutte t'attend.</p></div>`}
+    <button class="btn ghost block" style="margin-top:10px" data-tab="journal">Tout le journal</button>`;
+}
+
+function viewJournal() {
+  const Z = currentZones();
+  const withLa = state.sessions.filter(s => num(s.lactate) != null).map(s => ({ x: Date.parse(s.date), y: num(s.lactate), z: zoneOf(num(s.watts), Z), gz: (gzStatus(s) || {}).st === 'in' ? gzStatus(s).band : null })).sort((a, b) => a.x - b.x);
+  let chart = '';
+  if (withLa.length) {
+    let x0 = withLa[0].x, x1 = withLa[withLa.length - 1].x; if (x0 === x1) { x0 -= 3 * 864e5; x1 += 3 * 864e5; }
+    chart = `<section class="panel" style="margin-top:16px"><h3 class="hand" style="margin:0 0 6px">Lactate à l'entraînement</h3>
+      ${chartSVG({ timeX: true, xRange: [x0, x1], yRange: [0, Math.max(4, gzTop() + .5, ...withLa.map(p => p.y))], xFmt: v => fdateShort(new Date(v).toISOString()), yTitle: 'mmol/L', h: 190,
+        hbands: gzBands(), series: [{ pts: withLa.map(p => ({ x: p.x, y: p.y, fill: p.gz ? (p.gz === 'low' ? BANDS.low.color : '#FFC21A') : p.z ? ZHEX[p.z] : '#ffffff', r: p.gz ? 7.5 : 6 })), color: '#2A0A4A', line: false }] })}
+      <div class="legend"><span><i style="background:var(--z1)"></i>Z1</span><span><i style="background:var(--z2)"></i>Z2</span><span><i style="background:var(--z3)"></i>Z3</span><span><i style="background:#FFE07A"></i>GZ basse</span><span><i style="background:#FFC21A"></i>GZ haute</span></div></section>`;
+  }
+  const steps = state.tests.filter(t => t.kind === 'steps');
+  let trend = '';
+  const l1 = steps.map(t => ({ x: Date.parse(t.date), y: analyzeSteps(t).lt1W })).filter(p => p.y != null).sort((a, b) => a.x - b.x);
+  const l2 = steps.map(t => ({ x: Date.parse(t.date), y: analyzeSteps(t).lt2W })).filter(p => p.y != null).sort((a, b) => a.x - b.x);
+  if (l1.length + l2.length >= 2) {
+    const all = [...l1, ...l2], xs = all.map(p => p.x), ys = all.map(p => p.y);
+    let x0 = Math.min(...xs), x1 = Math.max(...xs); if (x0 === x1) { x0 -= 7 * 864e5; x1 += 7 * 864e5; }
+    trend = `<section class="panel" style="margin-top:14px"><h3 class="hand" style="margin:0 0 6px">Tes seuils dans le temps</h3>
+      ${chartSVG({ timeX: true, xRange: [x0, x1], yRange: [Math.min(...ys) - 10, Math.max(...ys) + 10], xFmt: v => fdateShort(new Date(v).toISOString()), yFmt: v => fmt(v), yTitle: 'W', h: 170,
+        series: [{ pts: l1, color: '#13B98A', r: 5.5 }, { pts: l2, color: '#FF2D8E', r: 5.5 }] })}
+      <div class="legend"><span><i style="background:#13B98A"></i>LT1</span><span><i style="background:#FF2D8E"></i>LT2</span></div></section>`;
+  }
+  const items = [...state.sessions.map(s => ({ ...s, _t: 's' })), ...steps.map(t => ({ ...t, _t: 't' }))].sort(byDateDesc);
+  const groups = {};
+  items.forEach(it => { const k = (it.date || '').slice(0, 7); (groups[k] = groups[k] || []).push(it); });
+  const list = Object.keys(groups).sort().reverse().map(k => {
+    const [y, m] = k.split('-');
+    return `<p class="month">${MONTHS[+m - 1]} ${y}</p><div class="list">${groups[k].map(it => it._t === 's' ? sessionItem(it, Z) : testItem(it)).join('')}</div>`;
+  }).join('');
+  return hero(items.length ? 'Séances et tests, tout au même endroit. Touche une ligne pour la voir.' : 'Ton journal est vide. Note ta prochaine séance ou ton prochain test.', 124) + `
+    <div class="row-btns" style="margin-top:0"><button class="btn rose" data-act="new-session">+ Séance</button><button class="btn violet" data-act="new-steps">+ Test paliers</button></div>
+    ${chart}${trend}${list}`;
+}
+
+function viewGlobule() {
+  return hero('Je vis dans ton doigt, je compte tes mmol et je ne mens jamais. Enfin, à 0,3 près.', 150) + `
+  <details class="panel proto golden-proto" open>
+    <summary><span><span class="t">★ Golden Zone</span><span class="s">Méthode norvégienne, le cœur du double seuil</span></span><span class="plus">+</span></summary>
+    <p class="say">Juste sous ton 2e seuil (LT2). Jamais dessus. C'est là que ça se passe.</p>
+    <ol>
+      <li>Attention au mot "seuil" : ici c'est ton <b>2e seuil</b> (LT2). Ton 1er seuil (LT1), juste au-dessus du lactate de repos, c'est la fin de la Z1 : le terrain des jours faciles, pas de la Golden Zone.</li>
+      <li><b>GZ basse</b> (${fmt(state.gz.low.lo, 1)} à ${fmt(state.gz.low.hi, 1)} mmol) : intervalles longs, par exemple 5 × 8 à 10 min, souvent la séance du matin.</li>
+      <li><b>GZ haute</b> (${fmt(state.gz.high.lo, 1)} à ${fmt(state.gz.high.hi, 1)} mmol) : intervalles plus courts et un peu plus rapides, souvent la séance du soir.</li>
+      <li>Ces plages sont des repères tirés des pratiques citées autour de la méthode, pas des chiffres du livre. Ajuste-les selon tes tests dans les réglages, en bas de cette page.</li>
+      <li>Pique pendant la récup, après le 2e intervalle puis vers la fin. Au-dessus de la plage : baisse les watts au suivant. Le piège, c'est d'aller trop fort, pas trop doucement.</li>
+      <li>Double seuil : GZ basse le matin, GZ haute le soir. Le reste de la semaine en Z1.</li>
+    </ol>
+    <p>Tes watts sont lus sur ta dernière courbe de lactate, là où elle traverse chaque plage, et plafonnés à ton LT2.</p>
+  </details>
+  <details class="panel proto">
+    <summary><span><span class="t">Test paliers 5 min</span><span class="s">Le seul test : il donne LT1 et LT2</span></span><span class="plus">+</span></summary>
+    <p class="say">Un test, deux seuils, trois zones.</p>
+    <ol>
+      <li>Mêmes conditions à chaque test : même heure, même repas, rien d'intense la veille. Glycogène bas = courbe faussement flatteuse.</li>
+      <li>Échauffement 10 à 15 min très facile. Lactate de repos si tu veux une référence.</li>
+      <li>Ton protocole fixe : départ ${fmt(proto().start)} W, +${fmt(proto().step)} W toutes les 5 min, cadence stable. Toujours le même, pour que les courbes se comparent. Réglable en bas de page.</li>
+      <li>Prélèvement dans les 30 dernières secondes du palier, sans arrêter de pédaler. Doigt sec, première goutte essuyée : la sueur contient du lactate.</li>
+      <li>Note FC de fin de palier, lactate et RPE. Les watts sont déjà remplis.</li>
+      <li><b>Va jusque vers 4 mmol</b>, au moins 2 paliers après le premier saut. Sans ça, pas de LT2 fiable.</li>
+    </ol>
+    <p class="say">Comment je calcule</p>
+    <p><b>LT1</b> = le palier juste avant le premier saut d'au moins 0,4 mmol. Les lecteurs ont environ 0,2 à 0,3 mmol d'erreur, donc je vérifie que ça reste haut au palier suivant.</p>
+    <p><b>LT2</b> = méthode Dmax modifiée : je lisse ta courbe, je trace une droite de LT1 au dernier palier, et LT2 est le point de la courbe le plus éloigné de cette droite. Si ta courbe s'arrête sous 3,5 mmol, j'écris "à confirmer".</p>
+    <p>Tu peux toujours déplacer LT1 ou LT2 à la main en touchant la courbe.</p>
+  </details>
+  <details class="panel proto">
+    <summary><span><span class="t">Tes 3 zones</span><span class="s">Ce que je fais avec LT1 et LT2</span></span><span class="plus">+</span></summary>
+    <p class="say">Trois zones, deux frontières, zéro blabla.</p>
+    <p><b>Z1</b> sous LT1 : endurance, lactate quasi au repos. La majorité du volume.<br><b>Z2</b> entre LT1 et LT2 : tempo et seuil, le lactate monte puis se stabilise. La Golden Zone vit tout en haut.<br><b>Z3</b> au-dessus de LT2 : le lactate grimpe sans plateau.</p>
+    <p class="muted">Home trainer et capteur route peuvent différer de quelques %. Je note la source de chaque mesure pour que tu compares ce qui est comparable.</p>
+  </details>
+  <section class="panel" style="margin-top:14px">
+    <h3 class="hand" style="margin:0 0 10px">Réglages</h3>
+    <label class="field"><span>Comment je t'appelle ?</span><input class="inp" id="set-name" value="${esc(state.name)}" placeholder="Ton prénom" autocomplete="given-name"></label>
+    <button class="btn violet block" data-act="save-name">Enregistrer le prénom</button>
+    <div style="height:14px"></div>
+    <p class="hand" style="margin:0 0 6px">Golden Zone (mmol)</p>
+    <div class="grid2"><label class="field"><span>GZ basse, de</span><input class="inp" id="set-low-lo" inputmode="decimal" value="${inVal(state.gz.low.lo)}"></label>
+    <label class="field"><span>GZ basse, à</span><input class="inp" id="set-low-hi" inputmode="decimal" value="${inVal(state.gz.low.hi)}"></label>
+    <label class="field"><span>GZ haute, de</span><input class="inp" id="set-high-lo" inputmode="decimal" value="${inVal(state.gz.high.lo)}"></label>
+    <label class="field"><span>GZ haute, à</span><input class="inp" id="set-high-hi" inputmode="decimal" value="${inVal(state.gz.high.hi)}"></label></div>
+    <button class="btn block" style="background:#FFC21A;color:#2A0A4A" data-act="save-gz">Enregistrer ma Golden Zone</button>
+    <div style="height:14px"></div>
+    <p class="hand" style="margin:0 0 6px">Mon protocole paliers (5 min)</p>
+    <div class="grid3"><label class="field"><span>Départ (W)</span><input class="inp" id="set-p-start" inputmode="numeric" value="${proto().start}"></label>
+    <label class="field"><span>+ par palier (W)</span><input class="inp" id="set-p-step" inputmode="numeric" value="${proto().step}"></label>
+    <label class="field"><span>Paliers max</span><input class="inp" id="set-p-n" inputmode="numeric" value="${proto().n}"></label></div>
+    <button class="btn violet block" data-act="save-proto">Enregistrer mon protocole</button>
+    <div style="height:10px"></div>
+    <button class="btn block" data-act="export">Exporter toutes mes données (CSV)</button>
+    ${DEMO ? `<p class="muted" style="font-size:14px;margin:12px 0 0">Mode démo : les données restent sur cet appareil, avec des exemples pour jouer. Ajoute les clés Supabase dans config.js pour la synchro iPhone et ordi.</p>
+      <div style="height:10px"></div><button class="btn danger block" data-act="reset-demo">Vider la démo</button>`
+      : `<div style="height:10px"></div><button class="btn ghost block" data-act="logout">Me déconnecter${state.user && state.user.email ? ' (' + esc(state.user.email) + ')' : ''}</button>`}
+  </section>`;
+}
+
+/* ---------- Feuilles modales ---------- */
+let sheetEl = null, sheetRefresh = null;
+function openSheet(title, body, mount) {
+  closeSheet();
+  sheetEl = document.createElement('div');
+  sheetEl.className = 'backdrop';
+  sheetEl.innerHTML = `<div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(title)}"><div class="grab"></div>
+    <h3><span>${esc(title)}</span><button class="btn ghost x" data-act="close">Fermer</button></h3><div class="sheet-body">${body}</div></div>`;
+  sheetEl.addEventListener('click', e => { if (e.target === sheetEl) closeSheet(); });
+  document.body.appendChild(sheetEl);
+  document.body.style.overflow = 'hidden';
+  if (mount) mount($('.sheet', sheetEl));
+}
+function closeSheet() {
+  if (sheetEl) { sheetEl.remove(); sheetEl = null; sheetRefresh = null; document.body.style.overflow = ''; }
+}
+const segHTML = (name, val) => `<div class="seg" role="group" aria-label="Source des watts" data-seg="${name}">
+  ${Object.entries(SOURCES).map(([k, l]) => `<button type="button" data-val="${k}" aria-pressed="${val === k}">${l}</button>`).join('')}</div>`;
+const segVal = (root, name) => { const b = $(`[data-seg="${name}"] [aria-pressed="true"]`, root); return b ? b.dataset.val : null; };
+function wireSeg(root) {
+  $$('[data-seg] button, .rpe button', root).forEach(b => b.addEventListener('click', () => {
+    const wasOn = b.getAttribute('aria-pressed') === 'true';
+    $$('button', b.parentElement).forEach(x => x.setAttribute('aria-pressed', 'false'));
+    b.setAttribute('aria-pressed', b.parentElement.classList.contains('rpe') && wasOn ? 'false' : 'true');
+    b.parentElement.dispatchEvent(new Event('input', { bubbles: true }));
+  }));
+}
+async function persist(table, id, row, msg, event) {
+  try {
+    const before = bestMarks();
+    if (id) await Store().update(table, id, row); else await Store().insert(table, row);
+    await loadAll();
+    if (typeof event === 'function') state.mascotEvent = event(before);
+    closeSheet(); render(); toast(msg);
+  } catch (e) { const er = $('.sheet .err'); if (er) er.textContent = 'Pas enregistré : ' + (e.message || 'erreur réseau') + '. Réessaie.'; }
+}
+async function destroy(table, id, what) {
+  if (!confirm(`Supprimer ${what} ? C'est définitif.`)) return;
+  try { await Store().remove(table, id); await loadAll(); closeSheet(); render(); toast('Supprimé'); }
+  catch (e) { toast('Suppression impossible : ' + (e.message || 'erreur')); }
+}
+
+/* Test paliers : saisie */
+function stepRow(s, i) {
+  return `<div class="step-row"><span class="n">${i + 1}</span>
+    <input class="inp" data-k="w" inputmode="numeric" placeholder="W" value="${inVal(s.w)}" aria-label="Watts palier ${i + 1}">
+    <input class="inp" data-k="hr" inputmode="numeric" placeholder="FC" value="${inVal(s.hr)}" aria-label="FC palier ${i + 1}">
+    <input class="inp" data-k="la" inputmode="decimal" placeholder="mmol" value="${inVal(s.la)}" aria-label="Lactate palier ${i + 1}">
+    <input class="inp" data-k="rpe" inputmode="numeric" placeholder="RPE" value="${inVal(s.rpe)}" aria-label="RPE palier ${i + 1}">
+    <button class="del" type="button" data-act="del-row" aria-label="Supprimer le palier ${i + 1}">×</button></div>`;
+}
+const PROTO_DEFAULT = { start: 140, step: 25, n: 7 };
+function validProto(p) { return p && num(p.start) >= 50 && num(p.start) <= 500 && num(p.step) >= 5 && num(p.step) <= 100 && num(p.n) >= 3 && num(p.n) <= 15; }
+function derivedProto() {
+  const last = state.tests.filter(t => t.kind === 'steps').sort(byDateDesc)[0];
+  const st = last ? analyzeSteps(last).steps : [];
+  if (st.length < 3) return null;
+  const diffs = st.slice(1).map((s, i) => s.w - st[i].w).sort((a, b) => a - b);
+  const p = { start: st[0].w, step: diffs[Math.floor(diffs.length / 2)], n: st.length };
+  return validProto(p) ? p : null;
+}
+const proto = () => state.proto || derivedProto() || PROTO_DEFAULT;
+function matchesProto(steps, p) {
+  return steps.length > 0 && steps[0].w === p.start && steps.every((s, i) => i === 0 || s.w - steps[i - 1].w === p.step);
+}
+function readSteps(root) {
+  return $$('.step-row', root).map(r => ({ w: num($('[data-k="w"]', r).value), hr: num($('[data-k="hr"]', r).value), la: num($('[data-k="la"]', r).value), rpe: num($('[data-k="rpe"]', r).value) }))
+    .filter(s => s.la != null || s.hr != null || s.rpe != null);
+}
+function stepForm(test) {
+  const t = test || { date: todayISO(), source: lastSource(), data: { baseline: null, steps: [] }, note: '', lt1_manual: null };
+  const P = proto();
+  const rows = (t.data.steps && t.data.steps.length) ? t.data.steps : Array.from({ length: P.n }, (_, i) => ({ w: P.start + i * P.step }));
+  openSheet(test ? 'Modifier le test paliers' : 'Nouveau test paliers', `
+    <div class="grid2"><label class="field"><span>Date</span><input class="inp" type="date" id="f-date" value="${t.date}"></label>
+    <label class="field"><span>Lactate de repos</span><input class="inp" id="f-base" inputmode="decimal" placeholder="optionnel" value="${inVal(t.data.baseline)}"></label></div>
+    <div class="field"><span class="muted" style="font-size:13px;font-weight:600">Watts mesurés avec</span>${segHTML('src', t.source)}</div>
+    ${test ? '' : `<p class="proto-line">Ton protocole : départ <b>${fmt(P.start)} W</b>, <b>+${fmt(P.step)} W</b> toutes les 5 min, ${P.n} paliers. Remplis FC, lactate et RPE au fil du test ; les paliers vides ne sont pas enregistrés.</p>`}
+    <div class="steps-head"><span></span><span>Watts</span><span>FC</span><span>Lactate</span><span>RPE</span><span></span></div>
+    <div id="rows">${rows.map(stepRow).join('')}</div>
+    <button class="btn block" type="button" data-act="add-row">+ Ajouter un palier</button>
+    <div class="result" id="preview"></div>
+    <label class="field"><span>Note</span><textarea class="inp" id="f-note" placeholder="Forme du jour, conditions, capteur...">${esc(t.note)}</textarea></label>
+    <p class="err" role="alert"></p>
+    <button class="btn rose block" data-act="save-steps">Enregistrer le test</button>`, root => {
+    wireSeg(root);
+    const upd = () => {
+      const a = analyzeSteps({ data: { steps: readSteps(root) } });
+      $('#preview', root).innerHTML = a.steps.length < 3 ? '<span class="hand">Remplis au moins 3 paliers et je cherche tes seuils.</span>'
+        : `<div class="kv"><div><b>${a.autoW != null ? fmt(a.autoW) : '?'}</b><span>LT1 auto (W)</span></div><div><b>${a.lt2Auto != null ? fmt(a.lt2Auto) : '?'}</b><span>LT2 auto (W)</span></div><div><b>${fmt(a.maxLa, 1)}</b><span>mmol max</span></div></div>
+          <p class="hand" style="margin:8px 0 0">${a.autoW == null ? 'Pas encore de saut de 0,4 mmol. Continue.' : a.lt2Auto == null ? 'LT1 trouvé. Encore 2 paliers pour LT2.' : a.maxLa < 3.5 ? 'Encore un palier ou deux : vise 4 mmol.' : 'Les deux seuils sont là. Tu peux arrêter.'}</p>`;
+    };
+    root.addEventListener('input', upd); upd();
+    sheetRefresh = upd;
+    root.dataset.id = test ? test.id : '';
+  });
+}
+function saveSteps(root) {
+  const steps = readSteps(root);
+  const valid = steps.filter(s => s.w != null && s.la != null);
+  if (valid.length < 3) { $('.err', root).textContent = 'Il faut au moins 3 paliers avec watts et lactate.'; return; }
+  if (steps.some(s => s.la != null && (s.la < 0.3 || s.la > 25))) { $('.err', root).textContent = 'Un lactate semble faux (entre 0,3 et 25 mmol attendu). Vérifie la virgule.'; return; }
+  const id = root.dataset.id || null;
+  const old = id ? state.tests.find(t => t.id === id) : null;
+  persist('tests', id, {
+    date: $('#f-date', root).value || todayISO(), kind: 'steps', source: segVal(root, 'src'),
+    data: { baseline: num($('#f-base', root).value), steps }, note: $('#f-note', root).value.trim() || null,
+    lt1_manual: old && old.lt1_manual != null && valid.some(s => s.w === num(old.lt1_manual)) ? old.lt1_manual : null,
+    lt2_manual: old && old.lt2_manual != null ? old.lt2_manual : null
+  }, 'Test enregistré', before => { const now = bestMarks(); return beats(now.lt1, before.lt1) || beats(now.lt2, before.lt2) ? 'record' : null; });
+}
+
+/* Test paliers : détail + choix manuel de LT1 ou LT2 */
+function stepDetail(id) {
+  const t = state.tests.find(x => x.id === id); if (!t) return;
+  const a = analyzeSteps(t), pick = state.pick === 'lt2' ? 'lt2' : 'lt1';
+  const prev = state.tests.filter(x => x.kind === 'steps' && x.id !== t.id && (x.date || '') <= (t.date || '')).sort(byDateDesc)[0];
+  const pa = prev ? analyzeSteps(prev) : null;
+  const ws = a.steps.map(s => s.w).concat(pa ? pa.steps.map(s => s.w) : []);
+  const las = a.steps.map(s => s.la).concat(pa ? pa.steps.map(s => s.la) : []);
+  const hrs = a.steps.map(s => s.hr).filter(v => v != null);
+  const series = [];
+  if (pa && pa.steps.length > 1) series.push({ pts: pa.steps.map(s => ({ x: s.w, y: s.la })), color: '#9A88B8', dash: '3 4', dots: false, width: 2 });
+  if (hrs.length > 1) series.push({ pts: a.steps.map(s => ({ x: s.w, y: s.hr })), color: '#6A2BF0', dash: '5 5', right: true, dots: false, width: 2 });
+  series.push({ pts: a.steps.map(s => ({ x: s.w, y: s.la, fill: s.w === a.lt1W ? '#3FE8B9' : '#FF2D8E', r: s.w === a.lt1W ? 7 : 5 })), color: '#FF2D8E', width: 3.5 });
+  const vlines = [];
+  if (a.lt1W != null) vlines.push({ x: a.lt1W, color: '#13B98A', label: 'LT1' });
+  if (a.lt2W != null) vlines.push({ x: a.lt2W, color: '#C2006A', label: 'LT2' });
+  if (a.manualW != null && a.autoW != null && a.autoW !== a.manualW) vlines.push({ x: a.autoW, color: '#9A88B8', dash: '4 4' });
+  if (a.lt2Manual != null && a.lt2Auto != null && a.lt2Auto !== a.lt2Manual) vlines.push({ x: a.lt2Auto, color: '#9A88B8', dash: '4 4' });
+  const chart = a.steps.length > 1 ? chartSVG({ xRange: [Math.min(...ws), Math.max(...ws)], yRange: [0, Math.max(4, gzTop() + .5, ...las)], y2Range: hrs.length > 1 ? [Math.min(...hrs) - 5, Math.max(...hrs) + 5] : null,
+    xTitle: 'watts', yTitle: 'mmol/L', y2Title: hrs.length > 1 ? 'FC' : '', h: 230, series, vlines, hbands: gzBands(),
+    extra: (sx, sy) => a.steps.map(s => `<circle cx="${sx(s.w)}" cy="${sy(s.la)}" r="18" fill="transparent" data-act="set-thr" data-id="${t.id}" data-w="${s.w}" style="cursor:pointer"><title>Choisir ${s.w} W comme ${pick.toUpperCase()}</title></circle>`).join('') }) : '';
+  const m1 = {
+    confirmed: a.auto ? `LT1 : saut de ${fmt(a.steps[a.auto.jumpIdx].la - a.steps[a.auto.idx].la, 1)} mmol entre ${fmt(a.steps[a.auto.idx].w)} et ${fmt(a.steps[a.auto.jumpIdx].w)} W, confirmé au palier suivant.` : '',
+    toconfirm: 'LT1 : saut détecté mais pas confirmé. Regarde la courbe et tranche.',
+    manual: `LT1 choisi à la main. L'auto disait ${a.autoW != null ? fmt(a.autoW) + ' W' : 'rien'}.`,
+    none: 'LT1 : aucun saut de 0,4 mmol. La prochaine fois, pousse plus loin.'
+  }[a.status];
+  const m2 = {
+    auto: `LT2 par Dmax modifiée : ${fmt(a.lt2W)} W.`,
+    short: `LT2 à confirmer : la courbe s'arrête à ${fmt(a.maxLa, 1)} mmol. Vise 4 mmol au prochain test.`,
+    manual: `LT2 choisi à la main. L'auto disait ${a.lt2Auto != null ? fmt(a.lt2Auto) + ' W' : 'rien'}.`,
+    none: 'LT2 : pas assez de paliers après LT1. Il en faut au moins 2 de plus, idéalement jusqu\'à 4 mmol.'
+  }[a.lt2Status];
+  const box = (w, hr, lab) => `<div><b>${w != null ? fmt(w) : 'n.d.'}</b><span>${lab}${hr != null ? ', FC ' + fmt(hr) : ''}</span></div>`;
+  openSheet(`Test paliers du ${fdate(t.date)}`, `
+    ${chart}
+    ${pa ? `<div class="legend"><span><i style="background:#FF2D8E"></i>ce test</span><span><i style="background:#9A88B8"></i>test du ${fdate(prev.date)}</span>${hrs.length > 1 ? '<span><i style="background:#6A2BF0"></i>FC</span>' : ''}</div>` : ''}
+    <div class="field" style="margin-top:10px"><span class="muted" style="font-size:13px;font-weight:600">Touche un point de la courbe pour régler</span>
+      <div class="seg" role="group" aria-label="Seuil à régler"><button type="button" data-act="pick" data-id="${t.id}" data-mode="lt1" aria-pressed="${pick === 'lt1'}">LT1</button><button type="button" data-act="pick" data-id="${t.id}" data-mode="lt2" aria-pressed="${pick === 'lt2'}">LT2</button></div></div>
+    <div class="kv">${box(a.lt1W, a.lt1Hr, 'LT1 (W)')}${box(a.lt2W, a.lt2Hr, 'LT2 (W)')}<div><b>${a.maxLa != null ? fmt(a.maxLa, 1) : 'n.d.'}</b><span>mmol max</span></div></div>
+    <div class="result"><span class="hand">${m1}<br>${m2}</span></div>
+    ${a.steps.length ? (matchesProto(a.steps, proto()) ? '<p class="chip" style="display:inline-block;margin:0 0 12px">Protocole standard</p>' : `<p class="warn" style="margin:0 0 12px">Hors protocole (départ ${fmt(a.steps[0].w)} W) : à comparer avec prudence aux autres tests.</p>`) : ''}
+    ${a.manualW != null ? `<button class="btn block" data-act="reset-thr" data-field="lt1_manual" data-id="${t.id}">LT1 automatique</button><div style="height:10px"></div>` : ''}
+    ${a.lt2Manual != null ? `<button class="btn block" data-act="reset-thr" data-field="lt2_manual" data-id="${t.id}">LT2 automatique</button><div style="height:10px"></div>` : ''}
+    <div class="list" style="box-shadow:none">${a.steps.map((s, i) => `<div class="item" style="cursor:default"><span class="badge" style="background:${s.w === a.lt1W ? 'var(--menthe)' : 'var(--surface-2)'}">${i + 1}</span>
+      <span class="main"><strong>${fmt(s.w)} W</strong><span>${s.hr != null ? 'FC ' + fmt(s.hr) : ''}${s.rpe != null ? (s.hr != null ? ', ' : '') + 'RPE ' + fmt(s.rpe) : ''}</span></span><span class="num">${fmt(s.la, 1)} mmol</span></div>`).join('')}</div>
+    ${num(t.data.baseline) != null ? `<p class="muted" style="font-size:14px">Repos : ${fmt(num(t.data.baseline), 1)} mmol.</p>` : ''}
+    ${t.source ? `<p class="muted" style="font-size:14px">Watts : ${SOURCES[t.source]}.</p>` : ''}
+    ${t.note ? `<p style="font-size:15px">${esc(t.note)}</p>` : ''}
+    <div class="row-btns"><button class="btn violet" data-act="edit-steps" data-id="${t.id}">Modifier</button><button class="btn danger" data-act="del-test" data-id="${t.id}">Supprimer</button></div>`);
+}
+async function setThr(id, field, w) {
+  try {
+    await Store().update('tests', id, { [field]: w }); await loadAll(); render(); stepDetail(id);
+    const lab = field === 'lt2_manual' ? 'LT2' : 'LT1';
+    toast(w == null ? `${lab} automatique` : `${lab} fixé à ${fmt(w)} W`);
+  } catch (e) { toast('Pas enregistré : ' + (e.message || 'erreur')); }
+}
+
+/* Séance */
+function sessionForm(s, kind) {
+  const x = s || { date: todayISO(), kind: kind || 'Endurance', source: lastSource() };
+  const Z = currentZones();
+  openSheet(s ? 'Modifier la séance' : 'Nouvelle séance', `
+    <div class="grid2"><label class="field"><span>Date</span><input class="inp" type="date" id="f-date" value="${x.date}"></label>
+    <label class="field"><span>Type</span><select class="inp" id="f-kind">${(SESSION_KINDS.includes(x.kind) ? SESSION_KINDS : [...SESSION_KINDS, x.kind]).map(k => `<option ${k === x.kind ? 'selected' : ''}>${k}</option>`).join('')}</select></label></div>
+    <div class="grid3"><label class="field"><span>Durée (min)</span><input class="inp" id="f-dur" inputmode="numeric" value="${inVal(x.duration_min)}"></label>
+    <label class="field"><span>Watts moy.</span><input class="inp" id="f-w" inputmode="numeric" value="${inVal(x.watts)}"></label>
+    <label class="field"><span>FC moy.</span><input class="inp" id="f-hr" inputmode="numeric" value="${inVal(x.hr)}"></label></div>
+    <label class="field"><span>Lactate (mmol)</span><input class="inp" id="f-la" inputmode="decimal" value="${inVal(x.lactate)}"></label>
+    <div class="field"><span class="muted" style="font-size:13px;font-weight:600">RPE</span><div class="rpe" role="group" aria-label="RPE de 1 à 10">${[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => `<button type="button" data-val="${n}" aria-pressed="${num(x.rpe) === n}">${n}</button>`).join('')}</div></div>
+    <div class="field"><span class="muted" style="font-size:13px;font-weight:600">Watts mesurés avec</span>${segHTML('src', x.source)}</div>
+    <div id="preview"></div>
+    <label class="field"><span>Note</span><textarea class="inp" id="f-note" placeholder="Contenu de la séance, sensations...">${esc(x.note)}</textarea></label>
+    <p class="err" role="alert"></p>
+    <button class="btn rose block" data-act="save-session">Enregistrer la séance</button>
+    ${s ? `<div style="height:10px"></div><button class="btn danger block" data-act="del-session" data-id="${s.id}">Supprimer</button>` : ''}`, root => {
+    wireSeg(root);
+    root.dataset.id = s ? s.id : '';
+    const upd = () => {
+      const w = num($('#f-w', root).value), la = num($('#f-la', root).value), z = zoneOf(w, Z);
+      const names = { 1: 'Endurance', 2: 'Tempo et seuil', 3: 'Au-dessus de LT2' };
+      let h = '';
+      if (z) h = `<div class="result" style="margin-top:0"><span class="zdot" style="display:inline-grid;width:28px;height:28px;background:${ZCOL[z]};vertical-align:middle;margin-right:8px">${z}</span><b>${fmt(w)} W = zone ${z}</b>, ${names[z].toLowerCase()}`;
+      if (z === 1 && la != null && Z.s && Z.s.lt1La != null && la > Z.s.lt1La + 0.3) h += `<br><span class="hand">Lactate au-dessus de ton LT1 (${fmt(Z.s.lt1La, 1)} mmol) pour de la Z1. Fatigue, chaleur, ou zones à revoir ?</span>`;
+      const kind = $('#f-kind', root).value, G = goldenZone(Z), band = KIND_BAND[kind];
+      let gz = '';
+      if (band && la != null) {
+        const r = state.gz[band], nm = BANDS[band].label;
+        gz = la > r.hi ? `<b>${fmt(la - r.hi, 1)} mmol au-dessus de ta ${nm}.</b> Baisse un peu les watts au prochain intervalle : on reste sous ton 2e seuil (LT2).`
+          : la < r.lo ? `Sous ta ${nm} (${fmt(r.lo, 1)} à ${fmt(r.hi, 1)} mmol). Tu peux monter légèrement.`
+          : `<b>Pile dans ta ${nm}.</b> Globule approuve.`;
+      } else if (GZ_QUALITY.includes(kind) && la != null) {
+        const g = gzStatus({ kind, lactate: la });
+        gz = g ? `Ce lactate tombe dans ta <b>${BANDS[g.band].label}</b>.` : la > gzTop() ? 'Au-dessus de ta Golden Zone : séance plus dure que du sous-seuil.' : '';
+      } else if (band && w != null && G[band].wLo != null) {
+        const B = G[band];
+        gz = w > B.wHi ? `Watts au-dessus de ta ${BANDS[band].label} (${fmt(B.wLo)} à ${fmt(B.wHi)} W). Vérifie au lactate.` : w < B.wLo ? `Watts sous ta ${BANDS[band].label}.` : `Watts dans ta ${BANDS[band].label}.`;
+      }
+      $('#preview', root).innerHTML = (z ? h + '</div>' : '') + (gz ? `<div class="result gz-result" style="margin-top:${z ? 0 : 0}px">${gz}</div>` : '');
+    };
+    root.addEventListener('input', upd); upd();
+  });
+}
+function saveSession(root) {
+  const la = num($('#f-la', root).value);
+  if (la != null && (la < 0.3 || la > 25)) { $('.err', root).textContent = 'Lactate entre 0,3 et 25 mmol attendu. Vérifie la virgule.'; return; }
+  const rpeB = $('.rpe [aria-pressed="true"]', root);
+  const int = v => { const n = num(v); return n == null ? null : Math.round(n); };
+  persist('sessions', root.dataset.id || null, {
+    date: $('#f-date', root).value || todayISO(), kind: $('#f-kind', root).value, duration_min: int($('#f-dur', root).value),
+    watts: int($('#f-w', root).value), hr: int($('#f-hr', root).value), lactate: la, rpe: rpeB ? +rpeB.dataset.val : null,
+    source: segVal(root, 'src'), note: $('#f-note', root).value.trim() || null
+  }, 'Séance enregistrée', () => { const g = gzStatus({ kind: $('#f-kind', root).value, lactate: la }); return g ? (g.st === 'in' && la != null ? 'golden' : g.st === 'high' ? 'high' : null) : null; });
+}
+
+/* ---------- Export CSV (format machine : point décimal, dates ISO) ---------- */
+function exportCSV() {
+  const cols = ['type', 'date', 'source', 'palier', 'watts', 'fc', 'lactate_mmol', 'rpe', 'lt1_auto_w', 'lt1_manuel_w', 'lt2_auto_w', 'lt2_manuel_w', 'duree_min', 'type_seance', 'golden_zone', 'note'];
+  const rows = [];
+  const r = o => cols.map(c => o[c] ?? '');
+  [...state.tests].filter(t => t.kind === 'steps').sort(byDateDesc).forEach(t => {
+    const a = analyzeSteps(t);
+    a.steps.forEach((s, i) => rows.push(r({ type: 'test_paliers', date: t.date, source: t.source, palier: i + 1, watts: s.w, fc: s.hr, lactate_mmol: s.la, rpe: s.rpe, lt1_auto_w: a.autoW, lt1_manuel_w: a.manualW, lt2_auto_w: a.lt2Auto, lt2_manuel_w: a.lt2Manual, note: i === 0 ? t.note : '' })));
+  });
+  [...state.sessions].sort(byDateDesc).forEach(s => rows.push(r({ type: 'seance', date: s.date, source: s.source, watts: s.watts, fc: s.hr, lactate_mmol: s.lactate, rpe: s.rpe, duree_min: s.duration_min, type_seance: s.kind, golden_zone: (g => g ? BANDS[g.band].name + (g.st === 'in' ? '' : g.st === 'high' ? '_trop_haut' : '_trop_bas') : '')(gzStatus(s)), note: s.note })));
+  const q = v => { const s = String(v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+  const csv = [cols, ...rows].map(row => row.map(q).join(',')).join('\n');
+  const name = `globule_export_${todayISO()}.csv`;
+  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
+  const file = typeof File === 'function' ? new File([blob], name, { type: 'text/csv' }) : null;
+  if (file && navigator.canShare && navigator.canShare({ files: [file] })) { navigator.share({ files: [file], title: 'Export Globule' }).catch(() => {}); return; }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+
+/* ---------- Connexion (code à 6 chiffres par email) ---------- */
+function renderLogin(step = 'email', email = '', error = '') {
+  $('#tabbar').hidden = true;
+  app().innerHTML = `<div class="login">${globuleSVG(200)}<h1 class="wordmark" style="font-size:40px;margin-top:10px">Globule</h1>
+    <section class="panel">
+      ${step === 'email' ? `<p class="hand" style="margin-top:0">Ton email, et je t'envoie un code. Pas de mot de passe à retenir.</p>
+        <label class="field"><span>Email</span><input class="inp" id="l-email" type="email" autocomplete="email" inputmode="email" value="${esc(email)}"></label>
+        <button class="btn rose block" data-act="send-code">Recevoir mon code</button>`
+      : `<p class="hand" style="margin-top:0">Code envoyé à ${esc(email)}. Regarde aussi dans les spams.</p>
+        <label class="field"><span>Code reçu par email</span><input class="inp" id="l-code" inputmode="numeric" autocomplete="one-time-code" maxlength="10" style="font-size:24px;letter-spacing:6px;text-align:center"></label>
+        <button class="btn rose block" data-act="verify-code" data-email="${esc(email)}">Me connecter</button>
+        <div style="height:10px"></div><button class="btn ghost block" data-act="back-email" data-email="${esc(email)}">Changer d'email</button>`}
+      <p class="err" role="alert">${esc(error)}</p>
+    </section></div>`;
+  setMascot($('#app .globule'), 'hello');
+}
+async function sendCode() {
+  const email = $('#l-email').value.trim();
+  if (!/^\S+@\S+\.\S+$/.test(email)) return renderLogin('email', email, 'Cet email ne ressemble pas à un email.');
+  const { error } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: true } });
+  if (error) return renderLogin('email', email, 'Envoi impossible : ' + error.message);
+  renderLogin('code', email);
+}
+async function verifyCode(email) {
+  const token = $('#l-code').value.replace(/\D/g, '');
+  if (token.length < 6) return renderLogin('code', email, 'Le code fait au moins 6 chiffres.');
+  const { data, error } = await sb.auth.verifyOtp({ email, token, type: 'email' });
+  if (error) return renderLogin('code', email, 'Code refusé : ' + error.message);
+  state.user = data.user; state.name = (data.user.user_metadata && data.user.user_metadata.name) || '';
+  loadGz(data.user); loadProto(data.user);
+  start();
+}
+
+/* ---------- Événements ---------- */
+document.addEventListener('click', async e => {
+  const tab = e.target.closest('[data-tab]');
+  if (tab) { state.tab = tab.dataset.tab; render(); window.scrollTo(0, 0); return; }
+  const el = e.target.closest('[data-act]'); if (!el) return;
+  const act = el.dataset.act, id = el.dataset.id, root = $('.sheet');
+  switch (act) {
+    case 'close': closeSheet(); break;
+    case 'new-session': sessionForm(); break;
+    case 'edit-session': sessionForm(state.sessions.find(s => s.id === id)); break;
+    case 'save-session': saveSession(root); break;
+    case 'del-session': destroy('sessions', id, 'cette séance'); break;
+    case 'new-steps': stepForm(); break;
+    case 'open-steps': state.pick = 'lt1'; stepDetail(id); break;
+    case 'edit-steps': stepForm(state.tests.find(t => t.id === id)); break;
+    case 'save-steps': saveSteps(root); break;
+    case 'add-row': {
+      const rows = $('#rows', root), last = $$('.step-row [data-k="w"]', rows).map(i => ({ w: num(i.value) })).filter(s => s.w != null).pop();
+      const n = $$('.step-row', rows).length;
+      rows.insertAdjacentHTML('beforeend', stepRow({ w: last ? last.w + proto().step : proto().start }, n));
+      $('.step-row:last-child [data-k="hr"]', rows).focus();
+      break;
+    }
+    case 'del-row': {
+      el.closest('.step-row').remove();
+      $$('.step-row .n', root).forEach((n, i) => { n.textContent = i + 1; });
+      if (sheetRefresh) sheetRefresh();
+      break;
+    }
+    case 'pick': state.pick = el.dataset.mode === 'lt2' ? 'lt2' : 'lt1'; stepDetail(id); break;
+    case 'set-thr': setThr(id, state.pick === 'lt2' ? 'lt2_manual' : 'lt1_manual', num(el.dataset.w)); break;
+    case 'reset-thr': setThr(id, el.dataset.field === 'lt2_manual' ? 'lt2_manual' : 'lt1_manual', null); break;
+    case 'del-test': destroy('tests', id, 'ce test'); break;
+    case 'save-name': {
+      const name = $('#set-name').value.trim().slice(0, 40);
+      state.name = name;
+      if (DEMO) localStorage.setItem('globule:name', name);
+      else { const { error } = await sb.auth.updateUser({ data: { name } }); if (error) { toast('Pas enregistré : ' + error.message); break; } }
+      render(); toast(name ? `Salut ${name} !` : 'Prénom effacé');
+      break;
+    }
+    case 'new-gz': sessionForm(null, BANDS[el.dataset.band || 'low'].kind); break;
+    case 'save-proto': {
+      const P = { start: Math.round(num($('#set-p-start').value)), step: Math.round(num($('#set-p-step').value)), n: Math.round(num($('#set-p-n').value)) };
+      if (!validProto(P)) { toast('Protocole invalide : départ 50 à 500 W, +5 à 100 W, 3 à 15 paliers'); break; }
+      state.proto = P;
+      if (DEMO) localStorage.setItem('globule:proto', JSON.stringify(P));
+      else { const { error } = await sb.auth.updateUser({ data: { proto: P } }); if (error) { toast('Pas enregistré : ' + error.message); break; } }
+      render(); toast(`Protocole : ${P.start} W, +${P.step} W, ${P.n} paliers`);
+      break;
+    }
+    case 'save-gz': {
+      const v = id => num($(id).value);
+      const gz = { low: { lo: v('#set-low-lo'), hi: v('#set-low-hi') }, high: { lo: v('#set-high-lo'), hi: v('#set-high-hi') } };
+      const ok = ['low', 'high'].every(k => gz[k].lo != null && gz[k].hi != null && gz[k].lo > 0 && gz[k].hi > gz[k].lo && gz[k].hi <= 10);
+      if (!ok) { toast('Plages invalides : "de" plus petit que "à", en mmol'); break; }
+      state.gz = gz;
+      if (DEMO) localStorage.setItem('globule:gz2', JSON.stringify(gz));
+      else { const { error } = await sb.auth.updateUser({ data: { gz2: gz } }); if (error) { toast('Pas enregistré : ' + error.message); break; } }
+      render(); toast('Golden Zone enregistrée');
+      break;
+    }
+    case 'export': exportCSV(); break;
+    case 'reset-demo':
+      if (confirm('Vider toutes les données de démo de cet appareil ?')) { ['tests', 'sessions'].forEach(t => localStorage.removeItem('globule:' + t)); state.tests = []; state.sessions = []; render(); }
+      break;
+    case 'logout': await sb.auth.signOut(); state.user = null; state.tests = []; state.sessions = []; renderLogin(); break;
+    case 'send-code': el.disabled = true; await sendCode(); break;
+    case 'verify-code': el.disabled = true; await verifyCode(el.dataset.email); break;
+    case 'back-email': renderLogin('email', el.dataset.email); break;
+  }
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet(); });
+
+/* ---------- Démarrage ---------- */
+async function start() {
+  $('#tabbar').hidden = false;
+  app().innerHTML = header() + hero('Je remonte tes gouttes...', 124);
+  try { await loadAll(); render(); }
+  catch (e) {
+    app().innerHTML = header() + hero('Impossible de récupérer tes données. Vérifie ta connexion.', 124) + `<button class="btn rose block" onclick="start()">Réessayer</button><p class="err">${esc(e.message || '')}</p>`;
+  }
+}
+function validGz(g) { return g && ['low', 'high'].every(k => g[k] && num(g[k].hi) > num(g[k].lo)); }
+function loadProto(u) { const p = u && u.user_metadata && u.user_metadata.proto; if (validProto(p)) state.proto = { start: num(p.start), step: num(p.step), n: num(p.n) }; }
+function loadGz(u) { const g = u && u.user_metadata && u.user_metadata.gz2; if (validGz(g)) state.gz = { low: { lo: num(g.low.lo), hi: num(g.low.hi) }, high: { lo: num(g.high.lo), hi: num(g.high.hi) } }; }
+async function boot() {
+  if (DEMO) {
+    seedDemo();
+    state.name = localStorage.getItem('globule:name') || '';
+    try { const g = JSON.parse(localStorage.getItem('globule:gz2') || 'null'); if (validGz(g)) state.gz = g; } catch { /* plages par défaut */ }
+    try { const pr = JSON.parse(localStorage.getItem('globule:proto') || 'null'); if (validProto(pr)) state.proto = pr; } catch { /* protocole déduit */ }
+    return start();
+  }
+  sb = window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseAnonKey, { auth: { persistSession: true, autoRefreshToken: true } });
+  const { data } = await sb.auth.getSession();
+  if (!data.session) return renderLogin();
+  state.user = data.session.user;
+  state.name = (state.user.user_metadata && state.user.user_metadata.name) || '';
+  loadGz(state.user); loadProto(state.user);
+  start();
+}
+boot();
+
+</script>
+</body>
+</html>
