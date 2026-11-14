@@ -1124,6 +1124,24 @@ function readRows(root) {
   return $$('.step-row', root).map(r => ({ w: num($('[data-k="w"]', r).value), hr: num($('[data-k="hr"]', r).value), la: num($('[data-k="la"]', r).value), rpe: num($('[data-k="rpe"]', r).value) }));
 }
 const readIntervals = root => readRows(root).filter(ivFilled);
+function sessionChart(all, isGZ) {
+  const pts = all.map((r, i) => ({ ...r, x: i + 1 })), n = pts.length;
+  const la = pts.filter(r => r.la != null), wt = pts.filter(r => r.w != null);
+  if (!la.length && !wt.length) return '';
+  const ws = wt.map(r => r.w);
+  const chart = chartSVG({
+    xRange: n > 1 ? [1, n] : [0.5, 1.5], yRange: [0, Math.max(4, gzTop() + .5, ...la.map(r => r.la))],
+    y2Range: ws.length ? [Math.min(...ws) - 15, Math.max(...ws) + 15] : null,
+    xFmt: v => Number.isInteger(v) ? String(v) : '', yTitle: 'mmol/L', y2Title: ws.length ? 'W' : '', xTitle: 'intervalle', h: 210,
+    hbands: isGZ ? gzBands() : [],
+    series: [
+      { pts: wt.map(r => ({ x: r.x, y: r.w })), color: '#6A2BF0', right: true, r: 3.5, width: 2.5, dash: '5 4' },
+      { pts: la.map(r => ({ x: r.x, y: r.la, fill: isGZ && r.la > state.gz.hi + 1e-9 ? '#FF2D8E' : isGZ && r.la >= state.gz.lo - 1e-9 ? GZ_COLOR : '#3FE8B9' })), color: '#FF7AB8', r: 6.5, width: 2.5 }
+    ]
+  });
+  return `<section class="result" style="margin-top:12px"><p class="hand" style="margin:0 0 4px">Ta séance en un coup d'œil</p>${chart}
+    <div class="legend"><span><i style="background:#FF7AB8"></i>Lactate</span>${ws.length ? '<span><i style="background:#6A2BF0"></i>Watts</span>' : ''}${isGZ ? '<span><i style="background:#FFC21A"></i>Golden Zone</span>' : ''}</div></section>`;
+}
 const avgOf = (rows, k) => { const v = rows.map(r => r[k]).filter(x => x != null); return v.length ? Math.round(v.reduce((a, b) => a + b, 0) / v.length) : null; };
 function intervalForm(tpl, s) {
   const T = (s && s.template) || tpl;
@@ -1136,10 +1154,10 @@ function intervalForm(tpl, s) {
     <div class="grid2"><label class="field"><span>Date</span><input class="inp" type="date" id="f-date" value="${x.date}"></label>
     <label class="field"><span>Durée totale (min)</span><input class="inp" id="f-dur" inputmode="numeric" value="${inVal(x.duration_min)}"></label></div>
     <p class="proto-line">${esc(tplLine(T))}.${target} Remplis au fil de la séance : watts, FC, lactate quand tu piques, RPE. Les intervalles vides ne sont pas enregistrés.</p>
+    <div id="preview"></div>
     <div class="steps-head"><span></span><span>Watts</span><span>FC</span><span>Lactate</span><span>RPE</span><span></span></div>
     <div id="rows">${rows.map(ivRow).join('')}</div>
     <button class="btn block" type="button" data-act="add-iv">+ Ajouter un intervalle</button>
-    <div id="preview"></div>
     <div class="field"><span class="muted" style="font-size:13px;font-weight:600">Watts mesurés avec</span>${segHTML('src', x.source)}</div>
     <label class="field"><span>Note</span><textarea class="inp" id="f-note" placeholder="Sensations, conditions, lecteur...">${esc(x.note)}</textarea></label>
     <p class="err" role="alert"></p>
@@ -1160,7 +1178,7 @@ function intervalForm(tpl, s) {
           : '<b>Tous tes prélèvements sont dans ta Golden Zone.</b> Globule approuve.';
       }
       if (las.length > 1) { const d = las[las.length - 1] - las[0]; msg += `${msg ? '<br>' : ''}Du 1er au dernier prélèvement : ${d >= 0 ? '+' : ''}${r1(d)} mmol.`; }
-      $('#preview', root).innerHTML = `<div class="result"><div class="kv"><div><b>${fmt(avgOf(iv, 'w'))}</b><span>watts moy.</span></div><div><b>${fmt(avgOf(iv, 'hr'))}</b><span>FC moy.</span></div><div><b>${mx != null ? r1(mx) : 'n.d.'}</b><span>lactate max</span></div></div></div>`
+      $('#preview', root).innerHTML = sessionChart(readRows(root).slice(0, readRows(root).map(ivFilled).lastIndexOf(true) + 1), isGZ) + `<div class="result"><div class="kv"><div><b>${fmt(avgOf(iv, 'w'))}</b><span>watts moy.</span></div><div><b>${fmt(avgOf(iv, 'hr'))}</b><span>FC moy.</span></div><div><b>${mx != null ? r1(mx) : 'n.d.'}</b><span>lactate max</span></div></div></div>`
         + (msg ? `<div class="result gz-result" style="margin-top:0">${msg}</div>` : '');
     };
     root.addEventListener('input', upd); upd();
