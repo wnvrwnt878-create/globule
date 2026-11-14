@@ -162,8 +162,11 @@ h2.title{ font-family:var(--f-display); font-size:22px; margin:22px 0 10px; line
 .field > span{ display:block; font-size:13px; font-weight:600; color:var(--muted); margin-bottom:4px; }
 .inp{ width:100%; border:2.5px solid var(--line); border-radius:14px; padding:10px 12px; background:var(--surface-2); font-size:16px; min-height:46px; }
 textarea.inp{ min-height:70px; resize:vertical; }
-.grid2{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-.grid3{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
+.grid2{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:10px; }
+.grid2 > *, .grid3 > *{ min-width:0; }
+input.inp[type="date"]{ -webkit-appearance:none; appearance:none; display:block; min-width:0; max-width:100%; text-align:left; }
+input.inp[type="date"]::-webkit-date-and-time-value{ text-align:left; }
+.grid3{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
 .seg{ display:flex; border:2.5px solid var(--line); border-radius:14px; overflow:hidden; }
 .seg button{ flex:1; border:0; background:var(--surface-2); padding:10px 6px; font-weight:600; cursor:pointer; min-height:44px; }
 .seg button + button{ border-left:2.5px solid var(--line); }
@@ -774,13 +777,13 @@ function viewGlobule() {
     <p>Tes watts sont lus sur ta dernière courbe de lactate, là où elle traverse chaque plage, et plafonnés à ton LT2.</p>
   </details>
   <details class="panel proto">
-    <summary><span><span class="t">Test paliers 5 min</span><span class="s">Le seul test : il donne LT1 et LT2</span></span><span class="plus">+</span></summary>
+    <summary><span><span class="t">Test paliers 5 min + 30 s</span><span class="s">Le seul test : il donne LT1 et LT2</span></span><span class="plus">+</span></summary>
     <p class="say">Un test, deux seuils, trois zones.</p>
     <ol>
       <li>Mêmes conditions à chaque test : même heure, même repas, rien d'intense la veille. Glycogène bas = courbe faussement flatteuse.</li>
       <li>Échauffement 10 à 15 min très facile. Lactate de repos si tu veux une référence.</li>
-      <li>Ton protocole fixe : départ ${fmt(proto().start)} W, +${fmt(proto().step)} W toutes les 5 min, cadence stable. Toujours le même, pour que les courbes se comparent. Réglable en bas de page.</li>
-      <li>Prélèvement dans les 30 dernières secondes du palier, sans arrêter de pédaler. Doigt sec, première goutte essuyée : la sueur contient du lactate.</li>
+      <li>Ton protocole fixe : départ ${fmt(proto().start)} W, +${fmt(proto().step)} W par palier de 5 min, cadence stable. Toujours le même, pour que les courbes se comparent. Réglable en bas de page.</li>
+      <li>Entre chaque palier, <b>30 s de pause</b> pour prélever le lactate (protocole recommandé par Marius Bakken), puis repars sur le palier suivant. Doigt sec, première goutte essuyée : la sueur contient du lactate.</li>
       <li>Note FC de fin de palier, lactate et RPE. Les watts sont déjà remplis.</li>
       <li><b>Va jusque vers 4 mmol</b>, au moins 2 paliers après le premier saut. Sans ça, pas de LT2 fiable.</li>
     </ol>
@@ -807,7 +810,7 @@ function viewGlobule() {
     <label class="field"><span>GZ haute, à</span><input class="inp" id="set-high-hi" inputmode="decimal" value="${inVal(state.gz.high.hi)}"></label></div>
     <button class="btn block" style="background:#FFC21A;color:#2A0A4A" data-act="save-gz">Enregistrer ma Golden Zone</button>
     <div style="height:14px"></div>
-    <p class="hand" style="margin:0 0 6px">Mon protocole paliers (5 min)</p>
+    <p class="hand" style="margin:0 0 6px">Mon protocole paliers (5 min + 30 s de pause)</p>
     <div class="grid3"><label class="field"><span>Départ (W)</span><input class="inp" id="set-p-start" inputmode="numeric" value="${proto().start}"></label>
     <label class="field"><span>+ par palier (W)</span><input class="inp" id="set-p-step" inputmode="numeric" value="${proto().step}"></label>
     <label class="field"><span>Paliers max</span><input class="inp" id="set-p-n" inputmode="numeric" value="${proto().n}"></label></div>
@@ -897,7 +900,7 @@ function stepForm(test) {
     <div class="grid2"><label class="field"><span>Date</span><input class="inp" type="date" id="f-date" value="${t.date}"></label>
     <label class="field"><span>Lactate de repos</span><input class="inp" id="f-base" inputmode="decimal" placeholder="optionnel" value="${inVal(t.data.baseline)}"></label></div>
     <div class="field"><span class="muted" style="font-size:13px;font-weight:600">Watts mesurés avec</span>${segHTML('src', t.source)}</div>
-    ${test ? '' : `<p class="proto-line">Ton protocole : départ <b>${fmt(P.start)} W</b>, <b>+${fmt(P.step)} W</b> toutes les 5 min, ${P.n} paliers. Remplis FC, lactate et RPE au fil du test ; les paliers vides ne sont pas enregistrés.</p>`}
+    ${test ? '' : `<p class="proto-line">Ton protocole : départ <b>${fmt(P.start)} W</b>, <b>+${fmt(P.step)} W</b>, paliers de 5 min avec <b>30 s de pause</b> entre chaque pour prélever le lactate, ${P.n} paliers. Remplis FC, lactate et RPE au fil du test ; les paliers vides ne sont pas enregistrés.</p>`}
     <div class="steps-head"><span></span><span>Watts</span><span>FC</span><span>Lactate</span><span>RPE</span><span></span></div>
     <div id="rows">${rows.map(stepRow).join('')}</div>
     <button class="btn block" type="button" data-act="add-row">+ Ajouter un palier</button>
