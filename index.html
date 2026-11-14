@@ -236,6 +236,10 @@ input.inp[type="date"]::-webkit-date-and-time-value{ text-align:left; }
 .login .globule{ margin:0 auto; display:block; }
 .login .panel{ text-align:left; margin-top:14px; }
 .toast{ position:fixed; left:50%; bottom:calc(96px + env(safe-area-inset-bottom,0px)); transform:translateX(-50%); z-index:60; background:var(--ink); color:#fff; border-radius:999px; padding:10px 18px; font-weight:600; box-shadow:3px 3px 0 var(--rose); }
+.tpl-row{ display:flex; align-items:center; border-bottom:2px dashed color-mix(in srgb, var(--line) 25%, transparent); }
+.tpl-row:last-child{ border-bottom:0; }
+.tpl-row .item{ flex:1; border-bottom:0; }
+.tpl-row .del{ border:0; background:none; font-size:22px; color:var(--muted); cursor:pointer; padding:0 14px; min-height:44px; }
 .sr{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); }
 </style>
 </head>
@@ -262,7 +266,7 @@ window.GLOBULE_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"-24 -9
 const CFG = window.GLOBULE_CONFIG || {};
 const DEMO = !(CFG.supabaseUrl && CFG.supabaseAnonKey && window.supabase);
 let sb = null;
-const state = { tests: [], sessions: [], name: '', tab: 'home', user: null, mascotEvent: null, proto: null, pick: 'lt1', gz: { lo: 2.3, hi: 3.0 } };
+const state = { tests: [], sessions: [], name: '', tab: 'home', user: null, mascotEvent: null, proto: null, templates: [], pick: 'lt1', gz: { lo: 2.3, hi: 3.0 } };
 
 /* ---------- Outils ---------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -675,7 +679,7 @@ function sessionItem(s, Z) {
   const meta = [fdate(s.date), s.duration_min ? `${s.duration_min} min` : '', s.hr ? `FC ${s.hr}` : '', s.source ? SOURCES[s.source] : ''].filter(Boolean).join(', ');
   return `<button class="item" data-act="edit-session" data-id="${s.id}">
     ${gzBadge(s) || `<span class="badge" style="background:${z ? ZCOL[z] : 'var(--surface-2)'}">${z ? 'Z' + z : '?'}</span>`}
-    <span class="main"><strong>${esc(s.kind || 'Séance')}</strong><span>${esc(meta)}</span></span>
+    <span class="main"><strong>${esc((s.template && s.template.name) || s.kind || 'Séance')}</strong><span>${esc(meta)}</span></span>
     <span class="num">${s.lactate != null ? fmt(num(s.lactate), 1) + ' mmol' : ''}<small>${s.watts != null ? fmt(num(s.watts)) + ' W' : ''}</small></span></button>`;
 }
 function gzBadge(s) {
@@ -1035,6 +1039,150 @@ function saveSession(root) {
   }, 'Séance enregistrée', () => { const g = gzStatus({ kind: $('#f-kind', root).value, lactate: la }); return g ? (g.st === 'in' && la != null ? 'golden' : g.st === 'high' ? 'high' : null) : null; });
 }
 
+/* ---------- Séances préenregistrées (modèles) + saisie intervalle par intervalle ---------- */
+const DEFAULT_TEMPLATES = [
+  { id: 'd-8x5', name: '8 × 5 min', reps: 8, work: 300, rest: 60, target: 'Golden Zone' },
+  { id: 'd-long', name: 'Intervalles longs GZ', reps: 5, work: 480, rest: 60, target: 'Golden Zone' },
+  { id: 'd-short', name: 'Intervalles courts GZ', reps: 10, work: 180, rest: 60, target: 'Golden Zone' }
+];
+const TARGETS = { 'Golden Zone': 'Golden Zone', 'Intervalles': 'Autre intensité' };
+const templates = () => [...DEFAULT_TEMPLATES, ...state.templates];
+function parseDur(v) {
+  const s = String(v == null ? '' : v).trim().toLowerCase().replace(',', '.');
+  let m;
+  if (!s) return null;
+  if ((m = /^(\d+):(\d{1,2})$/.exec(s))) return +m[1] * 60 + +m[2];
+  if ((m = /^(\d+(?:\.\d+)?)\s*(s|sec|secondes?)$/.exec(s))) return Math.round(+m[1]);
+  if ((m = /^(\d+(?:\.\d+)?)\s*(min|mn|m|')?$/.exec(s))) return Math.round(+m[1] * 60);
+  return null;
+}
+function fmtDur(sec) {
+  if (sec == null) return '';
+  if (sec < 60) return `${sec} s`;
+  const m = Math.floor(sec / 60), r = sec % 60;
+  return r ? `${m} min ${String(r).padStart(2, '0')}` : `${m} min`;
+}
+const tplLine = t => `${t.reps} × ${fmtDur(t.work)}${t.rest ? `, récup ${fmtDur(t.rest)}` : ''}, ${TARGETS[t.target] || t.target}`;
+const validTpl = t => !!t && String(t.name || '').trim().length > 0 && num(t.reps) >= 1 && num(t.reps) <= 60 && num(t.work) >= 10 && num(t.work) <= 7200 && num(t.rest) >= 0 && num(t.rest) <= 3600 && !!TARGETS[t.target];
+function loadTemplates(raw) { state.templates = Array.isArray(raw) ? raw.filter(validTpl) : []; }
+async function saveTemplates(list) {
+  if (DEMO) { try { localStorage.setItem('globule:templates', JSON.stringify(list)); } catch { /* stockage bloqué */ } }
+  else { const { error } = await sb.auth.updateUser({ data: { templates: list } }); if (error) throw error; }
+  state.templates = list;
+}
+
+function pickSession() {
+  openSheet('Choisis ta séance', `
+    <div class="list">${templates().map(t => `<div class="tpl-row">
+      <button class="item" data-act="use-tpl" data-id="${esc(t.id)}">
+        <span class="badge" style="background:${t.target === 'Golden Zone' ? GZ_COLOR : 'var(--z2)'}">${t.reps}×</span>
+        <span class="main"><strong>${esc(t.name)}</strong><span>${esc(tplLine(t))}</span></span><span></span></button>
+      ${t.id.startsWith('d-') ? '' : `<button class="del" type="button" data-act="del-tpl" data-id="${esc(t.id)}" aria-label="Supprimer le modèle ${esc(t.name)}">×</button>`}</div>`).join('')}</div>
+    <div style="height:12px"></div>
+    <button class="btn violet block" data-act="new-tpl">+ Créer un modèle</button>`);
+}
+function tplForm() {
+  openSheet('Nouveau modèle', `
+    <label class="field"><span>Nom</span><input class="inp" id="t-name" placeholder="ex. 6 × 6 min GZ"></label>
+    <div class="grid3"><label class="field"><span>Répétitions</span><input class="inp" id="t-reps" inputmode="numeric" value="6"></label>
+    <label class="field"><span>Effort</span><input class="inp" id="t-work" value="6"></label>
+    <label class="field"><span>Récup</span><input class="inp" id="t-rest" value="1"></label></div>
+    <p class="muted" style="font-size:13px;margin:-4px 0 10px">Durées en minutes (« 6 ») ou en secondes (« 45 s », « 1:30 »).</p>
+    <div class="field"><span class="muted" style="font-size:13px;font-weight:600">Intensité visée</span>
+      <div class="seg" role="group" aria-label="Intensité visée" data-seg="target">${Object.entries(TARGETS).map(([k, l]) => `<button type="button" data-val="${k}" aria-pressed="${k === 'Golden Zone'}">${l}</button>`).join('')}</div></div>
+    <p class="err" role="alert"></p>
+    <button class="btn rose block" data-act="save-tpl">Enregistrer le modèle</button>
+    <div style="height:10px"></div><button class="btn ghost block" data-act="new-session">Retour aux séances</button>`, root => wireSeg(root));
+}
+async function saveTpl(root) {
+  const t = { id: 'u-' + uid(), name: $('#t-name', root).value.trim(), reps: Math.round(num($('#t-reps', root).value)), work: parseDur($('#t-work', root).value), rest: parseDur($('#t-rest', root).value) ?? 0, target: segVal(root, 'target') || 'Golden Zone' };
+  if (!t.name) { $('.err', root).textContent = 'Donne un nom à ton modèle.'; return; }
+  if (!validTpl(t)) { $('.err', root).textContent = 'Vérifie les valeurs : 1 à 60 répétitions, effort de 10 s à 2 h, récup jusqu’à 1 h.'; return; }
+  try { await saveTemplates([...state.templates, t]); toast('Modèle enregistré'); pickSession(); }
+  catch (e) { $('.err', root).textContent = 'Pas enregistré : ' + (e.message || 'erreur réseau'); }
+}
+async function delTpl(id) {
+  const t = state.templates.find(x => x.id === id); if (!t) return;
+  if (!confirm(`Supprimer le modèle « ${t.name} » ? Les séances déjà saisies restent.`)) return;
+  try { await saveTemplates(state.templates.filter(x => x.id !== id)); toast('Modèle supprimé'); pickSession(); }
+  catch (e) { toast('Suppression impossible : ' + (e.message || 'erreur')); }
+}
+
+function ivRow(r, i) {
+  return `<div class="step-row"><span class="n">${i + 1}</span>
+    <input class="inp" data-k="w" inputmode="numeric" placeholder="W" value="${inVal(r.w)}" aria-label="Watts intervalle ${i + 1}">
+    <input class="inp" data-k="hr" inputmode="numeric" placeholder="FC" value="${inVal(r.hr)}" aria-label="FC intervalle ${i + 1}">
+    <input class="inp" data-k="la" inputmode="decimal" placeholder="mmol" value="${inVal(r.la)}" aria-label="Lactate intervalle ${i + 1}">
+    <input class="inp" data-k="rpe" inputmode="numeric" placeholder="RPE" value="${inVal(r.rpe)}" aria-label="RPE intervalle ${i + 1}">
+    <button class="del" type="button" data-act="del-row" aria-label="Supprimer l'intervalle ${i + 1}">×</button></div>`;
+}
+const ivFilled = r => !!r && (r.w != null || r.hr != null || r.la != null || r.rpe != null);
+function readRows(root) {
+  return $$('.step-row', root).map(r => ({ w: num($('[data-k="w"]', r).value), hr: num($('[data-k="hr"]', r).value), la: num($('[data-k="la"]', r).value), rpe: num($('[data-k="rpe"]', r).value) }));
+}
+const readIntervals = root => readRows(root).filter(ivFilled);
+const avgOf = (rows, k) => { const v = rows.map(r => r[k]).filter(x => x != null); return v.length ? Math.round(v.reduce((a, b) => a + b, 0) / v.length) : null; };
+function intervalForm(tpl, s) {
+  const T = (s && s.template) || tpl;
+  const x = s || { date: todayISO(), source: lastSource(), note: '', duration_min: Math.round(T.reps * (T.work + T.rest) / 60) };
+  const saved = (s && Array.isArray(s.intervals)) ? s.intervals : [];
+  const rows = Array.from({ length: Math.max(T.reps, saved.length) }, (_, i) => saved[i] || {});
+  const isGZ = GZ_KINDS.includes(T.target), G = goldenZone(currentZones()), r1 = v => fmt(v, 1);
+  const target = !isGZ ? '' : G.wLo != null ? ` Cible : <b>${fmt(G.wLo)} à ${fmt(G.wHi)} W</b>, ${r1(state.gz.lo)} à ${r1(state.gz.hi)} mmol.` : ` Cible : ${r1(state.gz.lo)} à ${r1(state.gz.hi)} mmol.`;
+  openSheet(s ? `Modifier : ${T.name}` : T.name, `
+    <div class="grid2"><label class="field"><span>Date</span><input class="inp" type="date" id="f-date" value="${x.date}"></label>
+    <label class="field"><span>Durée totale (min)</span><input class="inp" id="f-dur" inputmode="numeric" value="${inVal(x.duration_min)}"></label></div>
+    <p class="proto-line">${esc(tplLine(T))}.${target} Remplis au fil de la séance : watts, FC, lactate quand tu piques, RPE. Les intervalles vides ne sont pas enregistrés.</p>
+    <div class="steps-head"><span></span><span>Watts</span><span>FC</span><span>Lactate</span><span>RPE</span><span></span></div>
+    <div id="rows">${rows.map(ivRow).join('')}</div>
+    <button class="btn block" type="button" data-act="add-iv">+ Ajouter un intervalle</button>
+    <div id="preview"></div>
+    <div class="field"><span class="muted" style="font-size:13px;font-weight:600">Watts mesurés avec</span>${segHTML('src', x.source)}</div>
+    <label class="field"><span>Note</span><textarea class="inp" id="f-note" placeholder="Sensations, conditions, lecteur...">${esc(x.note)}</textarea></label>
+    <p class="err" role="alert"></p>
+    <button class="btn rose block" data-act="save-iv">Enregistrer la séance</button>
+    ${s ? `<div style="height:10px"></div><button class="btn danger block" data-act="del-session" data-id="${s.id}">Supprimer</button>` : ''}`, root => {
+    wireSeg(root);
+    root.dataset.id = s ? s.id : '';
+    root.dataset.tpl = JSON.stringify({ name: T.name, reps: T.reps, work: T.work, rest: T.rest, target: T.target });
+    const upd = () => {
+      const iv = readIntervals(root), las = iv.map(r => r.la).filter(v => v != null);
+      if (!iv.length) { $('#preview', root).innerHTML = '<p class="hand" style="margin:12px 0">Pique après le 2e intervalle, puis vers la fin. Je te dis où tu en es.</p>'; return; }
+      const mx = las.length ? Math.max(...las) : null, mn = las.length ? Math.min(...las) : null;
+      let msg = '';
+      if (isGZ && las.length) {
+        const r = state.gz, above = las.filter(v => v > r.hi + 1e-9).length;
+        msg = above ? `<b>${above} prélèvement${above > 1 ? 's' : ''} au-dessus de ta Golden Zone</b> (max ${r1(mx)} mmol). Baisse un peu les watts au prochain intervalle.`
+          : mn < r.lo - 1e-9 ? `Sous ta Golden Zone (${r1(r.lo)} à ${r1(r.hi)} mmol). Tu peux monter légèrement.`
+          : '<b>Tous tes prélèvements sont dans ta Golden Zone.</b> Globule approuve.';
+      }
+      if (las.length > 1) { const d = las[las.length - 1] - las[0]; msg += `${msg ? '<br>' : ''}Du 1er au dernier prélèvement : ${d >= 0 ? '+' : ''}${r1(d)} mmol.`; }
+      $('#preview', root).innerHTML = `<div class="result"><div class="kv"><div><b>${fmt(avgOf(iv, 'w'))}</b><span>watts moy.</span></div><div><b>${fmt(avgOf(iv, 'hr'))}</b><span>FC moy.</span></div><div><b>${mx != null ? r1(mx) : 'n.d.'}</b><span>lactate max</span></div></div></div>`
+        + (msg ? `<div class="result gz-result" style="margin-top:0">${msg}</div>` : '');
+    };
+    root.addEventListener('input', upd); upd();
+    sheetRefresh = upd;
+  });
+}
+function addIv(root) {
+  const rows = $('#rows', root), n = $$('.step-row', rows).length;
+  const lastW = $$('.step-row [data-k="w"]', rows).map(i => num(i.value)).filter(v => v != null).pop();
+  rows.insertAdjacentHTML('beforeend', ivRow({ w: lastW }, n));
+  $('.step-row:last-child [data-k="w"]', rows).focus();
+}
+function saveIntervals(root) {
+  const iv = readIntervals(root);
+  if (!iv.length) { $('.err', root).textContent = 'Remplis au moins un intervalle.'; return; }
+  if (iv.some(r => r.la != null && (r.la < 0.3 || r.la > 25))) { $('.err', root).textContent = 'Un lactate semble faux (entre 0,3 et 25 mmol attendu). Vérifie la virgule.'; return; }
+  const T = JSON.parse(root.dataset.tpl), las = iv.map(r => r.la).filter(v => v != null), rpes = iv.map(r => r.rpe).filter(v => v != null);
+  const la = las.length ? Math.max(...las) : null, dur = num($('#f-dur', root).value);
+  persist('sessions', root.dataset.id || null, {
+    date: $('#f-date', root).value || todayISO(), kind: T.target, duration_min: dur == null ? null : Math.round(dur),
+    watts: avgOf(iv, 'w'), hr: avgOf(iv, 'hr'), lactate: la, rpe: rpes.length ? Math.max(...rpes) : null,
+    source: segVal(root, 'src'), note: $('#f-note', root).value.trim() || null, intervals: (all => all.slice(0, all.map(ivFilled).lastIndexOf(true) + 1))(readRows(root)), template: T
+  }, 'Séance enregistrée', () => { const g = gzStatus({ kind: T.target, lactate: la }); return g ? (g.st === 'in' && la != null ? 'golden' : g.st === 'high' ? 'high' : null) : null; });
+}
+
 /* ---------- Export CSV (format machine : point décimal, dates ISO) ---------- */
 function exportCSV() {
   const cols = ['type', 'date', 'source', 'palier', 'watts', 'fc', 'lactate_mmol', 'rpe', 'lt1_auto_w', 'lt1_manuel_w', 'lt2_auto_w', 'lt2_manuel_w', 'duree_min', 'type_seance', 'golden_zone', 'note'];
@@ -1135,7 +1283,7 @@ function enter(user) {
   try { localStorage.setItem('globule:has-account', '1'); } catch { /* stockage bloqué */ }
   if (location.hash) history.replaceState(null, '', SITE_URL);
   state.user = user; state.name = (user.user_metadata && user.user_metadata.name) || '';
-  loadGz(user); loadProto(user);
+  loadGz(user); loadProto(user); loadTemplates(user.user_metadata && user.user_metadata.templates);
   start();
 }
 
@@ -1147,8 +1295,14 @@ document.addEventListener('click', async e => {
   const act = el.dataset.act, id = el.dataset.id, root = $('.sheet');
   switch (act) {
     case 'close': closeSheet(); break;
-    case 'new-session': sessionForm(); break;
-    case 'edit-session': sessionForm(state.sessions.find(s => s.id === id)); break;
+    case 'new-session': pickSession(); break;
+    case 'edit-session': { const ss = state.sessions.find(s => s.id === id); if (ss && ss.template) intervalForm(null, ss); else sessionForm(ss); break; }
+    case 'use-tpl': { const t = templates().find(x => x.id === id); if (t) intervalForm(t); break; }
+    case 'new-tpl': tplForm(); break;
+    case 'save-tpl': el.disabled = true; await saveTpl(root); el.disabled = false; break;
+    case 'del-tpl': delTpl(id); break;
+    case 'add-iv': addIv(root); break;
+    case 'save-iv': saveIntervals(root); break;
     case 'save-session': saveSession(root); break;
     case 'del-session': destroy('sessions', id, 'cette séance'); break;
     case 'new-steps': stepForm(); break;
@@ -1180,7 +1334,7 @@ document.addEventListener('click', async e => {
       render(); toast(name ? `Salut ${name} !` : 'Prénom effacé');
       break;
     }
-    case 'new-gz': sessionForm(null, 'Golden Zone'); break;
+    case 'new-gz': pickSession(); break;
     case 'save-proto': {
       const P = { start: Math.round(num($('#set-p-start').value)), step: Math.round(num($('#set-p-step').value)), n: Math.round(num($('#set-p-n').value)) };
       if (!validProto(P)) { toast('Protocole invalide : départ 50 à 500 W, +5 à 100 W, 3 à 15 paliers'); break; }
@@ -1235,6 +1389,7 @@ async function boot() {
     state.name = localStorage.getItem('globule:name') || '';
     try { const g = JSON.parse(localStorage.getItem('globule:gz3') || 'null'); if (validGz(g)) state.gz = { lo: num(g.lo), hi: num(g.hi) }; } catch { /* plages par défaut */ }
     try { const pr = JSON.parse(localStorage.getItem('globule:proto') || 'null'); if (validProto(pr)) state.proto = pr; } catch { /* protocole déduit */ }
+    try { loadTemplates(JSON.parse(localStorage.getItem('globule:templates') || '[]')); } catch { /* pas de modèles perso */ }
     return start();
   }
   const recovery = /type=recovery/.test(location.hash);

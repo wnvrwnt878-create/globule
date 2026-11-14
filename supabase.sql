@@ -27,8 +27,15 @@ create table if not exists public.sessions (
   lactate numeric,
   rpe integer,
   source text,
-  note text
+  note text,
+  intervals jsonb,
+  template jsonb
 );
+
+-- Mise à jour du 14/11/2026 : séances préenregistrées, valeurs intervalle par intervalle.
+alter table public.sessions add column if not exists intervals jsonb;
+alter table public.sessions add column if not exists template jsonb;
+notify pgrst, 'reload schema';
 
 create index if not exists tests_user_date on public.tests (user_id, date desc);
 create index if not exists sessions_user_date on public.sessions (user_id, date desc);
