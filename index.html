@@ -248,12 +248,75 @@ input.inp[type="date"]::-webkit-date-and-time-value{ text-align:left; }
 .tpl-row .item{ flex:1; border-bottom:0; }
 .tpl-row .del{ border:0; background:none; font-size:22px; color:var(--muted); cursor:pointer; padding:0 14px; min-height:44px; }
 .sr{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); }
+
+/* ---------- Mouvement ---------- */
+:root{
+  --ease-out:cubic-bezier(.23,1,.32,1);   /* entrées et déplacements */
+  --t-menu:200ms;                          /* menus déroulants : 150 à 250 ms */
+  --t-in:260ms;                            /* entrées */
+  --t-out:210ms;                           /* sorties : environ 20 % plus courtes */
+}
+/* Appui : on réduit à 0,97 */
+.btn{ transition:transform 140ms var(--ease-out), box-shadow 140ms var(--ease-out), background-color 220ms var(--ease-out), color 220ms var(--ease-out); }
+.btn:active{ transform:translate(3px,3px) scale(.97); }
+.item, .tab, .seg button, .rpe button, .del, .proto summary{ transition:transform 140ms var(--ease-out), background-color 240ms var(--ease-out), color 240ms var(--ease-out); }
+.item:active, .tab:active, .seg button:active, .rpe button:active, .del:active{ transform:scale(.97); }
+/* Changements de couleur avec du poids */
+.rpe button[aria-pressed="true"]{ animation:pop 300ms var(--ease-out); }
+@keyframes pop{ 0%{ scale:.88; } 60%{ scale:1.04; } 100%{ scale:1; } }
+
+/* Pastille partagée (onglets, segments) : même layout ID, rebond élastique */
+.pill{ position:absolute; left:0; top:0; z-index:0; box-sizing:border-box; pointer-events:none; transform-origin:50% 50%; }
+.tabbar .inner{ position:relative; }
+.tabbar .tab{ position:relative; z-index:1; }
+.tabbar .pill{ border-radius:16px; background:var(--rose); border:2.5px solid var(--line); box-shadow:2px 2px 0 var(--shadow); }
+.tabbar .inner.has-pill .tab[aria-current="page"]{ background:none; border-color:transparent; box-shadow:none; }
+.seg.has-pill{ position:relative; background:var(--surface-2); }
+.seg.has-pill button{ position:relative; z-index:1; background:transparent; }
+.seg.has-pill button[aria-pressed="true"]{ background:transparent; }
+.seg .pill{ background:var(--violet); }
+
+/* Feuilles : entrée depuis l'élément touché, à l'échelle 0,95, sortie vers lui */
+.backdrop{ animation:fade var(--t-in) var(--ease-out); }
+.backdrop.leaving{ animation:fade-out var(--t-out) var(--ease-out) forwards; pointer-events:none; }
+.sheet{ animation:sheet-in var(--t-in) var(--ease-out) both; }
+.sheet.leaving{ position:absolute; left:0; right:0; bottom:0; margin:0 auto; pointer-events:none; animation:sheet-out var(--t-out) var(--ease-out) forwards; }
+@keyframes sheet-in{ from{ opacity:0; transform:scale(.95); } to{ opacity:1; transform:none; } }
+@keyframes sheet-out{ from{ opacity:1; transform:none; } to{ opacity:0; transform:scale(.95); } }
+@keyframes fade-out{ to{ opacity:0; } }
+
+/* Changement d'onglet : le nouvel écran entre pendant que l'ancien s'en va */
+.view-ghost{ position:fixed; margin:0; z-index:1; pointer-events:none; animation:view-out var(--t-out) var(--ease-out) forwards; }
+@keyframes view-out{ to{ opacity:0; transform:translateY(-6px); filter:blur(2px); } }
+
+/* Menus déroulants : icône + / − en fondu enchaîné avec échelle et flou */
+.proto summary .plus{ position:relative; width:22px; height:22px; flex:none; font-size:0; transform:none !important; transition:none; }
+.proto summary .plus::before, .proto summary .plus::after{ position:absolute; inset:0; display:grid; place-items:center; font-family:var(--f-display); font-size:22px; line-height:1;
+  transition:opacity var(--t-menu) var(--ease-out), scale var(--t-menu) var(--ease-out), filter var(--t-menu) var(--ease-out); }
+.proto summary .plus::before{ content:"+"; }
+.proto summary .plus::after{ content:"\2212"; opacity:0; scale:.5; filter:blur(4px); }
+.proto[open]:not(.closing) summary .plus::before{ opacity:0; scale:.5; filter:blur(4px); }
+.proto[open]:not(.closing) summary .plus::after{ opacity:1; scale:1; filter:blur(0); }
+
+/* Toast : arrive en courbe, petite pulsation quand c'est réussi */
+.toast{ display:flex; align-items:center; gap:8px; white-space:nowrap; animation:toast-in var(--t-in) var(--ease-out) both; }
+.toast.ok{ animation:toast-in var(--t-in) var(--ease-out) both, pulse 380ms var(--ease-out) var(--t-in); }
+.toast.leaving{ animation:toast-out var(--t-out) var(--ease-out) forwards; }
+.toast .tick{ display:grid; place-items:center; width:22px; height:22px; border-radius:50%; background:var(--menthe); color:var(--ink); font-size:13px; animation:icon-in 320ms var(--ease-out) 120ms both; }
+@keyframes toast-in{ 0%{ opacity:0; translate:-18px 28px; } 60%{ opacity:1; translate:-4px -3px; } 100%{ translate:0 0; } }
+@keyframes toast-out{ to{ opacity:0; translate:0 14px; scale:.95; } }
+@keyframes pulse{ 0%{ scale:1; } 45%{ scale:1.07; } 100%{ scale:1; } }
+@keyframes icon-in{ from{ opacity:0; scale:.4; filter:blur(4px); } to{ opacity:1; scale:1; filter:blur(0); } }
+
+@media (prefers-reduced-motion: reduce){
+  *, *::before, *::after{ animation-duration:.01ms !important; animation-delay:0ms !important; transition-duration:.01ms !important; }
+}
 </style>
 </head>
 <body>
 <div id="app" class="wrap" aria-live="polite"></div>
 <nav class="tabbar" id="tabbar" hidden aria-label="Navigation">
-  <div class="inner">
+  <div class="inner" data-layout-id="tabs">
     <button class="tab" data-tab="home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M12 2.5C14 6 19 10 19 14.5a7 7 0 0 1-14 0C5 10 10 6 12 2.5Z"/></svg>Zones</button>
     <button class="tab" data-tab="journal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="3"/><path d="M9 8h6M9 12h6M9 16h3"/></svg>Journal</button>
     <button class="tab" data-tab="globule"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 10.5Q12 7 21.5 10.5L20.5 14Q17 17 13 14.5Q12 14 11 14.5Q7 17 3.5 14Z"/></svg>Globule</button>
@@ -298,11 +361,104 @@ const byDateDesc = (a, b) => (b.date || '').localeCompare(a.date || '') || (b.cr
 const SOURCES = { trainer: 'Home trainer', route: 'Route' };
 const SESSION_KINDS = ['Golden Zone', 'Intervalles', 'Endurance', 'Autre'];
 
-function toast(msg) {
+/* ---------- Mouvement ---------- */
+const RM = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+const EASE_OUT = 'cubic-bezier(.23,1,.32,1)';
+const T_IN = 260, T_OUT = 210, T_MENU = 200, STAGGER = 30;
+let tapPoint = null;
+document.addEventListener('pointerdown', e => { tapPoint = { x: e.clientX, y: e.clientY, t: Date.now() }; }, true);
+const later = (fn, ms) => setTimeout(fn, RM() ? 0 : ms);
+
+// Pastille partagée : un layout ID garde la dernière position, la pastille glisse en courbe, s'étire de 12 % et dépasse un peu avant de se caler
+const layoutMem = new Map();
+function syncPill(group, animate) {
+  if (!group || !group.offsetParent) return;
+  const id = group.dataset.layoutId || 'seg:' + (group.dataset.seg || '');
+  let p = group.querySelector(':scope > .pill');
+  if (!p) { p = document.createElement('span'); p.className = 'pill'; p.setAttribute('aria-hidden', 'true'); group.prepend(p); group.classList.add('has-pill'); }
+  const on = group.querySelector(':scope > [aria-pressed="true"], :scope > [aria-current="page"]');
+  if (!on) { p.style.opacity = '0'; layoutMem.delete(id); return; }
+  const box = { x: on.offsetLeft, y: on.offsetTop, w: on.offsetWidth, h: on.offsetHeight };
+  const prev = layoutMem.get(id);
+  layoutMem.set(id, box);
+  Object.assign(p.style, { opacity: '1', width: box.w + 'px', height: box.h + 'px', top: box.y + 'px', transform: `translateX(${box.x}px)` });
+  if (!animate || !prev || prev.x === box.x || RM()) return;
+  const d = box.x - prev.x, over = Math.sign(d) * Math.min(8, Math.abs(d) * .06);
+  p.animate([
+    { transform: `translate(${prev.x}px,0) scaleX(1)`, easing: 'cubic-bezier(.4,0,.6,1)' },
+    { transform: `translate(${prev.x + d * .5}px,-4px) scaleX(1.12)`, offset: .45, easing: EASE_OUT },
+    { transform: `translate(${box.x + over}px,0) scaleX(.98)`, offset: .75, easing: 'ease-in-out' },
+    { transform: `translate(${box.x - over * .35}px,0) scaleX(1)`, offset: .9, easing: 'ease-in-out' },
+    { transform: `translate(${box.x}px,0) scaleX(1)` }
+  ], { duration: 480 });
+}
+addEventListener('resize', () => $$('.tabbar .inner, .seg').forEach(g => syncPill(g, false)));
+
+// Lignes de liste : apparition décalée de 30 ms
+function staggerLists(root) {
+  if (RM() || !root) return;
+  $$('.list', root).forEach(l => [...l.children].slice(0, 16).forEach((c, i) =>
+    c.animate([{ opacity: 0, transform: 'translateY(8px)' }, { opacity: 1, transform: 'none' }], { duration: T_IN, delay: i * STAGGER, easing: EASE_OUT, fill: 'backwards' })));
+}
+// Révélation avec du poids : montée, fondu et flou qui se dissipe
+function reveal(els, delay = 0) {
+  if (RM()) return;
+  els.forEach((c, i) => c.animate([{ opacity: 0, transform: 'translateY(10px)', filter: 'blur(3px)' }, { opacity: 1, transform: 'none', filter: 'blur(0)' }],
+    { duration: T_IN + 60, delay: delay + i * STAGGER, easing: EASE_OUT, fill: 'backwards' }));
+}
+
+// Changement d'onglet : l'ancien écran part pendant que le nouveau arrive
+function switchTab(t) {
+  if (t === state.tab) { window.scrollTo({ top: 0, behavior: RM() ? 'auto' : 'smooth' }); return; }
+  const a = app();
+  if (!RM()) {
+    const r = a.getBoundingClientRect();
+    const g = a.cloneNode(true);
+    g.removeAttribute('id'); g.removeAttribute('aria-live'); g.setAttribute('aria-hidden', 'true'); g.inert = true;
+    g.querySelectorAll('[id]').forEach(n => n.removeAttribute('id'));
+    g.classList.add('view-ghost');
+    Object.assign(g.style, { top: r.top + 'px', left: r.left + 'px', width: r.width + 'px' });
+    document.body.appendChild(g);
+    later(() => g.remove(), T_OUT + 40);
+  }
+  state.tab = t; render(); window.scrollTo(0, 0);
+  if (!RM()) a.animate([{ opacity: 0, transform: 'translateY(10px)', filter: 'blur(2px)' }, { opacity: 1, transform: 'none', filter: 'blur(0)' }], { duration: T_IN, easing: EASE_OUT });
+}
+
+// Menus déroulants (protocoles) : 200 ms à l'ouverture, 160 ms à la fermeture
+document.addEventListener('click', e => {
+  const sum = e.target.closest('details.proto > summary');
+  if (!sum || RM()) return;
+  e.preventDefault();
+  const d = sum.parentElement;
+  const from = d.offsetHeight;
+  if (d._anim) d._anim.cancel();
+  const tok = d._tok = {};
+  const wasOpen = d.open;
+  d.open = false; const closed = d.offsetHeight; d.open = true; const full = d.offsetHeight;
+  d.style.overflow = 'hidden';
+  const done = () => { d.style.overflow = ''; d.style.height = ''; d.classList.remove('closing'); d._anim = null; };
+  if (wasOpen) {
+    d.classList.add('closing');
+    const dur = Math.round(T_MENU * .8);
+    d._anim = d.animate({ height: [from + 'px', closed + 'px'] }, { duration: dur, easing: EASE_OUT, fill: 'forwards' });
+    setTimeout(() => { if (d._tok !== tok) return; d.open = false; d._anim.cancel(); done(); }, dur);
+  } else {
+    d.classList.remove('closing');
+    d._anim = d.animate({ height: [from + 'px', full + 'px'] }, { duration: T_MENU, easing: EASE_OUT });
+    setTimeout(() => { if (d._tok === tok) done(); }, T_MENU);
+    $$(':scope > :not(summary)', d).forEach((c, i) => c.animate([{ opacity: 0, transform: 'translateY(-6px)' }, { opacity: 1, transform: 'none' }],
+      { duration: T_MENU, delay: i * STAGGER, easing: EASE_OUT, fill: 'backwards' }));
+  }
+});
+
+function toast(msg, ok) {
+  $$('.toast:not(.leaving)').forEach(o => { o.classList.add('leaving'); later(() => o.remove(), T_OUT + 40); });
   const t = document.createElement('div');
-  t.className = 'toast'; t.textContent = msg; t.setAttribute('role', 'status');
+  t.className = 'toast' + (ok ? ' ok' : ''); t.setAttribute('role', 'status');
+  t.innerHTML = (ok ? '<span class="tick" aria-hidden="true">✓</span>' : '') + `<span>${esc(msg)}</span>`;
   document.body.appendChild(t);
-  setTimeout(() => t.remove(), 2200);
+  setTimeout(() => { t.classList.add('leaving'); later(() => t.remove(), T_OUT + 40); }, 2200);
 }
 
 /* ---------- Stockage : local (démo) ou Supabase ---------- */
@@ -620,6 +776,9 @@ function render() {
   app().innerHTML = header() + v();
   $$('.tab').forEach(b => b.setAttribute('aria-current', b.dataset.tab === state.tab ? 'page' : 'false'));
   applyMascot();
+  syncPill($('#tabbar .inner'), true);
+  $$('#app .seg').forEach(g => syncPill(g, false));
+  staggerLists(app());
 }
 const lastSource = () => { const all = [...state.sessions, ...state.tests].sort(byDateDesc); return (all[0] && all[0].source) || 'trainer'; };
 
@@ -823,18 +982,49 @@ function viewGlobule() {
 /* ---------- Feuilles modales ---------- */
 let sheetEl = null, sheetRefresh = null;
 function openSheet(title, body, mount) {
-  closeSheet();
-  sheetEl = document.createElement('div');
-  sheetEl.className = 'backdrop';
-  sheetEl.innerHTML = `<div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(title)}"><div class="grab"></div>
+  let old = null;
+  if (sheetEl) old = $('.sheet:not(.leaving)', sheetEl);
+  else {
+    sheetEl = document.createElement('div');
+    sheetEl.className = 'backdrop';
+    const bd = sheetEl;
+    bd.addEventListener('click', e => { if (e.target === bd) closeSheet(); });
+    document.body.appendChild(bd);
+    document.body.style.overflow = 'hidden';
+  }
+  sheetRefresh = null;
+  const tmp = document.createElement('div');
+  tmp.innerHTML = `<div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(title)}"><div class="grab"></div>
     <h3><span>${esc(title)}</span><button class="btn ghost x" data-act="close">Fermer</button></h3><div class="sheet-body">${body}</div></div>`;
-  sheetEl.addEventListener('click', e => { if (e.target === sheetEl) closeSheet(); });
-  document.body.appendChild(sheetEl);
-  document.body.style.overflow = 'hidden';
-  if (mount) mount($('.sheet', sheetEl));
+  const sheet = tmp.firstElementChild;
+  // La nouvelle feuille entre pendant que l'ancienne s'en va
+  if (old) sheetOut(old);
+  sheet.style.animation = 'none';
+  sheetEl.prepend(sheet);
+  // Elle grandit depuis l'élément touché (sinon depuis le bas de l'écran)
+  const r = sheet.getBoundingClientRect();
+  const pt = tapPoint && Date.now() - tapPoint.t < 1500 ? tapPoint : { x: innerWidth / 2, y: innerHeight };
+  sheet.style.transformOrigin = `${Math.round(pt.x - r.left)}px ${Math.round(pt.y - r.top)}px`;
+  void sheet.offsetWidth;
+  sheet.style.animation = '';
+  if (mount) mount(sheet);
+  $$('.seg', sheet).forEach(g => syncPill(g, false));
+  reveal([...$('.sheet-body', sheet).children].slice(0, 8), 40);
+  staggerLists(sheet);
+}
+// Sortie vers le même point d'origine
+function sheetOut(sh) {
+  sh.classList.add('leaving'); sh.inert = true; sh.setAttribute('aria-hidden', 'true');
+  sh.querySelectorAll('[id]').forEach(n => n.removeAttribute('id'));
+  later(() => sh.remove(), T_OUT + 40);
 }
 function closeSheet() {
-  if (sheetEl) { sheetEl.remove(); sheetEl = null; sheetRefresh = null; document.body.style.overflow = ''; }
+  if (!sheetEl) return;
+  const bd = sheetEl;
+  sheetEl = null; sheetRefresh = null; document.body.style.overflow = '';
+  $$('.sheet', bd).forEach(sheetOut);
+  bd.classList.add('leaving');
+  later(() => bd.remove(), T_OUT + 40);
 }
 const segHTML = (name, val) => `<div class="seg" role="group" aria-label="Source des watts" data-seg="${name}">
   ${Object.entries(SOURCES).map(([k, l]) => `<button type="button" data-val="${k}" aria-pressed="${val === k}">${l}</button>`).join('')}</div>`;
@@ -844,6 +1034,7 @@ function wireSeg(root) {
     const wasOn = b.getAttribute('aria-pressed') === 'true';
     $$('button', b.parentElement).forEach(x => x.setAttribute('aria-pressed', 'false'));
     b.setAttribute('aria-pressed', b.parentElement.classList.contains('rpe') && wasOn ? 'false' : 'true');
+    if (b.parentElement.classList.contains('seg')) syncPill(b.parentElement, true);
     b.parentElement.dispatchEvent(new Event('input', { bubbles: true }));
   }));
 }
@@ -853,9 +1044,9 @@ async function persist(table, id, row, msg, event, after) {
     const saved = id ? await Store().update(table, id, row) : await Store().insert(table, row);
     await loadAll();
     if (typeof event === 'function') state.mascotEvent = event(before);
-    closeSheet(); render(); toast(msg);
+    closeSheet(); render(); toast(msg, true);
     if (typeof after === 'function' && saved && saved.id) after(saved);
-  } catch (e) { const er = $('.sheet .err'); if (er) er.textContent = 'Pas enregistré : ' + (e.message || 'erreur réseau') + '. Réessaie.'; }
+  } catch (e) { const er = $('.sheet:not(.leaving) .err'); if (er) er.textContent = 'Pas enregistré : ' + (e.message || 'erreur réseau') + '. Réessaie.'; }
 }
 async function destroy(table, id, what) {
   if (!confirm(`Supprimer ${what} ? C'est définitif.`)) return;
@@ -1261,7 +1452,7 @@ function renderLogin(mode, email = '', info = '') {
   if (!mode) mode = localStorage.getItem('globule:has-account') ? 'login' : 'signup';
   $('#tabbar').hidden = true;
   const emailF = `<label class="field"><span>Email</span><input class="inp" id="l-email" type="email" autocomplete="email" inputmode="email" value="${esc(email)}"></label>`;
-  const tabs = (mode === 'signup' || mode === 'login') ? `<div class="seg" style="margin-bottom:14px">
+  const tabs = (mode === 'signup' || mode === 'login') ? `<div class="seg" data-layout-id="auth" style="margin-bottom:14px">
       <button data-act="auth-mode" data-mode="signup" aria-pressed="${mode === 'signup'}">Créer un compte</button>
       <button data-act="auth-mode" data-mode="login" aria-pressed="${mode === 'login'}">Me connecter</button></div>` : '';
   let body = '';
@@ -1284,6 +1475,8 @@ function renderLogin(mode, email = '', info = '') {
   app().innerHTML = `<div class="login">${globuleSVG(200)}<h1 class="wordmark" style="font-size:40px;margin-top:10px">Globule</h1>
     <section class="panel">${tabs}${body}<p class="err" role="alert"></p></section></div>`;
   setMascot($('#app .globule'), 'hello');
+  syncPill($('.login .seg'), true);
+  reveal($$('.login .panel > :not(.seg)'));
 }
 function showErr(msg) { const e = $('.login .err'); if (e) e.textContent = msg; $$('.login [data-main]').forEach(b => { b.disabled = false; }); }
 function authErr(e) {
@@ -1341,9 +1534,9 @@ function enter(user) {
 /* ---------- Événements ---------- */
 document.addEventListener('click', async e => {
   const tab = e.target.closest('[data-tab]');
-  if (tab) { state.tab = tab.dataset.tab; render(); window.scrollTo(0, 0); return; }
+  if (tab) { switchTab(tab.dataset.tab); return; }
   const el = e.target.closest('[data-act]'); if (!el) return;
-  const act = el.dataset.act, id = el.dataset.id, root = $('.sheet');
+  const act = el.dataset.act, id = el.dataset.id, root = $('.sheet:not(.leaving)');
   switch (act) {
     case 'close': closeSheet(); break;
     case 'new-session': pickSession(); break;
