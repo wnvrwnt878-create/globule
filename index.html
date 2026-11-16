@@ -25,7 +25,7 @@
   --bg-a:#E9D5FF; --bg-b:#F8D9F0; --bg-c:#FFC4E1;
   --surface:#FFFFFF; --surface-2:#FBF3FF;
   --text:#2A0A4A; --muted:#6E5A8A; --line:#2A0A4A; --shadow:#2A0A4A;
-  --z1:#3FE8B9; --z2:#FFE45C; --z3:#FF2D8E;
+  --z1:#3FE8B9; --z2:#7CC8FF; --z3:#B98CFF; --z4:#FF8FC4; --z5:#FF2D8E;
   --f-display:"Bowlby One", "Arial Black", Impact, system-ui, sans-serif;
   --f-body:"Outfit", -apple-system, "Segoe UI", Roboto, sans-serif;
   --f-hand:"Caveat Brush", "Comic Sans MS", "Marker Felt", cursive;
@@ -89,7 +89,19 @@ h2.title{ font-family:var(--f-display); font-size:22px; margin:22px 0 10px; line
 .zones h3{ font-family:var(--f-display); font-size:18px; margin:0 0 12px; }
 .thermo{ position:relative; display:flex; height:46px; border:2.5px solid var(--line); border-radius:999px; overflow:hidden; }
 .thermo div{ display:flex; align-items:center; justify-content:center; font-family:var(--f-display); font-size:17px; color:var(--ink); }
-.thermo .z1{ background:var(--z1); flex:1.15; } .thermo .z2{ background:var(--z2); flex:1; border-left:2.5px solid var(--line); border-right:2.5px solid var(--line);} .thermo .z3{ background:var(--z3); flex:.85; }
+.thermo .zi{ flex:none; height:100%; } .thermo .zi + .zi{ border-left:2.5px solid var(--line); }
+.thermo .zi span{ position:relative; z-index:2; }
+.gz-band.solid{ background:#FFC21A; }
+.gz-legend{ display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin:2px 0 10px; }
+.gz-legend .what{ display:flex; align-items:center; gap:8px; font-weight:700; font-size:14px; }
+.gz-legend .sw{ width:26px; height:16px; border:2px solid var(--line); border-radius:5px; flex:none; }
+.gz-legend .sw.hatch{ background:repeating-linear-gradient(135deg,#FFB000 0 4px,#FFD45A 4px 8px); }
+.gz-legend .sw.solid{ background:#FFC21A; }
+.seg.mini{ border-width:2px; border-radius:10px; }
+.seg.mini button{ min-height:30px; padding:4px 10px; font-size:12px; }
+.seg.mini button + button{ border-left-width:2px; }
+.zrow .ref{ display:block; font-size:12px; color:var(--muted); font-weight:500; }
+.zones-note{ font-size:12px; color:var(--muted); margin:10px 0 0; }
 .marks{ position:relative; height:44px; margin-top:4px; }
 .mark{ position:absolute; top:0; transform:translateX(-50%); text-align:center; white-space:nowrap; }
 .mark b{ display:block; font-family:var(--f-display); font-size:16px; line-height:1.1; }
@@ -497,7 +509,7 @@ function seedDemo() {
     { date: daysAgo(1), kind: 'Endurance', duration_min: 150, watts: 185, hr: 132, lactate: 1.3, rpe: 3, source: 'route', note: 'Sortie longue, jambes ok' },
     { date: daysAgo(3), kind: 'Intervalles', duration_min: 75, watts: 238, hr: 152, lactate: 3.2, rpe: 7, source: 'trainer', note: '3 x 12 min' },
     { date: daysAgo(5), kind: 'Endurance', duration_min: 90, watts: 200, hr: 136, lactate: 1.6, rpe: 4, source: 'trainer', note: '' },
-    { date: daysAgo(12), kind: 'Endurance', duration_min: 120, watts: 210, hr: 140, lactate: 1.9, rpe: 4, source: 'route', note: 'Un peu haut pour de la Z1' },
+    { date: daysAgo(12), kind: 'Endurance', duration_min: 120, watts: 210, hr: 140, lactate: 1.9, rpe: 4, source: 'route', note: 'Un peu haut pour de l\'I1' },
     { date: daysAgo(0), kind: 'Golden Zone', duration_min: 70, watts: 244, hr: 151, lactate: 2.3, rpe: 5, source: 'trainer', note: 'Double seuil matin : 5 x 8 min' },
     { date: daysAgo(0), kind: 'Golden Zone', duration_min: 55, watts: 263, hr: 157, lactate: 3.1, rpe: 6, source: 'trainer', note: 'Double seuil soir : 10 x 3 min' },
     { date: daysAgo(2), kind: 'Golden Zone', duration_min: 60, watts: 276, hr: 161, lactate: 3.9, rpe: 7, source: 'trainer', note: 'Trop haut sur les 2 derniers' },
@@ -642,16 +654,36 @@ function gzWeek() {
 const gzBands = () => [{ y0: state.gz.lo, y1: state.gz.hi, color: GZ_COLOR, op: .45, label: 'Golden Zone' }];
 const gzTop = () => state.gz.hi;
 
+// 5 zones Olympiatoppen (I1 à I5), calées sur ton test :
+// I1 < LT1 < I2 < bas de la Golden Zone < I3 < LT2 < I4 < 6 mmol < I5
+const ZONES = [
+  { n: 1, name: 'Endurance facile', what: 'Sous LT1, lactate proche du repos. Le gros du volume.', ref: '0,7 à 1,5 mmol' },
+  { n: 2, name: 'Endurance moyenne', what: 'De LT1 jusqu\'au bas de la Golden Zone.', ref: '1,5 à 2,5 mmol' },
+  { n: 3, name: 'Seuil, Golden Zone', what: 'Juste sous LT2 : les intervalles Bakken.', ref: '2,5 à 4 mmol' },
+  { n: 4, name: 'Au-dessus du seuil', what: 'Au-delà de LT2, le lactate grimpe sans plateau.', ref: '4 à 6 mmol' },
+  { n: 5, name: 'VO2max', what: 'Efforts courts et très durs.', ref: '6 à 10 mmol' }
+];
+const LA_I5 = 6;
+function zoneBounds(Z) {
+  const curve = Z.s2 || Z.s, G = goldenZone(Z);
+  const gzLo = G.wLo != null ? G.wLo : curve ? crossW(curve.steps, 2.5) : null;
+  let w6 = curve ? crossW(curve.steps, LA_I5) : null;
+  if (w6 != null && Z.lt2 != null && w6 <= Z.lt2) w6 = null;
+  const hr = w => (curve && w != null ? interpHr(curve.steps, w) : null);
+  return { b: [Z.lt1, gzLo, Z.lt2, w6], hr: [Z.lt1Hr, hr(gzLo), Z.lt2Hr, hr(w6)], G };
+}
 function zoneOf(w, Z) {
-  if (w == null || !Z) return null;
-  if (Z.lt1 != null && w < Z.lt1) return 1;
-  if (Z.lt2 != null && w > Z.lt2) return 3;
-  if (Z.lt1 != null && Z.lt2 != null) return 2;
-  if (Z.lt1 != null) return 2;
+  if (w == null || !Z || (Z.lt1 == null && Z.lt2 == null)) return null;
+  const [b1, b2, b3, b4] = zoneBounds(Z).b;
+  if (b1 != null && w < b1) return 1;
+  if (b3 != null && w > b3) return b4 != null && w > b4 ? 5 : 4;
+  if (b2 != null && w >= b2) return 3;
+  if (b1 != null) return 2;
   return null;
 }
-const ZCOL = { 1: 'var(--z1)', 2: 'var(--z2)', 3: 'var(--z3)' };
-const ZHEX = { 1: '#3FE8B9', 2: '#FFD21F', 3: '#FF2D8E' };
+const ZCOL = { 1: 'var(--z1)', 2: 'var(--z2)', 3: 'var(--z3)', 4: 'var(--z4)', 5: 'var(--z5)' };
+const ZHEX = { 1: '#3FE8B9', 2: '#7CC8FF', 3: '#B98CFF', 4: '#FF8FC4', 5: '#FF2D8E' };
+const gzFill = () => { try { return localStorage.getItem('globule:gzfill') === 'solid' ? 'solid' : 'hatch'; } catch (e) { return 'hatch'; } };
 
 /* ---------- Globule, la mascotte animée ---------- */
 // SVG inline (piloté par classes is-idle, is-hello, is-golden, is-high, is-record). Ids rendus uniques par instance.
@@ -777,7 +809,7 @@ function render() {
   $$('.tab').forEach(b => b.setAttribute('aria-current', b.dataset.tab === state.tab ? 'page' : 'false'));
   applyMascot();
   syncPill($('#tabbar .inner'), true);
-  $$('#app .seg').forEach(g => syncPill(g, false));
+  $$('#app .seg').forEach(g => syncPill(g, !!g.dataset.layoutId));
   staggerLists(app());
 }
 const lastSource = () => { const all = [...state.sessions, ...state.tests].sort(byDateDesc); return (all[0] && all[0].source) || 'trainer'; };
@@ -787,25 +819,38 @@ function zonesPanel(Z) {
     return `<section class="panel empty"><p class="hand">Pas encore de zones. Un test paliers jusqu'à 4 mmol me donne tes deux seuils d'un coup.</p>
       <button class="btn rose" data-act="new-steps">Saisir un test paliers</button></section>`;
   }
-  const lt1 = Z.lt1 != null ? `${fmt(Z.lt1)} W` : '?';
-  const lt2 = Z.lt2 != null ? `${fmt(Z.lt2)} W` : '?';
-  const hr2 = Z.lt1Hr != null && Z.lt2Hr != null ? `FC ${fmt(Z.lt1Hr)} à ${fmt(Z.lt2Hr)}` : Z.lt2Hr != null ? `FC &lt; ${fmt(Z.lt2Hr)}` : Z.lt1Hr != null ? `FC &gt; ${fmt(Z.lt1Hr)}` : '';
+  const { b, hr, G } = zoneBounds(Z);
+  const W = v => (v != null ? `${fmt(v)} W` : '?');
+  const HR = v => (v != null ? fmt(v) : null);
+  const range = i => {
+    const lo = i > 0 ? b[i - 1] : null, hi = i < 4 ? b[i] : null;
+    if (i === 0) return { w: `&lt; ${W(hi)}`, h: HR(hr[0]) ? `FC &lt; ${HR(hr[0])}` : '' };
+    if (i === 4) return hi == null && lo == null ? { w: 'n.d.', h: 'test arrêté sous 6 mmol' } : { w: `&gt; ${W(lo)}`, h: HR(hr[3]) ? `FC &gt; ${HR(hr[3])}` : '' };
+    if (i === 3 && hi == null) return { w: `&gt; ${W(lo)}`, h: HR(hr[2]) ? `FC &gt; ${HR(hr[2])}` : '' };
+    return { w: `${W(lo)} à ${W(hi)}`, h: HR(hr[i - 1]) && HR(hr[i]) ? `FC ${HR(hr[i - 1])} à ${HR(hr[i])}` : '' };
+  };
   const flags = [];
   if (Z.s && Z.s.status === 'toconfirm') flags.push('LT1 à confirmer');
   if (Z.s && Z.s.status === 'manual') flags.push('LT1 choisi à la main');
   if (Z.s2 && Z.s2.lt2Status === 'manual') flags.push('LT2 choisi à la main');
+  const fill = gzFill();
+  const gzLeg = G.wLo != null && G.wHi != null ? `<div class="gz-legend">
+      <span class="what"><i class="sw ${fill}"></i>Golden Zone ${fmt(G.wLo)} à ${fmt(G.wHi)} W</span>
+      <div class="seg mini" data-layout-id="gzfill" role="group" aria-label="Affichage de la Golden Zone">
+        <button type="button" data-act="gz-fill" data-val="hatch" aria-pressed="${fill === 'hatch'}">Hachures</button>
+        <button type="button" data-act="gz-fill" data-val="solid" aria-pressed="${fill === 'solid'}">Or</button></div>
+    </div>` : '';
   return `<section class="panel zones" aria-label="Tes zones d'entraînement">
-    <h3>Tes 3 zones</h3>
-    <div class="thermo" aria-hidden="true"><div class="z1">Z1</div><div class="z2">Z2</div><div class="z3">Z3</div>${gzThermo(Z)}</div>
+    <h3>Tes 5 zones</h3>
+    <div class="thermo" aria-hidden="true">${ZONES.map((z, i) => `<div class="zi" style="width:${ZW[i]}%;background:${ZCOL[z.n]}"><span>I${z.n}</span></div>`).join('')}${gzThermo(Z)}</div>
     <div class="marks" aria-hidden="true">
-      <div class="mark" style="left:38.3%"><b>${lt1}</b><span>LT1</span></div>
-      <div class="mark" style="left:71.7%"><b>${lt2}</b><span>LT2</span></div>
+      ${['LT1', 'GZ', 'LT2', '6 mmol'].map((l, i) => `<div class="mark" style="left:${ZX[i]}%"><b>${b[i] != null ? fmt(b[i]) : '?'}</b><span>${l}</span></div>`).join('')}
     </div>
+    ${gzLeg}
     <div class="zone-rows">
-      <div class="zrow"><span class="zdot" style="background:var(--z1)">1</span><span class="what"><strong>Endurance</strong>Sous LT1, lactate proche du repos</span><span class="val">&lt; ${lt1}<small>${Z.lt1Hr != null ? 'FC &lt; ' + fmt(Z.lt1Hr) : ''}</small></span></div>
-      <div class="zrow"><span class="zdot" style="background:var(--z2)">2</span><span class="what"><strong>Tempo et seuil</strong>Le lactate monte puis se stabilise</span><span class="val">${lt1} à ${lt2}<small>${hr2}</small></span></div>
-      <div class="zrow"><span class="zdot" style="background:var(--z3)">3</span><span class="what"><strong>Au-dessus de LT2</strong>Le lactate grimpe sans plateau</span><span class="val">&gt; ${lt2}<small>${Z.lt2Hr != null ? 'FC &gt; ' + fmt(Z.lt2Hr) : ''}</small></span></div>
+      ${ZONES.map((z, i) => { const r = range(i); return `<div class="zrow"><span class="zdot" style="background:${ZCOL[z.n]}">I${z.n}</span><span class="what"><strong>${z.name}</strong>${z.what}<span class="ref">Repère : ${z.ref}</span></span><span class="val">${r.w}<small>${r.h}</small></span></div>`; }).join('')}
     </div>
+    <p class="zones-note">Échelle d'intensité Olympiatoppen. Les mmol sont des repères généraux, tes watts et FC viennent de ton test.</p>
     <div class="extras">
       ${Z.sTest ? `<span class="chip">Test du ${fdate(Z.sTest.date)}</span>` : ''}
       ${flags.map(f => `<span class="chip">${f}</span>`).join('')}
@@ -815,13 +860,15 @@ function zonesPanel(Z) {
       : Z.s2 && Z.s2.lt2Status === 'short' ? `<p class="warn">LT2 à confirmer : ta courbe s'arrête à ${fmt(Z.s2.maxLa, 1)} mmol. Pousse un ou deux paliers de plus au prochain test.</p>` : ''}
   </section>`;
 }
+// Largeurs fixes des 5 segments de la barre (schéma), et position des frontières
+const ZW = [22, 20, 22, 18, 18];
+const ZX = ZW.slice(0, 4).map((_, i) => ZW.slice(0, i + 1).reduce((a, v) => a + v, 0));
 function gzThermo(Z) {
   const G = goldenZone(Z);
-  if (Z.lt1 == null || Z.lt2 == null || Z.lt2 <= Z.lt1) return '';
-  const pos = w => 38.3 + Math.max(0, Math.min(1, (w - Z.lt1) / (Z.lt2 - Z.lt1))) * 33.4;
-  if (G.wLo == null || G.wHi == null) return '';
-  const a = pos(G.wLo), b = pos(G.wHi);
-  return `<div class="gz-band high" style="left:${a}%;width:${Math.max(3, b - a)}%"></div>`;
+  if (G.wLo == null || G.wHi == null || Z.lt2 == null || Z.lt2 <= G.wLo) return '';
+  // La Golden Zone commence au début de I3 et s'arrête au plus tard à LT2
+  const a = ZX[1], b = ZX[1] + ZW[2] * Math.max(0, Math.min(1, (G.wHi - G.wLo) / (Z.lt2 - G.wLo)));
+  return `<div class="gz-band ${gzFill() === 'solid' ? 'solid' : 'high'}" style="left:${a}%;width:${Math.max(3, b - a)}%"></div>`;
 }
 function goldenPanel(Z) {
   const G = goldenZone(Z), wk = gzWeek(), r = v => fmt(v, 1);
@@ -845,7 +892,7 @@ function sessionItem(s, Z) {
   const z = zoneOf(num(s.watts), Z);
   const meta = [fdate(s.date), s.duration_min ? `${s.duration_min} min` : '', s.hr ? `FC ${s.hr}` : '', s.source ? SOURCES[s.source] : ''].filter(Boolean).join(', ');
   return `<button class="item" data-act="edit-session" data-id="${s.id}">
-    ${gzBadge(s) || `<span class="badge" style="background:${z ? ZCOL[z] : 'var(--surface-2)'}">${z ? 'Z' + z : '?'}</span>`}
+    ${gzBadge(s) || `<span class="badge" style="background:${z ? ZCOL[z] : 'var(--surface-2)'}">${z ? 'I' + z : '?'}</span>`}
     <span class="main"><strong>${esc((s.template && s.template.name) || s.kind || 'Séance')}</strong><span>${esc(meta)}</span></span>
     <span class="num">${s.lactate != null ? fmt(num(s.lactate), 1) + ' mmol' : ''}<small>${s.watts != null ? fmt(num(s.watts)) + ' W' : ''}</small></span></button>`;
 }
@@ -892,7 +939,7 @@ function viewJournal() {
     chart = `<section class="panel" style="margin-top:16px"><h3 class="hand" style="margin:0 0 6px">Lactate à l'entraînement</h3><p class="tap-hint" style="margin:0 0 4px">Touche un point pour ouvrir la séance.</p>
       ${chartSVG({ timeX: true, xRange: [x0, x1], yRange: [0, Math.max(4, gzTop() + .5, ...withLa.map(p => p.y))], xFmt: v => fdateShort(new Date(v).toISOString()), yTitle: 'mmol/L', h: 190,
         hbands: gzBands(), series: [{ pts: withLa.map(p => ({ act: 'edit-session', id: p.id, label: p.label, x: p.x, y: p.y, fill: p.gz ? GZ_COLOR : p.z ? ZHEX[p.z] : '#ffffff', r: p.gz ? 7.5 : 6 })), color: '#2A0A4A', line: false }] })}
-      <div class="legend"><span><i style="background:var(--z1)"></i>Z1</span><span><i style="background:var(--z2)"></i>Z2</span><span><i style="background:var(--z3)"></i>Z3</span><span><i style="background:#FFC21A"></i>Golden Zone</span></div></section>`;
+      <div class="legend">${ZONES.map(z => `<span><i style="background:${ZCOL[z.n]}"></i>I${z.n}</span>`).join('')}<span><i style="background:#FFC21A"></i>Golden Zone</span></div></section>`;
   }
   const steps = state.tests.filter(t => t.kind === 'steps');
   let trend = '';
@@ -924,18 +971,18 @@ function viewGlobule() {
     <summary><span><span class="t">★ Golden Zone</span><span class="s">Méthode norvégienne, le cœur du double seuil</span></span><span class="plus">+</span></summary>
     <p class="say">Juste sous ton 2e seuil (LT2). Jamais dessus. C'est là que ça se passe.</p>
     <ol>
-      <li>Attention au mot "seuil" : ici c'est ton <b>2e seuil</b> (LT2). Ton 1er seuil (LT1), juste au-dessus du lactate de repos, c'est la fin de la Z1 : le terrain des jours faciles, pas de la Golden Zone.</li>
+      <li>Attention au mot "seuil" : ici c'est ton <b>2e seuil</b> (LT2). Ton 1er seuil (LT1), juste au-dessus du lactate de repos, c'est la fin de l'I1 : le terrain des jours faciles, pas de la Golden Zone.</li>
       <li><b>Une plage, pas un seuil</b> : ${fmt(state.gz.lo, 1)} à ${fmt(state.gz.hi, 1)} mmol. C'est la plage que donne Marius Bakken pour des athlètes entraînés, volontairement prudente : le lactate varie avec la chaleur, le glycogène et l'erreur du lecteur. Viser un chiffre fixe, c'est se surcharger petit à petit.</li>
       <li>Même si ton test place ton seuil plus haut (4 mmol par exemple), reste dans cette plage plusieurs mois avant de retester.</li>
       <li>Intervalles longs : reste dans le bas de la plage, surtout en première moitié. Intervalles courts : après 4 ou 5 répétitions, tu peux t'approcher de 3,0.</li>
       <li>Pique pendant la récup, après le 2e intervalle puis vers la fin. Au-dessus de la plage : baisse les watts au suivant. Le piège, c'est d'aller trop fort, pas trop doucement.</li>
-      <li>Double seuil : le matin plus prudent (bas de la plage), le soir un peu plus haut. Le reste de la semaine en Z1.</li>
+      <li>Double seuil : le matin plus prudent (bas de la plage), le soir un peu plus haut. Le reste de la semaine en I1.</li>
     </ol>
     <p>Tes watts sont lus sur ta dernière courbe de lactate, là où elle traverse chaque plage, et plafonnés à ton LT2.</p>
   </details>
   <details class="panel proto">
     <summary><span><span class="t">Test paliers 5 min + 30 s</span><span class="s">Le seul test : il donne LT1 et LT2</span></span><span class="plus">+</span></summary>
-    <p class="say">Un test, deux seuils, trois zones.</p>
+    <p class="say">Un test, deux seuils, cinq zones.</p>
     <ol>
       <li>Mêmes conditions à chaque test : même heure, même repas, rien d'intense la veille. Glycogène bas = courbe faussement flatteuse.</li>
       <li>Échauffement 10 à 15 min très facile. Lactate de repos si tu veux une référence.</li>
@@ -950,9 +997,10 @@ function viewGlobule() {
     <p>Tu peux toujours déplacer LT1 ou LT2 à la main en touchant la courbe.</p>
   </details>
   <details class="panel proto">
-    <summary><span><span class="t">Tes 3 zones</span><span class="s">Ce que je fais avec LT1 et LT2</span></span><span class="plus">+</span></summary>
-    <p class="say">Trois zones, deux frontières, zéro blabla.</p>
-    <p><b>Z1</b> sous LT1 : endurance, lactate quasi au repos. La majorité du volume.<br><b>Z2</b> entre LT1 et LT2 : tempo et seuil, le lactate monte puis se stabilise. La Golden Zone vit tout en haut.<br><b>Z3</b> au-dessus de LT2 : le lactate grimpe sans plateau.</p>
+    <summary><span><span class="t">Tes 5 zones</span><span class="s">L'échelle Olympiatoppen, calée sur ton test</span></span><span class="plus">+</span></summary>
+    <p class="say">Cinq zones, quatre frontières, toutes tirées de ton test.</p>
+    <p><b>I1</b> sous LT1 : endurance facile, lactate quasi au repos. La majorité du volume.<br><b>I2</b> de LT1 au bas de la Golden Zone : endurance moyenne.<br><b>I3</b> du bas de la Golden Zone à LT2 : le seuil, là où vivent les intervalles Bakken.<br><b>I4</b> de LT2 au point où ta courbe passe 6 mmol : au-dessus du seuil.<br><b>I5</b> au-delà de 6 mmol : VO2max. Si ton test s'arrête avant, je ne peux pas la placer.</p>
+    <p class="muted">Les plages en mmol (I1 0,7 à 1,5, I2 1,5 à 2,5, I3 2,5 à 4, I4 4 à 6, I5 6 à 10) sont les repères généraux d'Olympiatoppen. Tes frontières à toi viennent de ta courbe.</p>
     <p class="muted">Home trainer et capteur route peuvent différer de quelques %. Je note la source de chaque mesure pour que tu compares ce qui est comparable.</p>
   </details>
   <section class="panel" style="margin-top:14px">
@@ -1228,10 +1276,9 @@ function sessionForm(s, kind) {
     root.dataset.id = s ? s.id : '';
     const upd = () => {
       const w = num($('#f-w', root).value), la = num($('#f-la', root).value), z = zoneOf(w, Z);
-      const names = { 1: 'Endurance', 2: 'Tempo et seuil', 3: 'Au-dessus de LT2' };
       let h = '';
-      if (z) h = `<div class="result" style="margin-top:0"><span class="zdot" style="display:inline-grid;width:28px;height:28px;background:${ZCOL[z]};vertical-align:middle;margin-right:8px">${z}</span><b>${fmt(w)} W = zone ${z}</b>, ${names[z].toLowerCase()}`;
-      if (z === 1 && la != null && Z.s && Z.s.lt1La != null && la > Z.s.lt1La + 0.3) h += `<br><span class="hand">Lactate au-dessus de ton LT1 (${fmt(Z.s.lt1La, 1)} mmol) pour de la Z1. Fatigue, chaleur, ou zones à revoir ?</span>`;
+      if (z) h = `<div class="result" style="margin-top:0"><span class="zdot" style="display:inline-grid;width:28px;height:28px;font-size:12px;background:${ZCOL[z]};vertical-align:middle;margin-right:8px">I${z}</span><b>${fmt(w)} W = I${z}</b>, ${ZONES[z - 1].name.toLowerCase()}`;
+      if (z === 1 && la != null && Z.s && Z.s.lt1La != null && la > Z.s.lt1La + 0.3) h += `<br><span class="hand">Lactate au-dessus de ton LT1 (${fmt(Z.s.lt1La, 1)} mmol) pour de l'I1. Fatigue, chaleur, ou zones à revoir ?</span>`;
       const kind = $('#f-kind', root).value, G = goldenZone(Z), band = GZ_KINDS.includes(kind);
       let gz = '';
       if (band && la != null) {
@@ -1539,6 +1586,7 @@ document.addEventListener('click', async e => {
   const act = el.dataset.act, id = el.dataset.id, root = $('.sheet:not(.leaving)');
   switch (act) {
     case 'close': closeSheet(); break;
+    case 'gz-fill': try { localStorage.setItem('globule:gzfill', el.dataset.val); } catch (e) {} render(); break;
     case 'new-session': pickSession(); break;
     case 'edit-session': { const ss = state.sessions.find(s => s.id === id); if (ss && ss.template) intervalForm(null, ss); else sessionForm(ss); break; }
     case 'use-tpl': { const t = templates().find(x => x.id === id); if (t) intervalForm(t); break; }
