@@ -22,7 +22,7 @@ create table if not exists public.sessions (
   date date not null,
   kind text,
   duration_min integer,
-  watts integer,
+  watts numeric,
   hr integer,
   lactate numeric,
   rpe integer,
@@ -35,6 +35,8 @@ create table if not exists public.sessions (
 -- Mise à jour du 14/11/2026 : séances préenregistrées, valeurs intervalle par intervalle.
 alter table public.sessions add column if not exists intervals jsonb;
 alter table public.sessions add column if not exists template jsonb;
+-- Mise à jour du 25/11/2026 : profil course, vitesse en km/h avec décimales.
+alter table public.sessions alter column watts type numeric using watts::numeric;
 notify pgrst, 'reload schema';
 
 create index if not exists tests_user_date on public.tests (user_id, date desc);

@@ -257,6 +257,10 @@ input.inp[type="date"]::-webkit-date-and-time-value{ text-align:left; }
 .tpl-row .del{ border:0; background:none; font-size:22px; color:var(--muted); cursor:pointer; padding:0 14px; min-height:44px; }
 .sr{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); }
 
+.sport-switch{ margin:0 0 12px; }
+.sport-pick{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px; }
+.sport-pick .btn{ border-radius:18px; padding:14px 8px; display:flex; flex-direction:column; align-items:center; gap:2px; font-size:16px; }
+.sport-pick .btn small{ font-size:12px; font-weight:500; opacity:.85; }
 /* ---------- Mouvement ---------- */
 :root{
   --ease-out:cubic-bezier(.23,1,.32,1);   /* entrées et déplacements */
@@ -344,7 +348,7 @@ window.GLOBULE_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"-24 -9
 const CFG = window.GLOBULE_CONFIG || {};
 const DEMO = !(CFG.supabaseUrl && CFG.supabaseAnonKey && window.supabase);
 let sb = null;
-const state = { tests: [], sessions: [], name: '', tab: 'home', user: null, mascotEvent: null, proto: null, templates: [], pick: 'lt1', gz: { lo: 2.3, hi: 3.0 } };
+const state = { allTests: [], allSessions: [], sport: 'bike', sports: null, protos: { bike: null, run: null }, tests: [], sessions: [], name: '', tab: 'home', user: null, mascotEvent: null, proto: null, templates: [], pick: 'lt1', gz: { lo: 2.3, hi: 3.0 } };
 
 /* ---------- Outils ---------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -366,7 +370,24 @@ const fdateShort = iso => { if (!iso) return ''; const [, m, d] = iso.slice(0, 1
 const MONTHS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : 'id' + Date.now() + Math.random().toString(16).slice(2));
 const byDateDesc = (a, b) => (b.date || '').localeCompare(a.date || '') || (b.created_at || '').localeCompare(a.created_at || '');
-const SOURCES = { trainer: 'Home trainer', route: 'Route' };
+// Deux profils : vélo (watts) et course (km/h). Le sport d'un test ou d'une séance se lit sur sa source.
+const SPORTS = {
+  bike: { key: 'bike', label: 'Vélo', u: 'W', d: 0, im: 'numeric', name: 'watts', Name: 'Watts', col: 'Watts', les: 'les watts', measured: 'Watts mesurés avec',
+    sources: { trainer: 'Home trainer', route: 'Route' }, proto: { start: 140, step: 25, n: 7 }, lim: { start: [50, 500], step: [5, 100] } },
+  run: { key: 'run', label: 'Course', u: 'km/h', d: 1, im: 'decimal', name: 'vitesse', Name: 'Vitesse', col: 'km/h', les: 'la vitesse', measured: 'Vitesse mesurée avec',
+    sources: { tapis: 'Tapis', piste: 'Extérieur' }, proto: { start: 10, step: 1, n: 7 }, lim: { start: [4, 25], step: [0.2, 3] } }
+};
+const SOURCES = { ...SPORTS.bike.sources, ...SPORTS.run.sources };
+const sportOf = r => (r && SPORTS.run.sources[r.source] ? 'run' : 'bike');
+const SP = (k) => SPORTS[k || state.sport] || SPORTS.bike;
+const isRun = () => state.sport === 'run';
+const bk = (bike, run) => (isRun() ? run : bike);
+const rnd = v => (v == null ? null : +Number(v).toFixed(SP().d));
+const fx = v => fmt(v, SP().d);
+const fxu = v => (v == null ? '?' : `${fx(v)} ${SP().u}`);
+// Allure en min/km pour la course
+const paceRaw = kmh => { if (!kmh) return ''; const t = Math.round(3600 / kmh); return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`; };
+const paceRange = (lo, hi) => (isRun() && lo != null && hi != null ? `${paceRaw(lo)} à ${paceRaw(hi)} /km` : '');
 const SESSION_KINDS = ['Golden Zone', 'Intervalles', 'Endurance', 'Autre'];
 
 /* ---------- Mouvement ---------- */
@@ -489,17 +510,53 @@ const Store = () => (DEMO ? Local : Remote);
 
 async function loadAll() {
   const [tests, sessions] = await Promise.all([Store().all('tests'), Store().all('sessions')]);
-  state.tests = tests; state.sessions = sessions;
+  state.allTests = tests; state.allSessions = sessions;
+  applySport();
+}
+// Tout l'affichage ne voit que les tests et séances du sport choisi
+function applySport() {
+  const list = state.sports && state.sports.length ? state.sports : ['bike'];
+  if (!list.includes(state.sport)) state.sport = list[0];
+  state.tests = state.allTests.filter(t => sportOf(t) === state.sport);
+  state.sessions = state.allSessions.filter(x => sportOf(x) === state.sport);
+}
+function sportSwitch() {
+  if (!state.sports || state.sports.length < 2) return '';
+  return `<div class="seg sport-switch" data-layout-id="sport" role="group" aria-label="Sport">${state.sports.map(k =>
+    `<button type="button" data-act="set-sport" data-val="${k}" aria-pressed="${state.sport === k}">${SPORTS[k].label}</button>`).join('')}</div>`;
+}
+function loadSports(meta) {
+  const v = meta && Array.isArray(meta.sports) ? meta.sports.filter(k => SPORTS[k]) : null;
+  state.sports = v && v.length ? v : null;
+  try { const k = localStorage.getItem('globule:sport'); if (SPORTS[k]) state.sport = k; } catch (e) { /* sport par défaut */ }
+}
+async function saveSports(list) {
+  state.sports = list;
+  if (DEMO) localStorage.setItem('globule:sports', JSON.stringify(list));
+  else { const { error } = await sb.auth.updateUser({ data: { sports: list } }); if (error) { toast('Pas enregistré : ' + error.message); return false; } }
+  applySport(); return true;
+}
+const sportToggles = sel => `<div class="sport-pick" role="group" aria-label="Mes sports">${Object.values(SPORTS).map(S =>
+  `<button type="button" class="btn ${sel.includes(S.key) ? 'violet' : ''}" data-act="toggle-sport" data-val="${S.key}" aria-pressed="${sel.includes(S.key)}">${S.key === 'bike' ? '🚴' : '🏃'} ${S.label}<small>${S.u === 'W' ? 'tests en watts' : 'tests en km/h'}</small></button>`).join('')}</div>`;
+function profileSheet(first) {
+  const sel = state.sports ? [...state.sports] : [];
+  openSheet(first ? 'Ton profil' : 'Mes sports', `
+    <p class="hand" style="margin:0 0 10px">${first ? 'Tu fais du vélo, de la course, ou les deux ? J\'adapte tes tests : watts sur le vélo, km/h en course.' : 'Coche un sport ou les deux. Chaque sport a ses propres tests, zones et séances.'}</p>
+    ${sportToggles(sel)}
+    <p class="err" role="alert"></p>
+    <button class="btn rose block" data-act="save-sports">C'est mon profil</button>`, root => { root.dataset.sel = JSON.stringify(sel); });
 }
 
 function seedDemo() {
-  if (localStorage.getItem('globule:seed-v') === '5') return;
+  if (localStorage.getItem('globule:seed-v') === '6') return;
   const mk = (rows) => rows.map(r => ({ id: uid(), created_at: new Date().toISOString(), ...r }));
   Local.save('tests', mk([
     { date: daysAgo(62), kind: 'steps', source: 'trainer', lt1_manual: null, lt2_manual: null, note: 'Premier test, un peu fatigué',
       data: { baseline: 1.3, steps: [ { w: 140, hr: 120, la: 1.3, rpe: 2 }, { w: 165, hr: 128, la: 1.4, rpe: 3 }, { w: 190, hr: 137, la: 1.9, rpe: 4 }, { w: 215, hr: 146, la: 2.6, rpe: 5 }, { w: 240, hr: 155, la: 3.6, rpe: 7 }, { w: 265, hr: 163, la: 5.0, rpe: 8 } ] } },
     { date: daysAgo(18), kind: 'steps', source: 'trainer', lt1_manual: null, lt2_manual: null, note: '',
       data: { baseline: 1.1, steps: [ { w: 140, hr: 118, la: 1.2, rpe: 2 }, { w: 165, hr: 126, la: 1.2, rpe: 2 }, { w: 190, hr: 134, la: 1.4, rpe: 3 }, { w: 215, hr: 142, la: 1.5, rpe: 4 }, { w: 240, hr: 150, la: 2.1, rpe: 5 }, { w: 265, hr: 158, la: 2.9, rpe: 7 }, { w: 290, hr: 166, la: 4.1, rpe: 8 }, { w: 315, hr: 173, la: 6.2, rpe: 9 } ] } }
+    , { date: daysAgo(9), kind: 'steps', source: 'tapis', lt1_manual: null, lt2_manual: null, note: 'Test course, tapis à 1 %',
+      data: { baseline: 1.0, steps: [ { w: 9, hr: 132, la: 1.1, rpe: 2 }, { w: 10, hr: 139, la: 1.2, rpe: 3 }, { w: 11, hr: 146, la: 1.4, rpe: 3 }, { w: 12, hr: 153, la: 1.9, rpe: 4 }, { w: 13, hr: 160, la: 2.7, rpe: 6 }, { w: 14, hr: 167, la: 3.9, rpe: 7 }, { w: 15, hr: 174, la: 6.2, rpe: 9 } ] } }
   ]));
   Local.save('sessions', mk([
     { date: daysAgo(1), kind: 'Endurance', duration_min: 150, watts: 185, hr: 132, lactate: 1.3, rpe: 3, source: 'route', note: 'Sortie longue, jambes ok' },
@@ -509,9 +566,11 @@ function seedDemo() {
     { date: daysAgo(0), kind: 'Golden Zone', duration_min: 70, watts: 244, hr: 151, lactate: 2.3, rpe: 5, source: 'trainer', note: 'Double seuil matin : 5 x 8 min' },
     { date: daysAgo(0), kind: 'Golden Zone', duration_min: 55, watts: 263, hr: 157, lactate: 3.1, rpe: 6, source: 'trainer', note: 'Double seuil soir : 10 x 3 min' },
     { date: daysAgo(2), kind: 'Golden Zone', duration_min: 60, watts: 276, hr: 161, lactate: 3.9, rpe: 7, source: 'trainer', note: 'Trop haut sur les 2 derniers' },
-    { date: daysAgo(6), kind: 'Golden Zone', duration_min: 75, watts: 240, hr: 149, lactate: 2.2, rpe: 5, source: 'route', note: '4 x 10 min' }
+    { date: daysAgo(6), kind: 'Golden Zone', duration_min: 75, watts: 240, hr: 149, lactate: 2.2, rpe: 5, source: 'route', note: '4 x 10 min' },
+    { date: daysAgo(1), kind: 'Golden Zone', duration_min: 60, watts: 13.6, hr: 162, lactate: 2.6, rpe: 6, source: 'tapis', note: 'Course, 5 x 6 min' },
+    { date: daysAgo(4), kind: 'Endurance', duration_min: 50, watts: 10.8, hr: 141, lactate: 1.2, rpe: 3, source: 'piste', note: 'Footing' }
   ]));
-  localStorage.setItem('globule:seed-v', '5');
+  localStorage.setItem('globule:seed-v', '6');
 }
 /* ---------- Calculs ---------- */
 // LT1 auto : palier qui précède le premier saut >= 0,4 mmol. Confirmé si le palier suivant reste au-dessus.
@@ -589,11 +648,12 @@ function modDmax(steps, startIdx) {
   const f = polyfit3(steps.map(s => s.w), steps.map(s => s.la)) || (w => laAt(steps, w));
   const x0 = steps[startIdx].w, x1 = steps[last].w, y0 = f(x0), y1 = f(x1);
   let best = null, bd = 0;
-  for (let x = x0; x <= x1; x += 1) {
+  const st = x1 - x0 > 40 ? 1 : 0.1;
+  for (let i = 0, x = x0; x <= x1 + 1e-9; i++, x = x0 + i * st) {
     const d = (y0 + (y1 - y0) * (x - x0) / (x1 - x0)) - f(x);
     if (d > bd) { bd = d; best = x; }
   }
-  return best == null ? null : Math.round(best);
+  return best == null ? null : st === 1 ? Math.round(best) : +best.toFixed(1);
 }
 function currentZones() {
   const tests = state.tests.filter(t => t.kind === 'steps').sort(byDateDesc);
@@ -793,7 +853,7 @@ const TEST_COLORS = ['#FF2D8E', '#6A2BF0', '#13B98A', '#F2A100', '#3AA0FF', '#B0
 /* ---------- Rendu ---------- */
 const app = () => $('#app');
 function header() {
-  return `<header class="top"><h1 class="wordmark">Globule<small>le labo lactate${state.name ? ' de ' + esc(state.name) : ''}</small></h1>${DEMO ? '<span class="demo-badge">mode démo</span>' : ''}</header>`;
+  return `<header class="top"><h1 class="wordmark">Globule<small>le labo lactate${state.name ? ' de ' + esc(state.name) : ''}</small></h1>${DEMO ? '<span class="demo-badge">mode démo</span>' : ''}</header>${sportSwitch()}`;
 }
 function hero(text, size = 140) {
   return `<div class="hero">${globuleSVG(size)}<p class="bubble">${text}</p></div>`;
@@ -807,7 +867,7 @@ function render() {
   $$('#app .seg').forEach(g => syncPill(g, !!g.dataset.layoutId));
   staggerLists(app());
 }
-const lastSource = () => { const all = [...state.sessions, ...state.tests].sort(byDateDesc); return (all[0] && all[0].source) || 'trainer'; };
+const lastSource = () => { const all = [...state.sessions, ...state.tests].sort(byDateDesc); return (all[0] && all[0].source) || Object.keys(SP().sources)[0]; };
 
 function zonesPanel(Z) {
   if (Z.lt1 == null && Z.lt2 == null) {
@@ -815,33 +875,35 @@ function zonesPanel(Z) {
       <button class="btn rose" data-act="new-steps">Saisir un test paliers</button></section>`;
   }
   const { b, hr, G } = zoneBounds(Z);
-  const W = v => (v != null ? `${fmt(v)} W` : '?');
+  const W = v => fxu(v);
   const HR = v => (v != null ? fmt(v) : null);
   const range = i => {
     const lo = i > 0 ? b[i - 1] : null, hi = i < 4 ? b[i] : null;
-    if (i === 0) return { w: `&lt; ${W(hi)}`, h: HR(hr[0]) ? `FC &lt; ${HR(hr[0])}` : '' };
-    if (i === 4) return hi == null && lo == null ? { w: 'n.d.', h: 'test arrêté sous 6 mmol' } : { w: `&gt; ${W(lo)}`, h: HR(hr[3]) ? `FC &gt; ${HR(hr[3])}` : '' };
-    if (i === 3 && hi == null) return { w: `&gt; ${W(lo)}`, h: HR(hr[2]) ? `FC &gt; ${HR(hr[2])}` : '' };
-    return { w: `${W(lo)} à ${W(hi)}`, h: HR(hr[i - 1]) && HR(hr[i]) ? `FC ${HR(hr[i - 1])} à ${HR(hr[i])}` : '' };
+    const pc = (a, b) => (isRun() ? (a != null && b != null ? paceRange(a, b) : a != null ? `${paceRaw(a)} /km` : '') : '');
+    const j = (...x) => x.filter(Boolean).join('<br>');
+    if (i === 0) return { w: `&lt; ${W(hi)}`, h: j(isRun() && hi != null ? `&gt; ${paceRaw(hi)} /km` : '', HR(hr[0]) ? `FC &lt; ${HR(hr[0])}` : '') };
+    if (i === 4) return hi == null && lo == null ? { w: 'n.d.', h: 'test arrêté sous 6 mmol' } : { w: `&gt; ${W(lo)}`, h: j(isRun() ? `&lt; ${pc(lo)}` : '', HR(hr[3]) ? `FC &gt; ${HR(hr[3])}` : '') };
+    if (i === 3 && hi == null) return { w: `&gt; ${W(lo)}`, h: j(isRun() ? `&lt; ${pc(lo)}` : '', HR(hr[2]) ? `FC &gt; ${HR(hr[2])}` : '') };
+    return { w: `${fx(lo)} à ${W(hi)}`, h: j(pc(lo, hi), HR(hr[i - 1]) && HR(hr[i]) ? `FC ${HR(hr[i - 1])} à ${HR(hr[i])}` : '') };
   };
   const flags = [];
   if (Z.s && Z.s.status === 'toconfirm') flags.push('LT1 à confirmer');
   if (Z.s && Z.s.status === 'manual') flags.push('LT1 choisi à la main');
   if (Z.s2 && Z.s2.lt2Status === 'manual') flags.push('LT2 choisi à la main');
   const gzLeg = G.wLo != null && G.wHi != null ? `<div class="gz-legend">
-      <span class="what"><i class="sw solid"></i>Golden Zone ${fmt(G.wLo)} à ${fmt(G.wHi)} W</span>
+      <span class="what"><i class="sw solid"></i>Golden Zone ${fx(G.wLo)} à ${fxu(G.wHi)}</span>
     </div>` : '';
   return `<section class="panel zones" aria-label="Tes zones d'entraînement">
     <h3>Tes 5 zones</h3>
     <div class="thermo" aria-hidden="true">${ZONES.map((z, i) => `<div class="zi" style="width:${ZW[i]}%;background:${ZCOL[z.n]}"><span>I${z.n}</span></div>`).join('')}${gzThermo(Z)}</div>
     <div class="marks" aria-hidden="true">
-      ${['LT1', 'GZ', 'LT2', '6 mmol'].map((l, i) => `<div class="mark" style="left:${ZX[i]}%"><b>${b[i] != null ? fmt(b[i]) : '?'}</b><span>${l}</span></div>`).join('')}
+      ${['LT1', 'GZ', 'LT2', '6 mmol'].map((l, i) => `<div class="mark" style="left:${ZX[i]}%"><b>${b[i] != null ? fx(b[i]) : '?'}</b><span>${l}</span></div>`).join('')}
     </div>
     ${gzLeg}
     <div class="zone-rows">
       ${ZONES.map((z, i) => { const r = range(i); return `<div class="zrow"><span class="zdot" style="background:${ZCOL[z.n]}">I${z.n}</span><span class="what"><strong>${z.name}</strong>${z.what}<span class="ref">Repère : ${z.ref}</span></span><span class="val">${r.w}<small>${r.h}</small></span></div>`; }).join('')}
     </div>
-    <p class="zones-note">Échelle d'intensité Olympiatoppen. Les mmol sont des repères généraux, tes watts et FC viennent de ton test.</p>
+    <p class="zones-note">Échelle d'intensité Olympiatoppen. Les mmol sont des repères généraux, tes ${SP().name === 'watts' ? 'watts' : 'vitesses'} et FC viennent de ton test.</p>
     <div class="extras">
       ${Z.sTest ? `<span class="chip">Test du ${fdate(Z.sTest.date)}</span>` : ''}
       ${flags.map(f => `<span class="chip">${f}</span>`).join('')}
@@ -864,17 +926,17 @@ function gzThermo(Z) {
 function goldenPanel(Z) {
   const G = goldenZone(Z), wk = gzWeek(), r = v => fmt(v, 1);
   const cell = (v, l) => `<div><b>${v}</b><span>${l}</span></div>`;
-  const watts = G.wLo != null ? `${fmt(G.wLo)} à ${fmt(G.wHi)} W` : G.above ? 'au-dessus de ton LT2' : 'à calculer';
+  const watts = G.wLo != null ? `${fx(G.wLo)} à ${fxu(G.wHi)}` : G.above ? 'au-dessus de ton LT2' : 'à calculer';
   const hr = G.hrLo != null && G.hrHi != null ? `${fmt(G.hrLo)} à ${fmt(G.hrHi)}` : 'n.d.';
   const note = G.above ? 'Ta plage commence au-dessus de ton LT2 : elle est trop haute pour toi. Baisse-la dans mon onglet.'
     : G.wLo == null ? 'Il me faut une courbe de lactate qui traverse ta plage : un test paliers jusqu\'à 4 mmol.'
     : G.capped ? 'Plafonnée à ton LT2 : la Golden Zone reste sous ton 2e seuil, jamais dessus.'
-    : 'Watts et FC lus sur ta dernière courbe de lactate. Une plage, pas un chiffre : vise le bas sur les intervalles longs.';
+    : `${SP().Name} et FC lues sur ta dernière courbe de lactate. Une plage, pas un chiffre : vise le bas sur les intervalles longs.`;
   return `<section class="panel golden" aria-label="Ta Golden Zone">
     <div class="gz-head"><span class="gz-star" aria-hidden="true">★</span><h3>Ta Golden Zone</h3></div>
     <p class="gz-sub">Juste sous ton 2e seuil (LT2), jamais dessus.</p>
-    <div class="gz-watts">${watts}</div>
-    <div class="kv" style="margin:10px 0 12px">${cell(`${r(G.lo)}–${r(G.hi)}`, 'mmol/L')}${cell(hr, 'FC (bpm)')}${cell(Z.lt2 != null ? fmt(Z.lt2) : 'n.d.', 'LT2 (W), plafond')}</div>
+    <div class="gz-watts">${watts}</div>${isRun() && G.wLo != null ? `<div class="gz-sub" style="margin:2px 0 0">Allure ${paceRange(G.wLo, G.wHi)}</div>` : ''}
+    <div class="kv" style="margin:10px 0 12px">${cell(`${r(G.lo)}–${r(G.hi)}`, 'mmol/L')}${cell(hr, 'FC (bpm)')}${cell(Z.lt2 != null ? fx(Z.lt2) : 'n.d.', `LT2 (${SP().u}), plafond`)}</div>
     <div class="kv"><div><b>${wk.n}</b><span>séance${wk.n > 1 ? 's' : ''} cette semaine</span></div><div><b>${wk.min}</b><span>min en GZ</span></div><div><b>${wk.high}</b><span>trop haut</span></div></div>
     <p class="gz-note">${note}</p>
     <div class="row-btns" style="margin-top:0"><button class="btn" data-act="new-gz">+ Séance Golden Zone</button></div></section>`;
@@ -885,7 +947,7 @@ function sessionItem(s, Z) {
   return `<button class="item" data-act="edit-session" data-id="${s.id}">
     ${gzBadge(s) || `<span class="badge" style="background:${z ? ZCOL[z] : 'var(--surface-2)'}">${z ? 'I' + z : '?'}</span>`}
     <span class="main"><strong>${esc((s.template && s.template.name) || s.kind || 'Séance')}</strong><span>${esc(meta)}</span></span>
-    <span class="num">${s.lactate != null ? fmt(num(s.lactate), 1) + ' mmol' : ''}<small>${s.watts != null ? fmt(num(s.watts)) + ' W' : ''}</small></span></button>`;
+    <span class="num">${s.lactate != null ? fmt(num(s.lactate), 1) + ' mmol' : ''}<small>${s.watts != null ? fxu(num(s.watts)) : ''}</small></span></button>`;
 }
 function gzBadge(s) {
   const g = gzStatus(s);
@@ -895,11 +957,11 @@ function gzBadge(s) {
 }
 function testItem(t) {
   const a = analyzeSteps(t);
-  const v = w => w != null ? fmt(w) : '?';
+  const v = w => w != null ? fx(w) : '?';
   return `<button class="item" data-act="open-steps" data-id="${t.id}">
     <span class="badge" style="background:var(--violet);color:#fff">5'</span>
     <span class="main"><strong>Test paliers</strong><span>${fdate(t.date)}, ${a.steps.length} paliers${t.source ? ', ' + SOURCES[t.source] : ''}</span></span>
-    <span class="num">${v(a.lt1W)} / ${v(a.lt2W)} W<small>LT1 / LT2</small></span></button>`;
+    <span class="num">${v(a.lt1W)} / ${v(a.lt2W)} ${SP().u}<small>LT1 / LT2</small></span></button>`;
 }
 
 function viewHome() {
@@ -940,7 +1002,7 @@ function viewJournal() {
     const all = [...l1, ...l2], xs = all.map(p => p.x), ys = all.map(p => p.y);
     let x0 = Math.min(...xs), x1 = Math.max(...xs); if (x0 === x1) { x0 -= 7 * 864e5; x1 += 7 * 864e5; }
     trend = `<section class="panel" style="margin-top:14px"><h3 class="hand" style="margin:0 0 6px">Tes seuils dans le temps</h3><p class="tap-hint" style="margin:0 0 4px">Touche un point pour ouvrir le test.</p>
-      ${chartSVG({ timeX: true, xRange: [x0, x1], yRange: [Math.min(...ys) - 10, Math.max(...ys) + 10], xFmt: v => fdateShort(new Date(v).toISOString()), yFmt: v => fmt(v), yTitle: 'W', h: 170,
+      ${chartSVG({ timeX: true, xRange: [x0, x1], yRange: [Math.min(...ys) - 10, Math.max(...ys) + 10], xFmt: v => fdateShort(new Date(v).toISOString()), yFmt: v => fx(v), yTitle: SP().u, h: 170,
         series: [{ pts: l1, color: '#13B98A', r: 5.5 }, { pts: l2, color: '#FF2D8E', r: 5.5 }] })}
       <div class="legend"><span><i style="background:#13B98A"></i>LT1</span><span><i style="background:#FF2D8E"></i>LT2</span></div></section>`;
   }
@@ -966,10 +1028,10 @@ function viewGlobule() {
       <li><b>Une plage, pas un seuil</b> : ${fmt(state.gz.lo, 1)} à ${fmt(state.gz.hi, 1)} mmol. C'est la plage que donne Marius Bakken pour des athlètes entraînés, volontairement prudente : le lactate varie avec la chaleur, le glycogène et l'erreur du lecteur. Viser un chiffre fixe, c'est se surcharger petit à petit.</li>
       <li>Même si ton test place ton seuil plus haut (4 mmol par exemple), reste dans cette plage plusieurs mois avant de retester.</li>
       <li>Intervalles longs : reste dans le bas de la plage, surtout en première moitié. Intervalles courts : après 4 ou 5 répétitions, tu peux t'approcher de 3,0.</li>
-      <li>Pique pendant la récup, après le 2e intervalle puis vers la fin. Au-dessus de la plage : baisse les watts au suivant. Le piège, c'est d'aller trop fort, pas trop doucement.</li>
+      <li>Pique pendant la récup, après le 2e intervalle puis vers la fin. Au-dessus de la plage : baisse ${SP().les} au suivant. Le piège, c'est d'aller trop fort, pas trop doucement.</li>
       <li>Double seuil : le matin plus prudent (bas de la plage), le soir un peu plus haut. Le reste de la semaine en I1.</li>
     </ol>
-    <p>Tes watts sont lus sur ta dernière courbe de lactate, là où elle traverse chaque plage, et plafonnés à ton LT2.</p>
+    <p>${bk('Tes watts sont lus', 'Ta vitesse est lue')} sur ta dernière courbe de lactate, là où elle traverse chaque plage, et plafonnée à ton LT2.</p>
   </details>
   <details class="panel proto">
     <summary><span><span class="t">Test paliers 5 min + 30 s</span><span class="s">Le seul test : il donne LT1 et LT2</span></span><span class="plus">+</span></summary>
@@ -977,9 +1039,9 @@ function viewGlobule() {
     <ol>
       <li>Mêmes conditions à chaque test : même heure, même repas, rien d'intense la veille. Glycogène bas = courbe faussement flatteuse.</li>
       <li>Échauffement 10 à 15 min très facile. Lactate de repos si tu veux une référence.</li>
-      <li>Ton protocole fixe : départ ${fmt(proto().start)} W, +${fmt(proto().step)} W par palier de 5 min, cadence stable. Toujours le même, pour que les courbes se comparent. Réglable en bas de page.</li>
+      <li>Ton protocole fixe : départ ${fxu(proto().start)}, +${fxu(proto().step)} par palier de 5 min, ${bk('cadence stable', 'tapis à 1 % de pente')}. Toujours le même, pour que les courbes se comparent. Réglable en bas de page.</li>
       <li>Entre chaque palier, <b>30 s de pause</b> pour prélever le lactate (protocole recommandé par Marius Bakken), puis repars sur le palier suivant. Doigt sec, première goutte essuyée : la sueur contient du lactate.</li>
-      <li>Note FC de fin de palier, lactate et RPE. Les watts sont déjà remplis.</li>
+      <li>Note FC de fin de palier, lactate et RPE. ${bk('Les watts sont déjà remplis.', 'Les vitesses sont déjà remplies.')}</li>
       <li><b>Va jusque vers 4 mmol</b>, au moins 2 paliers après le premier saut. Sans ça, pas de LT2 fiable.</li>
     </ol>
     <p class="say">Comment je calcule</p>
@@ -992,12 +1054,16 @@ function viewGlobule() {
     <p class="say">Cinq zones, quatre frontières, toutes tirées de ton test.</p>
     <p><b>I1</b> sous LT1 : endurance facile, lactate quasi au repos. La majorité du volume.<br><b>I2</b> de LT1 au bas de la Golden Zone : endurance moyenne.<br><b>I3</b> du bas de la Golden Zone à LT2 : le seuil, là où vivent les intervalles Bakken.<br><b>I4</b> de LT2 au point où ta courbe passe 6 mmol : au-dessus du seuil.<br><b>I5</b> au-delà de 6 mmol : VO2max. Si ton test s'arrête avant, je ne peux pas la placer.</p>
     <p class="muted">Les plages en mmol (I1 0,7 à 1,5, I2 1,5 à 2,5, I3 2,5 à 4, I4 4 à 6, I5 6 à 10) sont les repères généraux d'Olympiatoppen. Tes frontières à toi viennent de ta courbe.</p>
-    <p class="muted">Home trainer et capteur route peuvent différer de quelques %. Je note la source de chaque mesure pour que tu compares ce qui est comparable.</p>
+    <p class="muted">${bk('Home trainer et capteur route', 'Tapis et montre GPS')} peuvent différer de quelques %. Je note la source de chaque mesure pour que tu compares ce qui est comparable.</p>
   </details>
   <section class="panel" style="margin-top:14px">
     <h3 class="hand" style="margin:0 0 10px">Réglages</h3>
     <label class="field"><span>Comment je t'appelle ?</span><input class="inp" id="set-name" value="${esc(state.name)}" placeholder="Ton prénom" autocomplete="given-name"></label>
     <button class="btn violet block" data-act="save-name">Enregistrer le prénom</button>
+    <div style="height:14px"></div>
+    <p class="hand" style="margin:0 0 6px">Mes sports</p>
+    <p class="muted" style="font-size:13px;margin:0 0 8px">${(state.sports || ['bike']).map(k => SPORTS[k].label).join(' et ')}. Chaque sport a ses tests, ses zones et ses séances.</p>
+    <button class="btn block" data-act="edit-sports">Changer mes sports</button>
     <div style="height:14px"></div>
     <p class="hand" style="margin:0 0 6px">Golden Zone (mmol)</p>
     <div class="grid2"><label class="field"><span>De (mmol)</span><input class="inp" id="set-gz-lo" inputmode="decimal" value="${inVal(state.gz.lo)}"></label>
@@ -1005,9 +1071,9 @@ function viewGlobule() {
     <p class="muted" style="font-size:13px;margin:-4px 0 10px">Par défaut 2,3 à 3,0 mmol (Marius Bakken).</p>
     <button class="btn block" style="background:#FFC21A;color:#2A0A4A" data-act="save-gz">Enregistrer ma Golden Zone</button>
     <div style="height:14px"></div>
-    <p class="hand" style="margin:0 0 6px">Mon protocole paliers (5 min + 30 s de pause)</p>
-    <div class="grid3"><label class="field"><span>Départ (W)</span><input class="inp" id="set-p-start" inputmode="numeric" value="${proto().start}"></label>
-    <label class="field"><span>+ par palier (W)</span><input class="inp" id="set-p-step" inputmode="numeric" value="${proto().step}"></label>
+    <p class="hand" style="margin:0 0 6px">Mon protocole paliers ${SP().label.toLowerCase()} (5 min + 30 s de pause)</p>
+    <div class="grid3"><label class="field"><span>Départ (${SP().u})</span><input class="inp" id="set-p-start" inputmode="${SP().im}" value="${inVal(proto().start)}"></label>
+    <label class="field"><span>+ par palier (${SP().u})</span><input class="inp" id="set-p-step" inputmode="${SP().im}" value="${inVal(proto().step)}"></label>
     <label class="field"><span>Paliers max</span><input class="inp" id="set-p-n" inputmode="numeric" value="${proto().n}"></label></div>
     <button class="btn violet block" data-act="save-proto">Enregistrer mon protocole</button>
     <div style="height:10px"></div>
@@ -1065,8 +1131,8 @@ function closeSheet() {
   bd.classList.add('leaving');
   later(() => bd.remove(), T_OUT + 40);
 }
-const segHTML = (name, val) => `<div class="seg" role="group" aria-label="Source des watts" data-seg="${name}">
-  ${Object.entries(SOURCES).map(([k, l]) => `<button type="button" data-val="${k}" aria-pressed="${val === k}">${l}</button>`).join('')}</div>`;
+const segHTML = (name, val) => `<div class="seg" role="group" aria-label="Mesuré avec" data-seg="${name}">
+  ${Object.entries(SP().sources).map(([k, l]) => `<button type="button" data-val="${k}" aria-pressed="${val === k}">${l}</button>`).join('')}</div>`;
 const segVal = (root, name) => { const b = $(`[data-seg="${name}"] [aria-pressed="true"]`, root); return b ? b.dataset.val : null; };
 function wireSeg(root) {
   $$('[data-seg] button, .rpe button', root).forEach(b => b.addEventListener('click', () => {
@@ -1096,25 +1162,28 @@ async function destroy(table, id, what) {
 /* Test paliers : saisie */
 function stepRow(s, i) {
   return `<div class="step-row"><span class="n">${i + 1}</span>
-    <input class="inp" data-k="w" inputmode="numeric" placeholder="W" value="${inVal(s.w)}" aria-label="Watts palier ${i + 1}">
+    <input class="inp" data-k="w" inputmode="${SP().im}" placeholder="${SP().u}" value="${inVal(s.w)}" aria-label="${SP().Name} palier ${i + 1}">
     <input class="inp" data-k="hr" inputmode="numeric" placeholder="FC" value="${inVal(s.hr)}" aria-label="FC palier ${i + 1}">
     <input class="inp" data-k="la" inputmode="decimal" placeholder="mmol" value="${inVal(s.la)}" aria-label="Lactate palier ${i + 1}">
     <input class="inp" data-k="rpe" inputmode="numeric" placeholder="RPE" value="${inVal(s.rpe)}" aria-label="RPE palier ${i + 1}">
     <button class="del" type="button" data-act="del-row" aria-label="Supprimer le palier ${i + 1}">×</button></div>`;
 }
-const PROTO_DEFAULT = { start: 140, step: 25, n: 7 };
-function validProto(p) { return p && num(p.start) >= 50 && num(p.start) <= 500 && num(p.step) >= 5 && num(p.step) <= 100 && num(p.n) >= 3 && num(p.n) <= 15; }
+function validProto(p, k) {
+  const L = SP(k).lim;
+  return !!p && num(p.start) >= L.start[0] && num(p.start) <= L.start[1] && num(p.step) >= L.step[0] && num(p.step) <= L.step[1] && num(p.n) >= 3 && num(p.n) <= 15;
+}
 function derivedProto() {
   const last = state.tests.filter(t => t.kind === 'steps').sort(byDateDesc)[0];
   const st = last ? analyzeSteps(last).steps : [];
   if (st.length < 3) return null;
-  const diffs = st.slice(1).map((s, i) => s.w - st[i].w).sort((a, b) => a - b);
+  const diffs = st.slice(1).map((s, i) => rnd(s.w - st[i].w)).sort((a, b) => a - b);
   const p = { start: st[0].w, step: diffs[Math.floor(diffs.length / 2)], n: st.length };
   return validProto(p) ? p : null;
 }
-const proto = () => state.proto || derivedProto() || PROTO_DEFAULT;
+const proto = () => state.protos[state.sport] || derivedProto() || SP().proto;
 function matchesProto(steps, p) {
-  return steps.length > 0 && steps[0].w === p.start && steps.every((s, i) => i === 0 || s.w - steps[i - 1].w === p.step);
+  const eq = (a, b) => Math.abs(a - b) < 1e-6;
+  return steps.length > 0 && eq(steps[0].w, p.start) && steps.every((s, i) => i === 0 || eq(s.w - steps[i - 1].w, p.step));
 }
 function readSteps(root) {
   return $$('.step-row', root).map(r => ({ w: num($('[data-k="w"]', r).value), hr: num($('[data-k="hr"]', r).value), la: num($('[data-k="la"]', r).value), rpe: num($('[data-k="rpe"]', r).value) }))
@@ -1123,13 +1192,13 @@ function readSteps(root) {
 function stepForm(test) {
   const t = test || { date: todayISO(), source: lastSource(), data: { baseline: null, steps: [] }, note: '', lt1_manual: null };
   const P = proto();
-  const rows = (t.data.steps && t.data.steps.length) ? t.data.steps : Array.from({ length: P.n }, (_, i) => ({ w: P.start + i * P.step }));
+  const rows = (t.data.steps && t.data.steps.length) ? t.data.steps : Array.from({ length: P.n }, (_, i) => ({ w: rnd(P.start + i * P.step) }));
   openSheet(test ? 'Modifier le test paliers' : 'Nouveau test paliers', `
     <div class="grid2"><label class="field"><span>Date</span><input class="inp" type="date" id="f-date" value="${t.date}"></label>
     <label class="field"><span>Lactate de repos</span><input class="inp" id="f-base" inputmode="decimal" placeholder="optionnel" value="${inVal(t.data.baseline)}"></label></div>
-    <div class="field"><span class="muted" style="font-size:13px;font-weight:600">Watts mesurés avec</span>${segHTML('src', t.source)}</div>
-    ${test ? '' : `<p class="proto-line">Ton protocole : départ <b>${fmt(P.start)} W</b>, <b>+${fmt(P.step)} W</b>, paliers de 5 min avec <b>30 s de pause</b> entre chaque pour prélever le lactate, ${P.n} paliers. Remplis FC, lactate et RPE au fil du test ; les paliers vides ne sont pas enregistrés.</p>`}
-    <div class="steps-head"><span></span><span>Watts</span><span>FC</span><span>Lactate</span><span>RPE</span><span></span></div>
+    <div class="field"><span class="muted" style="font-size:13px;font-weight:600">${SP().measured}</span>${segHTML('src', t.source)}</div>
+    ${test ? '' : `<p class="proto-line">Ton protocole : départ <b>${fxu(P.start)}</b>, <b>+${fxu(P.step)}</b>, paliers de 5 min${bk('', ' (tapis à 1 % de pente)')} avec <b>30 s de pause</b> entre chaque pour prélever le lactate, ${P.n} paliers. Remplis FC, lactate et RPE au fil du test ; les paliers vides ne sont pas enregistrés.</p>`}
+    <div class="steps-head"><span></span><span>${SP().col}</span><span>FC</span><span>Lactate</span><span>RPE</span><span></span></div>
     <div id="rows">${rows.map(stepRow).join('')}</div>
     <button class="btn block" type="button" data-act="add-row">+ Ajouter un palier</button>
     <div class="result" id="preview"></div>
@@ -1140,7 +1209,7 @@ function stepForm(test) {
     const upd = () => {
       const a = analyzeSteps({ data: { steps: readSteps(root) } });
       $('#preview', root).innerHTML = a.steps.length < 3 ? liveStepChart(a) + '<span class="hand">Remplis au moins 3 paliers et je cherche tes seuils.</span>'
-        : liveStepChart(a) + `<div class="kv"><div><b>${a.autoW != null ? fmt(a.autoW) : '?'}</b><span>LT1 auto (W)</span></div><div><b>${a.lt2Auto != null ? fmt(a.lt2Auto) : '?'}</b><span>LT2 auto (W)</span></div><div><b>${fmt(a.maxLa, 1)}</b><span>mmol max</span></div></div>
+        : liveStepChart(a) + `<div class="kv"><div><b>${a.autoW != null ? fx(a.autoW) : '?'}</b><span>LT1 auto (${SP().u})</span></div><div><b>${a.lt2Auto != null ? fx(a.lt2Auto) : '?'}</b><span>LT2 auto (${SP().u})</span></div><div><b>${fmt(a.maxLa, 1)}</b><span>mmol max</span></div></div>
           <p class="hand" style="margin:8px 0 0">${a.autoW == null ? 'Pas encore de saut de 0,4 mmol. Continue.' : a.lt2Auto == null ? 'LT1 trouvé. Encore 2 paliers pour LT2.' : a.maxLa < 3.5 ? 'Encore un palier ou deux : vise 4 mmol.' : 'Les deux seuils sont là. Tu peux arrêter.'}</p>`;
     };
     root.addEventListener('input', upd); upd();
@@ -1151,7 +1220,7 @@ function stepForm(test) {
 function saveSteps(root) {
   const steps = readSteps(root);
   const valid = steps.filter(s => s.w != null && s.la != null);
-  if (valid.length < 3) { $('.err', root).textContent = 'Il faut au moins 3 paliers avec watts et lactate.'; return; }
+  if (valid.length < 3) { $('.err', root).textContent = `Il faut au moins 3 paliers avec ${SP().name} et lactate.`; return; }
   if (steps.some(s => s.la != null && (s.la < 0.3 || s.la > 25))) { $('.err', root).textContent = 'Un lactate semble faux (entre 0,3 et 25 mmol attendu). Vérifie la virgule.'; return; }
   const id = root.dataset.id || null;
   const old = id ? state.tests.find(t => t.id === id) : null;
@@ -1184,7 +1253,7 @@ function liveStepChart(a) {
   if (a.lt1W != null) vlines.push({ x: a.lt1W, color: '#13B98A', label: 'LT1' });
   if (a.lt2W != null) vlines.push({ x: a.lt2W, color: '#C2006A', label: 'LT2' });
   return `<p class="hand" style="margin:0 0 4px">Ta courbe en direct</p>` + chartSVG({ xRange: [Math.min(...ws), Math.max(...ws)], yRange: [0, Math.max(4, gzTop() + .5, ...las)], y2Range: hrs.length > 1 ? [Math.min(...hrs) - 5, Math.max(...hrs) + 5] : null,
-    xTitle: 'watts', yTitle: 'mmol/L', y2Title: hrs.length > 1 ? 'FC' : '', h: 200, series, vlines, hbands: gzBands() });
+    xTitle: SP().name, yTitle: 'mmol/L', y2Title: hrs.length > 1 ? 'FC' : '', h: 200, series, vlines, hbands: gzBands() });
 }
 function stepDetail(id) {
   const t = state.tests.find(x => x.id === id); if (!t) return;
@@ -1204,36 +1273,36 @@ function stepDetail(id) {
   if (a.manualW != null && a.autoW != null && a.autoW !== a.manualW) vlines.push({ x: a.autoW, color: '#9A88B8', dash: '4 4' });
   if (a.lt2Manual != null && a.lt2Auto != null && a.lt2Auto !== a.lt2Manual) vlines.push({ x: a.lt2Auto, color: '#9A88B8', dash: '4 4' });
   const chart = a.steps.length > 1 ? chartSVG({ xRange: [Math.min(...ws), Math.max(...ws)], yRange: [0, Math.max(4, gzTop() + .5, ...las)], y2Range: hrs.length > 1 ? [Math.min(...hrs) - 5, Math.max(...hrs) + 5] : null,
-    xTitle: 'watts', yTitle: 'mmol/L', y2Title: hrs.length > 1 ? 'FC' : '', h: 230, series, vlines, hbands: gzBands(),
-    extra: (sx, sy) => a.steps.map(s => `<circle cx="${sx(s.w)}" cy="${sy(s.la)}" r="18" fill="transparent" data-act="set-thr" data-id="${t.id}" data-w="${s.w}" style="cursor:pointer"><title>Choisir ${s.w} W comme ${pick.toUpperCase()}</title></circle>`).join('') }) : '';
+    xTitle: SP().name, yTitle: 'mmol/L', y2Title: hrs.length > 1 ? 'FC' : '', h: 230, series, vlines, hbands: gzBands(),
+    extra: (sx, sy) => a.steps.map(s => `<circle cx="${sx(s.w)}" cy="${sy(s.la)}" r="18" fill="transparent" data-act="set-thr" data-id="${t.id}" data-w="${s.w}" style="cursor:pointer"><title>Choisir ${fxu(s.w)} comme ${pick.toUpperCase()}</title></circle>`).join('') }) : '';
   const m1 = {
-    confirmed: a.auto ? `LT1 : saut de ${fmt(a.steps[a.auto.jumpIdx].la - a.steps[a.auto.idx].la, 1)} mmol entre ${fmt(a.steps[a.auto.idx].w)} et ${fmt(a.steps[a.auto.jumpIdx].w)} W, confirmé au palier suivant.` : '',
+    confirmed: a.auto ? `LT1 : saut de ${fmt(a.steps[a.auto.jumpIdx].la - a.steps[a.auto.idx].la, 1)} mmol entre ${fx(a.steps[a.auto.idx].w)} et ${fxu(a.steps[a.auto.jumpIdx].w)}, confirmé au palier suivant.` : '',
     toconfirm: 'LT1 : saut détecté mais pas confirmé. Regarde la courbe et tranche.',
-    manual: `LT1 choisi à la main. L'auto disait ${a.autoW != null ? fmt(a.autoW) + ' W' : 'rien'}.`,
+    manual: `LT1 choisi à la main. L'auto disait ${a.autoW != null ? fxu(a.autoW) : 'rien'}.`,
     none: 'LT1 : aucun saut de 0,4 mmol. La prochaine fois, pousse plus loin.'
   }[a.status];
   const m2 = {
-    auto: `LT2 par Dmax modifiée : ${fmt(a.lt2W)} W.`,
+    auto: `LT2 par Dmax modifiée : ${fxu(a.lt2W)}.`,
     short: `LT2 à confirmer : la courbe s'arrête à ${fmt(a.maxLa, 1)} mmol. Vise 4 mmol au prochain test.`,
-    manual: `LT2 choisi à la main. L'auto disait ${a.lt2Auto != null ? fmt(a.lt2Auto) + ' W' : 'rien'}.`,
+    manual: `LT2 choisi à la main. L'auto disait ${a.lt2Auto != null ? fxu(a.lt2Auto) : 'rien'}.`,
     none: 'LT2 : pas assez de paliers après LT1. Il en faut au moins 2 de plus, idéalement jusqu\'à 4 mmol.'
   }[a.lt2Status];
-  const box = (w, hr, lab) => `<div><b>${w != null ? fmt(w) : 'n.d.'}</b><span>${lab}${hr != null ? ', FC ' + fmt(hr) : ''}</span></div>`;
+  const box = (w, hr, lab) => `<div><b>${w != null ? fx(w) : 'n.d.'}</b><span>${lab}${hr != null ? ', FC ' + fmt(hr) : ''}</span></div>`;
   openSheet(`Test paliers du ${fdate(t.date)}`, `
     ${chart}
     ${pa ? `<div class="legend"><span><i style="background:#FF2D8E"></i>ce test</span><span><i style="background:#9A88B8"></i>test du ${fdate(prev.date)}</span>${hrs.length > 1 ? '<span><i style="background:#6A2BF0"></i>FC</span>' : ''}</div>` : ''}
     <div class="field" style="margin-top:10px"><span class="muted" style="font-size:13px;font-weight:600">Touche un point de la courbe pour régler</span>
       <div class="seg" role="group" aria-label="Seuil à régler"><button type="button" data-act="pick" data-id="${t.id}" data-mode="lt1" aria-pressed="${pick === 'lt1'}">LT1</button><button type="button" data-act="pick" data-id="${t.id}" data-mode="lt2" aria-pressed="${pick === 'lt2'}">LT2</button></div></div>
-    <div class="kv">${box(a.lt1W, a.lt1Hr, 'LT1 (W)')}${box(a.lt2W, a.lt2Hr, 'LT2 (W)')}<div><b>${a.maxLa != null ? fmt(a.maxLa, 1) : 'n.d.'}</b><span>mmol max</span></div></div>
+    <div class="kv">${box(a.lt1W, a.lt1Hr, `LT1 (${SP().u})`)}${box(a.lt2W, a.lt2Hr, `LT2 (${SP().u})`)}<div><b>${a.maxLa != null ? fmt(a.maxLa, 1) : 'n.d.'}</b><span>mmol max</span></div></div>
     <div class="result"><span class="hand">${m1}<br>${m2}</span></div>
-    ${(G => G ? `<div class="result gz-result" style="margin-top:0">★ <b>Ta Golden Zone sur ce test : ${fmt(G.wLo)} à ${fmt(G.wHi)} W</b>${G.hrLo != null && G.hrHi != null ? `, FC ${fmt(G.hrLo)} à ${fmt(G.hrHi)}` : ''} (${fmt(state.gz.lo, 1)} à ${fmt(state.gz.hi, 1)} mmol).</div>` : '')(testGZ(a))}
-    ${a.steps.length ? (matchesProto(a.steps, proto()) ? '<p class="chip" style="display:inline-block;margin:0 0 12px">Protocole standard</p>' : `<p class="warn" style="margin:0 0 12px">Hors protocole (départ ${fmt(a.steps[0].w)} W) : à comparer avec prudence aux autres tests.</p>`) : ''}
+    ${(G => G ? `<div class="result gz-result" style="margin-top:0">★ <b>Ta Golden Zone sur ce test : ${fx(G.wLo)} à ${fxu(G.wHi)}</b>${G.hrLo != null && G.hrHi != null ? `, FC ${fmt(G.hrLo)} à ${fmt(G.hrHi)}` : ''} (${fmt(state.gz.lo, 1)} à ${fmt(state.gz.hi, 1)} mmol).</div>` : '')(testGZ(a))}
+    ${a.steps.length ? (matchesProto(a.steps, proto()) ? '<p class="chip" style="display:inline-block;margin:0 0 12px">Protocole standard</p>' : `<p class="warn" style="margin:0 0 12px">Hors protocole (départ ${fxu(a.steps[0].w)}) : à comparer avec prudence aux autres tests.</p>`) : ''}
     ${a.manualW != null ? `<button class="btn block" data-act="reset-thr" data-field="lt1_manual" data-id="${t.id}">LT1 automatique</button><div style="height:10px"></div>` : ''}
     ${a.lt2Manual != null ? `<button class="btn block" data-act="reset-thr" data-field="lt2_manual" data-id="${t.id}">LT2 automatique</button><div style="height:10px"></div>` : ''}
     <div class="list" style="box-shadow:none">${a.steps.map((s, i) => `<div class="item" style="cursor:default"><span class="badge" style="background:${s.w === a.lt1W ? 'var(--menthe)' : 'var(--surface-2)'}">${i + 1}</span>
-      <span class="main"><strong>${fmt(s.w)} W</strong><span>${s.hr != null ? 'FC ' + fmt(s.hr) : ''}${s.rpe != null ? (s.hr != null ? ', ' : '') + 'RPE ' + fmt(s.rpe) : ''}</span></span><span class="num">${fmt(s.la, 1)} mmol</span></div>`).join('')}</div>
+      <span class="main"><strong>${fxu(s.w)}${isRun() ? ` <small style="font-weight:500">${paceRaw(s.w)} /km</small>` : ''}</strong><span>${s.hr != null ? 'FC ' + fmt(s.hr) : ''}${s.rpe != null ? (s.hr != null ? ', ' : '') + 'RPE ' + fmt(s.rpe) : ''}</span></span><span class="num">${fmt(s.la, 1)} mmol</span></div>`).join('')}</div>
     ${num(t.data.baseline) != null ? `<p class="muted" style="font-size:14px">Repos : ${fmt(num(t.data.baseline), 1)} mmol.</p>` : ''}
-    ${t.source ? `<p class="muted" style="font-size:14px">Watts : ${SOURCES[t.source]}.</p>` : ''}
+    ${t.source ? `<p class="muted" style="font-size:14px">Mesuré avec : ${SOURCES[t.source]}.</p>` : ''}
     ${t.note ? `<p style="font-size:15px">${esc(t.note)}</p>` : ''}
     <div class="row-btns"><button class="btn violet" data-act="edit-steps" data-id="${t.id}">Modifier</button><button class="btn danger" data-act="del-test" data-id="${t.id}">Supprimer</button></div>`);
 }
@@ -1241,7 +1310,7 @@ async function setThr(id, field, w) {
   try {
     await Store().update('tests', id, { [field]: w }); await loadAll(); render(); stepDetail(id);
     const lab = field === 'lt2_manual' ? 'LT2' : 'LT1';
-    toast(w == null ? `${lab} automatique` : `${lab} fixé à ${fmt(w)} W`);
+    toast(w == null ? `${lab} automatique` : `${lab} fixé à ${fxu(w)}`);
   } catch (e) { toast('Pas enregistré : ' + (e.message || 'erreur')); }
 }
 
@@ -1253,11 +1322,11 @@ function sessionForm(s, kind) {
     <div class="grid2"><label class="field"><span>Date</span><input class="inp" type="date" id="f-date" value="${x.date}"></label>
     <label class="field"><span>Type</span><select class="inp" id="f-kind">${(SESSION_KINDS.includes(x.kind) ? SESSION_KINDS : [...SESSION_KINDS, x.kind]).map(k => `<option ${k === x.kind ? 'selected' : ''}>${k}</option>`).join('')}</select></label></div>
     <div class="grid3"><label class="field"><span>Durée (min)</span><input class="inp" id="f-dur" inputmode="numeric" value="${inVal(x.duration_min)}"></label>
-    <label class="field"><span>Watts moy.</span><input class="inp" id="f-w" inputmode="numeric" value="${inVal(x.watts)}"></label>
+    <label class="field"><span>${SP().Name} moy.</span><input class="inp" id="f-w" inputmode="${SP().im}" value="${inVal(x.watts)}"></label>
     <label class="field"><span>FC moy.</span><input class="inp" id="f-hr" inputmode="numeric" value="${inVal(x.hr)}"></label></div>
     <label class="field"><span>Lactate (mmol)</span><input class="inp" id="f-la" inputmode="decimal" value="${inVal(x.lactate)}"></label>
     <div class="field"><span class="muted" style="font-size:13px;font-weight:600">RPE</span><div class="rpe" role="group" aria-label="RPE de 1 à 10">${[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => `<button type="button" data-val="${n}" aria-pressed="${num(x.rpe) === n}">${n}</button>`).join('')}</div></div>
-    <div class="field"><span class="muted" style="font-size:13px;font-weight:600">Watts mesurés avec</span>${segHTML('src', x.source)}</div>
+    <div class="field"><span class="muted" style="font-size:13px;font-weight:600">${SP().measured}</span>${segHTML('src', x.source)}</div>
     <div id="preview"></div>
     <label class="field"><span>Note</span><textarea class="inp" id="f-note" placeholder="Contenu de la séance, sensations...">${esc(x.note)}</textarea></label>
     <p class="err" role="alert"></p>
@@ -1268,20 +1337,20 @@ function sessionForm(s, kind) {
     const upd = () => {
       const w = num($('#f-w', root).value), la = num($('#f-la', root).value), z = zoneOf(w, Z);
       let h = '';
-      if (z) h = `<div class="result" style="margin-top:0"><span class="zdot" style="display:inline-grid;width:28px;height:28px;font-size:12px;background:${ZCOL[z]};vertical-align:middle;margin-right:8px">I${z}</span><b>${fmt(w)} W = I${z}</b>, ${ZONES[z - 1].name.toLowerCase()}`;
+      if (z) h = `<div class="result" style="margin-top:0"><span class="zdot" style="display:inline-grid;width:28px;height:28px;font-size:12px;background:${ZCOL[z]};vertical-align:middle;margin-right:8px">I${z}</span><b>${fxu(w)} = I${z}</b>, ${ZONES[z - 1].name.toLowerCase()}`;
       if (z === 1 && la != null && Z.s && Z.s.lt1La != null && la > Z.s.lt1La + 0.3) h += `<br><span class="hand">Lactate au-dessus de ton LT1 (${fmt(Z.s.lt1La, 1)} mmol) pour de l'I1. Fatigue, chaleur, ou zones à revoir ?</span>`;
       const kind = $('#f-kind', root).value, G = goldenZone(Z), band = GZ_KINDS.includes(kind);
       let gz = '';
       if (band && la != null) {
         const r = state.gz, nm = 'Golden Zone';
-        gz = la > r.hi ? `<b>${fmt(la - r.hi, 1)} mmol au-dessus de ta ${nm}.</b> Baisse un peu les watts au prochain intervalle : on reste sous ton 2e seuil (LT2).`
+        gz = la > r.hi ? `<b>${fmt(la - r.hi, 1)} mmol au-dessus de ta ${nm}.</b> Baisse un peu ${SP().les} au prochain intervalle : on reste sous ton 2e seuil (LT2).`
           : la < r.lo ? `Sous ta ${nm} (${fmt(r.lo, 1)} à ${fmt(r.hi, 1)} mmol). Tu peux monter légèrement.`
           : `<b>Pile dans ta ${nm}.</b> Globule approuve.`;
       } else if (GZ_QUALITY.includes(kind) && la != null) {
         const g = gzStatus({ kind, lactate: la });
         gz = g ? 'Ce lactate tombe dans ta <b>Golden Zone</b>.' : la > gzTop() ? 'Au-dessus de ta Golden Zone : séance plus dure que du sous-seuil.' : '';
       } else if (band && w != null && G.wLo != null) {
-        gz = w > G.wHi ? `Watts au-dessus de ta Golden Zone (${fmt(G.wLo)} à ${fmt(G.wHi)} W). Vérifie au lactate.` : w < G.wLo ? 'Watts sous ta Golden Zone.' : 'Watts dans ta Golden Zone.';
+        gz = w > G.wHi ? `${SP().Name} au-dessus de ta Golden Zone (${fx(G.wLo)} à ${fxu(G.wHi)}). Vérifie au lactate.` : w < G.wLo ? `${SP().Name} sous ta Golden Zone.` : `${SP().Name} dans ta Golden Zone.`;
       }
       $('#preview', root).innerHTML = (z ? h + '</div>' : '') + (gz ? `<div class="result gz-result" style="margin-top:${z ? 0 : 0}px">${gz}</div>` : '');
     };
@@ -1295,7 +1364,7 @@ function saveSession(root) {
   const int = v => { const n = num(v); return n == null ? null : Math.round(n); };
   persist('sessions', root.dataset.id || null, {
     date: $('#f-date', root).value || todayISO(), kind: $('#f-kind', root).value, duration_min: int($('#f-dur', root).value),
-    watts: int($('#f-w', root).value), hr: int($('#f-hr', root).value), lactate: la, rpe: rpeB ? +rpeB.dataset.val : null,
+    watts: rnd(num($('#f-w', root).value)), hr: int($('#f-hr', root).value), lactate: la, rpe: rpeB ? +rpeB.dataset.val : null,
     source: segVal(root, 'src'), note: $('#f-note', root).value.trim() || null
   }, 'Séance enregistrée', () => { const g = gzStatus({ kind: $('#f-kind', root).value, lactate: la }); return g ? (g.st === 'in' && la != null ? 'golden' : g.st === 'high' ? 'high' : null) : null; });
 }
@@ -1371,7 +1440,7 @@ async function delTpl(id) {
 
 function ivRow(r, i) {
   return `<div class="step-row"><span class="n">${i + 1}</span>
-    <input class="inp" data-k="w" inputmode="numeric" placeholder="W" value="${inVal(r.w)}" aria-label="Watts intervalle ${i + 1}">
+    <input class="inp" data-k="w" inputmode="${SP().im}" placeholder="${SP().u}" value="${inVal(r.w)}" aria-label="${SP().Name} intervalle ${i + 1}">
     <input class="inp" data-k="hr" inputmode="numeric" placeholder="FC" value="${inVal(r.hr)}" aria-label="FC intervalle ${i + 1}">
     <input class="inp" data-k="la" inputmode="decimal" placeholder="mmol" value="${inVal(r.la)}" aria-label="Lactate intervalle ${i + 1}">
     <input class="inp" data-k="rpe" inputmode="numeric" placeholder="RPE" value="${inVal(r.rpe)}" aria-label="RPE intervalle ${i + 1}">
@@ -1390,7 +1459,7 @@ function sessionChart(all, isGZ) {
   const chart = chartSVG({
     xRange: n > 1 ? [1, n] : [0.5, 1.5], yRange: [0, Math.max(4, gzTop() + .5, ...la.map(r => r.la))],
     y2Range: ws.length ? [Math.min(...ws) - 15, Math.max(...ws) + 15] : null,
-    xFmt: v => Number.isInteger(v) ? String(v) : '', yTitle: 'mmol/L', y2Title: ws.length ? 'W' : '', xTitle: 'intervalle', h: 210,
+    xFmt: v => Number.isInteger(v) ? String(v) : '', yTitle: 'mmol/L', y2Title: ws.length ? SP().u : '', xTitle: 'intervalle', h: 210,
     hbands: isGZ ? gzBands() : [],
     series: [
       { pts: wt.map(r => ({ x: r.x, y: r.w })), color: '#6A2BF0', right: true, r: 3.5, width: 2.5, dash: '5 4' },
@@ -1398,25 +1467,25 @@ function sessionChart(all, isGZ) {
     ]
   });
   return `<section class="result" style="margin-top:12px"><p class="hand" style="margin:0 0 4px">Ta séance en un coup d'œil</p>${chart}
-    <div class="legend"><span><i style="background:#FF7AB8"></i>Lactate</span>${ws.length ? '<span><i style="background:#6A2BF0"></i>Watts</span>' : ''}${isGZ ? '<span><i style="background:#FFC21A"></i>Golden Zone</span>' : ''}</div></section>`;
+    <div class="legend"><span><i style="background:#FF7AB8"></i>Lactate</span>${ws.length ? `<span><i style="background:#6A2BF0"></i>${SP().Name}</span>` : ''}${isGZ ? '<span><i style="background:#FFC21A"></i>Golden Zone</span>' : ''}</div></section>`;
 }
-const avgOf = (rows, k) => { const v = rows.map(r => r[k]).filter(x => x != null); return v.length ? Math.round(v.reduce((a, b) => a + b, 0) / v.length) : null; };
+const avgOf = (rows, k, d = 0) => { const v = rows.map(r => r[k]).filter(x => x != null); return v.length ? +(v.reduce((a, b) => a + b, 0) / v.length).toFixed(d) : null; };
 function intervalForm(tpl, s) {
   const T = (s && s.template) || tpl;
   const x = s || { date: todayISO(), source: lastSource(), note: '', duration_min: Math.round(T.reps * (T.work + T.rest) / 60) };
   const saved = (s && Array.isArray(s.intervals)) ? s.intervals : [];
   const rows = Array.from({ length: Math.max(T.reps, saved.length) }, (_, i) => saved[i] || {});
   const isGZ = GZ_KINDS.includes(T.target), G = goldenZone(currentZones()), r1 = v => fmt(v, 1);
-  const target = !isGZ ? '' : G.wLo != null ? ` Cible : <b>${fmt(G.wLo)} à ${fmt(G.wHi)} W</b>, ${r1(state.gz.lo)} à ${r1(state.gz.hi)} mmol.` : ` Cible : ${r1(state.gz.lo)} à ${r1(state.gz.hi)} mmol.`;
+  const target = !isGZ ? '' : G.wLo != null ? ` Cible : <b>${fx(G.wLo)} à ${fxu(G.wHi)}</b>, ${r1(state.gz.lo)} à ${r1(state.gz.hi)} mmol.` : ` Cible : ${r1(state.gz.lo)} à ${r1(state.gz.hi)} mmol.`;
   openSheet(s ? `Modifier : ${T.name}` : T.name, `
     <div class="grid2"><label class="field"><span>Date</span><input class="inp" type="date" id="f-date" value="${x.date}"></label>
     <label class="field"><span>Durée totale (min)</span><input class="inp" id="f-dur" inputmode="numeric" value="${inVal(x.duration_min)}"></label></div>
-    <p class="proto-line">${esc(tplLine(T))}.${target} Remplis au fil de la séance : watts, FC, lactate quand tu piques, RPE. Les intervalles vides ne sont pas enregistrés.</p>
+    <p class="proto-line">${esc(tplLine(T))}.${target} Remplis au fil de la séance : ${SP().name}, FC, lactate quand tu piques, RPE. Les intervalles vides ne sont pas enregistrés.</p>
     <div id="preview"></div>
-    <div class="steps-head"><span></span><span>Watts</span><span>FC</span><span>Lactate</span><span>RPE</span><span></span></div>
+    <div class="steps-head"><span></span><span>${SP().col}</span><span>FC</span><span>Lactate</span><span>RPE</span><span></span></div>
     <div id="rows">${rows.map(ivRow).join('')}</div>
     <button class="btn block" type="button" data-act="add-iv">+ Ajouter un intervalle</button>
-    <div class="field"><span class="muted" style="font-size:13px;font-weight:600">Watts mesurés avec</span>${segHTML('src', x.source)}</div>
+    <div class="field"><span class="muted" style="font-size:13px;font-weight:600">${SP().measured}</span>${segHTML('src', x.source)}</div>
     <label class="field"><span>Note</span><textarea class="inp" id="f-note" placeholder="Sensations, conditions, lecteur...">${esc(x.note)}</textarea></label>
     <p class="err" role="alert"></p>
     <button class="btn rose block" data-act="save-iv">Enregistrer la séance</button>
@@ -1431,12 +1500,12 @@ function intervalForm(tpl, s) {
       let msg = '';
       if (isGZ && las.length) {
         const r = state.gz, above = las.filter(v => v > r.hi + 1e-9).length;
-        msg = above ? `<b>${above} prélèvement${above > 1 ? 's' : ''} au-dessus de ta Golden Zone</b> (max ${r1(mx)} mmol). Baisse un peu les watts au prochain intervalle.`
+        msg = above ? `<b>${above} prélèvement${above > 1 ? 's' : ''} au-dessus de ta Golden Zone</b> (max ${r1(mx)} mmol). Baisse un peu ${SP().les} au prochain intervalle.`
           : mn < r.lo - 1e-9 ? `Sous ta Golden Zone (${r1(r.lo)} à ${r1(r.hi)} mmol). Tu peux monter légèrement.`
           : '<b>Tous tes prélèvements sont dans ta Golden Zone.</b> Globule approuve.';
       }
       if (las.length > 1) { const d = las[las.length - 1] - las[0]; msg += `${msg ? '<br>' : ''}Du 1er au dernier prélèvement : ${d >= 0 ? '+' : ''}${r1(d)} mmol.`; }
-      $('#preview', root).innerHTML = sessionChart(readRows(root).slice(0, readRows(root).map(ivFilled).lastIndexOf(true) + 1), isGZ) + `<div class="result"><div class="kv"><div><b>${fmt(avgOf(iv, 'w'))}</b><span>watts moy.</span></div><div><b>${fmt(avgOf(iv, 'hr'))}</b><span>FC moy.</span></div><div><b>${mx != null ? r1(mx) : 'n.d.'}</b><span>lactate max</span></div></div></div>`
+      $('#preview', root).innerHTML = sessionChart(readRows(root).slice(0, readRows(root).map(ivFilled).lastIndexOf(true) + 1), isGZ) + `<div class="result"><div class="kv"><div><b>${fx(avgOf(iv, 'w', SP().d))}</b><span>${SP().name} moy.</span></div><div><b>${fmt(avgOf(iv, 'hr'))}</b><span>FC moy.</span></div><div><b>${mx != null ? r1(mx) : 'n.d.'}</b><span>lactate max</span></div></div></div>`
         + (msg ? `<div class="result gz-result" style="margin-top:0">${msg}</div>` : '');
     };
     root.addEventListener('input', upd); upd();
@@ -1457,7 +1526,7 @@ function saveIntervals(root) {
   const la = las.length ? Math.max(...las) : null, dur = num($('#f-dur', root).value);
   persist('sessions', root.dataset.id || null, {
     date: $('#f-date', root).value || todayISO(), kind: T.target, duration_min: dur == null ? null : Math.round(dur),
-    watts: avgOf(iv, 'w'), hr: avgOf(iv, 'hr'), lactate: la, rpe: rpes.length ? Math.max(...rpes) : null,
+    watts: avgOf(iv, 'w', SP().d), hr: avgOf(iv, 'hr'), lactate: la, rpe: rpes.length ? Math.max(...rpes) : null,
     source: segVal(root, 'src'), note: $('#f-note', root).value.trim() || null, intervals: (all => all.slice(0, all.map(ivFilled).lastIndexOf(true) + 1))(readRows(root)), template: T
   }, 'Séance enregistrée', () => { const g = gzStatus({ kind: T.target, lactate: la }); return g ? (g.st === 'in' && la != null ? 'golden' : g.st === 'high' ? 'high' : null) : null; },
   saved => { const ss = state.sessions.find(x => x.id === saved.id); if (ss) intervalForm(null, ss); });
@@ -1465,14 +1534,15 @@ function saveIntervals(root) {
 
 /* ---------- Export CSV (format machine : point décimal, dates ISO) ---------- */
 function exportCSV() {
-  const cols = ['type', 'date', 'source', 'palier', 'watts', 'fc', 'lactate_mmol', 'rpe', 'lt1_auto_w', 'lt1_manuel_w', 'lt2_auto_w', 'lt2_manuel_w', 'duree_min', 'type_seance', 'golden_zone', 'note'];
+  const cols = ['type', 'sport', 'date', 'source', 'palier', 'intensite', 'unite', 'fc', 'lactate_mmol', 'rpe', 'lt1_auto_w', 'lt1_manuel_w', 'lt2_auto_w', 'lt2_manuel_w', 'duree_min', 'type_seance', 'golden_zone', 'note'];
   const rows = [];
   const r = o => cols.map(c => o[c] ?? '');
-  [...state.tests].filter(t => t.kind === 'steps').sort(byDateDesc).forEach(t => {
+  const sp = o => ({ sport: sportOf(o) === 'run' ? 'course' : 'velo', unite: SP(sportOf(o)).u });
+  [...state.allTests].filter(t => t.kind === 'steps').sort(byDateDesc).forEach(t => {
     const a = analyzeSteps(t);
-    a.steps.forEach((s, i) => rows.push(r({ type: 'test_paliers', date: t.date, source: t.source, palier: i + 1, watts: s.w, fc: s.hr, lactate_mmol: s.la, rpe: s.rpe, lt1_auto_w: a.autoW, lt1_manuel_w: a.manualW, lt2_auto_w: a.lt2Auto, lt2_manuel_w: a.lt2Manual, note: i === 0 ? t.note : '' })));
+    a.steps.forEach((s, i) => rows.push(r({ type: 'test_paliers', ...sp(t), date: t.date, source: t.source, palier: i + 1, intensite: s.w, fc: s.hr, lactate_mmol: s.la, rpe: s.rpe, lt1_auto_w: a.autoW, lt1_manuel_w: a.manualW, lt2_auto_w: a.lt2Auto, lt2_manuel_w: a.lt2Manual, note: i === 0 ? t.note : '' })));
   });
-  [...state.sessions].sort(byDateDesc).forEach(s => rows.push(r({ type: 'seance', date: s.date, source: s.source, watts: s.watts, fc: s.hr, lactate_mmol: s.lactate, rpe: s.rpe, duree_min: s.duration_min, type_seance: s.kind, golden_zone: (g => g ? (g.st === 'in' ? 'dedans' : g.st === 'high' ? 'trop_haut' : 'trop_bas') : '')(gzStatus(s)), note: s.note })));
+  [...state.allSessions].sort(byDateDesc).forEach(s => rows.push(r({ type: 'seance', ...sp(s), date: s.date, source: s.source, intensite: s.watts, fc: s.hr, lactate_mmol: s.lactate, rpe: s.rpe, duree_min: s.duration_min, type_seance: s.kind, golden_zone: (g => g ? (g.st === 'in' ? 'dedans' : g.st === 'high' ? 'trop_haut' : 'trop_bas') : '')(gzStatus(s)), note: s.note })));
   const q = v => { const s = String(v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
   const csv = [cols, ...rows].map(row => row.map(q).join(',')).join('\n');
   const name = `globule_export_${todayISO()}.csv`;
@@ -1565,7 +1635,7 @@ function enter(user) {
   try { localStorage.setItem('globule:has-account', '1'); } catch { /* stockage bloqué */ }
   if (location.hash) history.replaceState(null, '', SITE_URL);
   state.user = user; state.name = (user.user_metadata && user.user_metadata.name) || '';
-  loadGz(user); loadProto(user); loadTemplates(user.user_metadata && user.user_metadata.templates);
+  loadGz(user); loadProto(user); loadSports(user.user_metadata); loadTemplates(user.user_metadata && user.user_metadata.templates);
   start();
 }
 
@@ -1577,6 +1647,23 @@ document.addEventListener('click', async e => {
   const act = el.dataset.act, id = el.dataset.id, root = $('.sheet:not(.leaving)');
   switch (act) {
     case 'close': closeSheet(); break;
+    case 'set-sport': if (SPORTS[el.dataset.val] && el.dataset.val !== state.sport) { state.sport = el.dataset.val; try { localStorage.setItem('globule:sport', state.sport); } catch (e) {} applySport(); render(); } break;
+    case 'edit-sports': profileSheet(false); break;
+    case 'toggle-sport': {
+      const sel = JSON.parse(root.dataset.sel || '[]'), k = el.dataset.val, i = sel.indexOf(k);
+      if (i >= 0) sel.splice(i, 1); else sel.push(k);
+      sel.sort((a, b) => Object.keys(SPORTS).indexOf(a) - Object.keys(SPORTS).indexOf(b));
+      root.dataset.sel = JSON.stringify(sel);
+      $$('[data-act="toggle-sport"]', root).forEach(b => { const on = sel.includes(b.dataset.val); b.setAttribute('aria-pressed', on); b.classList.toggle('violet', on); });
+      break;
+    }
+    case 'save-sports': {
+      const sel = JSON.parse(root.dataset.sel || '[]');
+      if (!sel.length) { $('.err', root).textContent = 'Choisis au moins un sport.'; break; }
+      if (!sel.includes(state.sport)) state.sport = sel[0];
+      if (await saveSports(sel)) { closeSheet(); render(); toast(sel.map(k => SPORTS[k].label).join(' et '), true); }
+      break;
+    }
     case 'new-session': pickSession(); break;
     case 'edit-session': { const ss = state.sessions.find(s => s.id === id); if (ss && ss.template) intervalForm(null, ss); else sessionForm(ss); break; }
     case 'use-tpl': { const t = templates().find(x => x.id === id); if (t) intervalForm(t); break; }
@@ -1618,12 +1705,14 @@ document.addEventListener('click', async e => {
     }
     case 'new-gz': pickSession(); break;
     case 'save-proto': {
-      const P = { start: Math.round(num($('#set-p-start').value)), step: Math.round(num($('#set-p-step').value)), n: Math.round(num($('#set-p-n').value)) };
-      if (!validProto(P)) { toast('Protocole invalide : départ 50 à 500 W, +5 à 100 W, 3 à 15 paliers'); break; }
-      state.proto = P;
-      if (DEMO) localStorage.setItem('globule:proto', JSON.stringify(P));
-      else { const { error } = await sb.auth.updateUser({ data: { proto: P } }); if (error) { toast('Pas enregistré : ' + error.message); break; } }
-      render(); toast(`Protocole : ${P.start} W, +${P.step} W, ${P.n} paliers`);
+      const P = { start: rnd(num($('#set-p-start').value)), step: rnd(num($('#set-p-step').value)), n: Math.round(num($('#set-p-n').value)) };
+      const L = SP().lim;
+      if (!validProto(P)) { toast(`Protocole invalide : départ ${fx(L.start[0])} à ${fxu(L.start[1])}, +${fx(L.step[0])} à ${fxu(L.step[1])}, 3 à 15 paliers`); break; }
+      state.protos[state.sport] = P;
+      const key = isRun() ? 'protoRun' : 'proto';
+      if (DEMO) localStorage.setItem(isRun() ? 'globule:proto-run' : 'globule:proto', JSON.stringify(P));
+      else { const { error } = await sb.auth.updateUser({ data: { [key]: P } }); if (error) { toast('Pas enregistré : ' + error.message); break; } }
+      render(); toast(`Protocole : ${fxu(P.start)}, +${fxu(P.step)}, ${P.n} paliers`);
       break;
     }
     case 'save-gz': {
@@ -1658,20 +1747,26 @@ document.addEventListener('keydown', e => {
 async function start() {
   $('#tabbar').hidden = false;
   app().innerHTML = header() + hero('Je remonte tes gouttes...', 124);
-  try { await loadAll(); render(); }
+  try { await loadAll(); render(); if (!state.sports) profileSheet(true); }
   catch (e) {
     app().innerHTML = header() + hero('Impossible de récupérer tes données. Vérifie ta connexion.', 124) + `<button class="btn rose block" onclick="start()">Réessayer</button><p class="err">${esc(e.message || '')}</p>`;
   }
 }
 function validGz(g) { return !!g && num(g.lo) >= 0.5 && num(g.hi) > num(g.lo) && num(g.hi) <= 10; }
-function loadProto(u) { const p = u && u.user_metadata && u.user_metadata.proto; if (validProto(p)) state.proto = { start: num(p.start), step: num(p.step), n: num(p.n) }; }
+function loadProto(u) {
+  const m = (u && u.user_metadata) || {};
+  const pick = (p, k) => (validProto(p, k) ? { start: num(p.start), step: num(p.step), n: num(p.n) } : null);
+  state.protos = { bike: pick(m.proto, 'bike'), run: pick(m.protoRun, 'run') };
+}
 function loadGz(u) { const g = u && u.user_metadata && u.user_metadata.gz3; state.gz = validGz(g) ? { lo: num(g.lo), hi: num(g.hi) } : { ...GZ_DEFAULT }; }
 async function boot() {
   if (DEMO) {
     seedDemo();
     state.name = localStorage.getItem('globule:name') || '';
     try { const g = JSON.parse(localStorage.getItem('globule:gz3') || 'null'); if (validGz(g)) state.gz = { lo: num(g.lo), hi: num(g.hi) }; } catch { /* plages par défaut */ }
-    try { const pr = JSON.parse(localStorage.getItem('globule:proto') || 'null'); if (validProto(pr)) state.proto = pr; } catch { /* protocole déduit */ }
+    try { const pr = JSON.parse(localStorage.getItem('globule:proto') || 'null'); if (validProto(pr, 'bike')) state.protos.bike = pr; } catch { /* protocole déduit */ }
+    try { const pr = JSON.parse(localStorage.getItem('globule:proto-run') || 'null'); if (validProto(pr, 'run')) state.protos.run = pr; } catch { /* protocole déduit */ }
+    try { loadSports({ sports: JSON.parse(localStorage.getItem('globule:sports') || 'null') }); } catch { loadSports(null); }
     try { loadTemplates(JSON.parse(localStorage.getItem('globule:templates') || '[]')); } catch { /* pas de modèles perso */ }
     return start();
   }
