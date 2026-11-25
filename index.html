@@ -261,6 +261,15 @@ input.inp[type="date"]::-webkit-date-and-time-value{ text-align:left; }
 .sport-pick{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px; }
 .sport-pick .btn{ border-radius:18px; padding:14px 8px; display:flex; flex-direction:column; align-items:center; gap:2px; font-size:16px; }
 .sport-pick .btn small{ font-size:12px; font-weight:500; opacity:.85; }
+.login-lang{ max-width:220px; margin:0 auto 8px; }
+.login-lang .seg button{ min-height:34px; padding:6px; font-size:13px; }
+.tuto-step{ position:relative; }
+.tuto-n{ display:block; font-family:var(--f-body); font-size:12px; font-weight:700; color:var(--muted); margin-bottom:2px; }
+.tuto-ico{ position:absolute; right:6px; bottom:-10px; width:44px; height:44px; border-radius:14px; border:2.5px solid var(--line); background:var(--jaune); color:var(--ink);
+  display:grid; place-items:center; font-weight:800; font-size:20px; box-shadow:2px 2px 0 var(--shadow); animation:pop 360ms var(--ease-out) 120ms both; }
+.tuto-dots{ display:flex; justify-content:center; gap:6px; margin:18px 0 4px; }
+.tuto-dots i{ width:8px; height:8px; border-radius:50%; background:var(--line); opacity:.25; transition:opacity 240ms var(--ease-out), scale 240ms var(--ease-out); }
+.tuto-dots i.on{ opacity:1; scale:1.3; background:var(--rose); }
 /* ---------- Mouvement ---------- */
 :root{
   --ease-out:cubic-bezier(.23,1,.32,1);   /* entrées et déplacements */
@@ -348,7 +357,16 @@ window.GLOBULE_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"-24 -9
 const CFG = window.GLOBULE_CONFIG || {};
 const DEMO = !(CFG.supabaseUrl && CFG.supabaseAnonKey && window.supabase);
 let sb = null;
-const state = { allTests: [], allSessions: [], sport: 'bike', sports: null, protos: { bike: null, run: null }, tests: [], sessions: [], name: '', tab: 'home', user: null, mascotEvent: null, proto: null, templates: [], pick: 'lt1', gz: { lo: 2.3, hi: 3.0 } };
+// Langue : français ou anglais, au choix, gardée sur l'appareil. Par défaut celle du navigateur.
+const LANG0 = (() => { try { const l = localStorage.getItem('globule:lang'); if (l === 'fr' || l === 'en') return l; } catch (e) { /* stockage indisponible */ } return /^fr/i.test(navigator.language || 'fr') ? 'fr' : 'en'; })();
+document.documentElement.lang = LANG0;
+const T = (fr, en) => (state.lang === 'en' ? en : fr);
+// Valeurs gardées en base (types de séance, noms des modèles par défaut) : toujours en français, traduites seulement à l'affichage
+const KIND_EN = { 'Golden Zone': 'Golden Zone', 'Golden Zone basse': 'Golden Zone (low)', 'Golden Zone haute': 'Golden Zone (high)', Intervalles: 'Intervals', Endurance: 'Endurance', Autre: 'Other', Seuil: 'Threshold', Tempo: 'Tempo' };
+const kindLabel = k => (state.lang === 'en' && k && KIND_EN[k] ? KIND_EN[k] : k);
+const TPL_EN = { '8 × 5 min': '8 × 5 min', 'Intervalles longs GZ': 'Long GZ intervals', 'Intervalles courts GZ': 'Short GZ intervals' };
+const tplLabel = name => (state.lang === 'en' && name && TPL_EN[name] ? TPL_EN[name] : name);
+const state = { lang: LANG0, allTests: [], allSessions: [], sport: 'bike', sports: null, protos: { bike: null, run: null }, tests: [], sessions: [], name: '', tab: 'home', user: null, mascotEvent: null, proto: null, templates: [], pick: 'lt1', gz: { lo: 2.3, hi: 3.0 } };
 
 /* ---------- Outils ---------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -361,23 +379,26 @@ const num = v => {
   const n = Number(s);
   return Number.isFinite(n) ? n : null;
 };
-const fmt = (n, d = 0) => (n == null || !Number.isFinite(n)) ? 'n.d.' : n.toLocaleString('fr-FR', { minimumFractionDigits: d, maximumFractionDigits: d });
-const inVal = (n) => n == null ? '' : String(n).replace('.', ',');
+const fmt = (n, d = 0) => (n == null || !Number.isFinite(n)) ? T('n.d.', 'n/a') : n.toLocaleString(state.lang === 'en' ? 'en-GB' : 'fr-FR', { minimumFractionDigits: d, maximumFractionDigits: d });
+const inVal = (n) => n == null ? '' : state.lang === 'en' ? String(n) : String(n).replace('.', ',');
 const todayISO = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
 const daysAgo = n => { const d = new Date(); d.setDate(d.getDate() - n); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
 const fdate = iso => { if (!iso) return ''; const [y, m, d] = iso.slice(0, 10).split('-'); return `${d}/${m}/${y}`; };
 const fdateShort = iso => { if (!iso) return ''; const [, m, d] = iso.slice(0, 10).split('-'); return `${d}/${m}`; };
-const MONTHS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+const MONTHS_FR = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+const MONTHS_EN = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const MONTHS = new Proxy(MONTHS_FR, { get: (t, k) => Reflect.get(state.lang === 'en' ? MONTHS_EN : t, k) });
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : 'id' + Date.now() + Math.random().toString(16).slice(2));
 const byDateDesc = (a, b) => (b.date || '').localeCompare(a.date || '') || (b.created_at || '').localeCompare(a.created_at || '');
 // Deux profils : vélo (watts) et course (km/h). Le sport d'un test ou d'une séance se lit sur sa source.
 const SPORTS = {
-  bike: { key: 'bike', label: 'Vélo', u: 'W', d: 0, im: 'numeric', name: 'watts', Name: 'Watts', col: 'Watts', les: 'les watts', measured: 'Watts mesurés avec',
-    sources: { trainer: 'Home trainer', route: 'Route' }, proto: { start: 140, step: 25, n: 7 }, lim: { start: [50, 500], step: [5, 100] } },
-  run: { key: 'run', label: 'Course', u: 'km/h', d: 1, im: 'decimal', name: 'vitesse', Name: 'Vitesse', col: 'km/h', les: 'la vitesse', measured: 'Vitesse mesurée avec',
-    sources: { tapis: 'Tapis', piste: 'Extérieur' }, proto: { start: 10, step: 1, n: 7 }, lim: { start: [4, 25], step: [0.2, 3] } }
+  bike: { key: 'bike', get label() { return T('Vélo', 'Bike'); }, u: 'W', d: 0, im: 'numeric', get name() { return T('watts', 'watts'); }, get Name() { return T('Watts', 'Watts'); }, col: 'Watts', get les() { return T('les watts', 'your watts'); }, get measured() { return T('Watts mesurés avec', 'Watts measured with'); },
+    sources: { get trainer() { return T('Home trainer', 'Indoor trainer'); }, get route() { return T('Route', 'Road'); } }, proto: { start: 140, step: 25, n: 7 }, lim: { start: [50, 500], step: [5, 100] } },
+  run: { key: 'run', get label() { return T('Course', 'Run'); }, u: 'km/h', d: 1, im: 'decimal', get name() { return T('vitesse', 'speed'); }, get Name() { return T('Vitesse', 'Speed'); }, col: 'km/h', get les() { return T('la vitesse', 'your speed'); }, get measured() { return T('Vitesse mesurée avec', 'Speed measured with'); },
+    sources: { get tapis() { return T('Tapis', 'Treadmill'); }, get piste() { return T('Extérieur', 'Outdoors'); } }, proto: { start: 10, step: 1, n: 7 }, lim: { start: [4, 25], step: [0.2, 3] } }
 };
-const SOURCES = { ...SPORTS.bike.sources, ...SPORTS.run.sources };
+// Getters : le libellé suit la langue choisie (un spread figerait la langue du chargement)
+const SOURCES = { get trainer() { return SPORTS.bike.sources.trainer; }, get route() { return SPORTS.bike.sources.route; }, get tapis() { return SPORTS.run.sources.tapis; }, get piste() { return SPORTS.run.sources.piste; } };
 const sportOf = r => (r && SPORTS.run.sources[r.source] ? 'run' : 'bike');
 const SP = (k) => SPORTS[k || state.sport] || SPORTS.bike;
 const isRun = () => state.sport === 'run';
@@ -387,7 +408,7 @@ const fx = v => fmt(v, SP().d);
 const fxu = v => (v == null ? '?' : `${fx(v)} ${SP().u}`);
 // Allure en min/km pour la course
 const paceRaw = kmh => { if (!kmh) return ''; const t = Math.round(3600 / kmh); return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`; };
-const paceRange = (lo, hi) => (isRun() && lo != null && hi != null ? `${paceRaw(lo)} à ${paceRaw(hi)} /km` : '');
+const paceRange = (lo, hi) => (isRun() && lo != null && hi != null ? T(`${paceRaw(lo)} à ${paceRaw(hi)} /km`, `${paceRaw(lo)} to ${paceRaw(hi)} /km`) : '');
 const SESSION_KINDS = ['Golden Zone', 'Intervalles', 'Endurance', 'Autre'];
 
 /* ---------- Mouvement ---------- */
@@ -497,7 +518,7 @@ const Local = {
   save(t, rows) { try { localStorage.setItem(this.key(t), JSON.stringify(rows)); } catch { /* stockage plein ou bloqué */ } },
   async all(t) { return this.list(t).sort(byDateDesc); },
   async insert(t, row) { const rows = this.list(t); const r = { ...row, id: uid(), created_at: new Date().toISOString() }; rows.push(r); this.save(t, rows); return r; },
-  async update(t, id, patch) { const rows = this.list(t); const i = rows.findIndex(r => r.id === id); if (i < 0) throw new Error('Entrée introuvable'); rows[i] = { ...rows[i], ...patch }; this.save(t, rows); return rows[i]; },
+  async update(t, id, patch) { const rows = this.list(t); const i = rows.findIndex(r => r.id === id); if (i < 0) throw new Error(T('Entrée introuvable', 'Entry not found')); rows[i] = { ...rows[i], ...patch }; this.save(t, rows); return rows[i]; },
   async remove(t, id) { this.save(t, this.list(t).filter(r => r.id !== id)); }
 };
 const Remote = {
@@ -522,7 +543,7 @@ function applySport() {
 }
 function sportSwitch() {
   if (!state.sports || state.sports.length < 2) return '';
-  return `<div class="seg sport-switch" data-layout-id="sport" role="group" aria-label="Sport">${state.sports.map(k =>
+  return `<div class="seg sport-switch" data-layout-id="sport" role="group" aria-label="${T('Sport', 'Sport')}">${state.sports.map(k =>
     `<button type="button" data-act="set-sport" data-val="${k}" aria-pressed="${state.sport === k}">${SPORTS[k].label}</button>`).join('')}</div>`;
 }
 function loadSports(meta) {
@@ -533,18 +554,18 @@ function loadSports(meta) {
 async function saveSports(list) {
   state.sports = list;
   if (DEMO) localStorage.setItem('globule:sports', JSON.stringify(list));
-  else { const { error } = await sb.auth.updateUser({ data: { sports: list } }); if (error) { toast('Pas enregistré : ' + error.message); return false; } }
+  else { const { error } = await sb.auth.updateUser({ data: { sports: list } }); if (error) { toast(T('Pas enregistré : ', 'Not saved: ') + error.message); return false; } }
   applySport(); return true;
 }
-const sportToggles = sel => `<div class="sport-pick" role="group" aria-label="Mes sports">${Object.values(SPORTS).map(S =>
-  `<button type="button" class="btn ${sel.includes(S.key) ? 'violet' : ''}" data-act="toggle-sport" data-val="${S.key}" aria-pressed="${sel.includes(S.key)}">${S.key === 'bike' ? '🚴' : '🏃'} ${S.label}<small>${S.u === 'W' ? 'tests en watts' : 'tests en km/h'}</small></button>`).join('')}</div>`;
+const sportToggles = sel => `<div class="sport-pick" role="group" aria-label="${T('Mes sports', 'My sports')}">${Object.values(SPORTS).map(S =>
+  `<button type="button" class="btn ${sel.includes(S.key) ? 'violet' : ''}" data-act="toggle-sport" data-val="${S.key}" aria-pressed="${sel.includes(S.key)}">${S.key === 'bike' ? '🚴' : '🏃'} ${S.label}<small>${S.u === 'W' ? T('tests en watts', 'tests in watts') : T('tests en km/h', 'tests in km/h')}</small></button>`).join('')}</div>`;
 function profileSheet(first) {
   const sel = state.sports ? [...state.sports] : [];
-  openSheet(first ? 'Ton profil' : 'Mes sports', `
-    <p class="hand" style="margin:0 0 10px">${first ? 'Tu fais du vélo, de la course, ou les deux ? J\'adapte tes tests : watts sur le vélo, km/h en course.' : 'Coche un sport ou les deux. Chaque sport a ses propres tests, zones et séances.'}</p>
+  openSheet(first ? T('Ton profil', 'Your profile') : T('Mes sports', 'My sports'), `
+    <p class="hand" style="margin:0 0 10px">${first ? T('Tu fais du vélo, de la course, ou les deux ? J\'adapte tes tests : watts sur le vélo, km/h en course.', 'Do you bike, run, or both? I\'ll adapt your tests: watts on the bike, km/h for running.') : T('Coche un sport ou les deux. Chaque sport a ses propres tests, zones et séances.', 'Pick one sport or both. Each sport has its own tests, zones and sessions.')}</p>
     ${sportToggles(sel)}
     <p class="err" role="alert"></p>
-    <button class="btn rose block" data-act="save-sports">C'est mon profil</button>`, root => { root.dataset.sel = JSON.stringify(sel); });
+    <button class="btn rose block" data-act="save-sports">${T('C\'est mon profil', 'That\'s me')}</button>`, root => { root.dataset.sel = JSON.stringify(sel); });
 }
 
 function seedDemo() {
@@ -713,11 +734,11 @@ const gzTop = () => state.gz.hi;
 // 5 zones Olympiatoppen (I1 à I5), calées sur ton test :
 // I1 < LT1 < I2 < bas de la Golden Zone < I3 < LT2 < I4 < 6 mmol < I5
 const ZONES = [
-  { n: 1, name: 'Endurance facile', what: 'Sous LT1, lactate proche du repos. Le gros du volume.', ref: '0,7 à 1,5 mmol' },
-  { n: 2, name: 'Endurance moyenne', what: 'De LT1 jusqu\'au bas de la Golden Zone.', ref: '1,5 à 2,5 mmol' },
-  { n: 3, name: 'Seuil, Golden Zone', what: 'Juste sous LT2 : les intervalles Bakken.', ref: '2,5 à 4 mmol' },
-  { n: 4, name: 'Au-dessus du seuil', what: 'Au-delà de LT2, le lactate grimpe sans plateau.', ref: '4 à 6 mmol' },
-  { n: 5, name: 'VO2max', what: 'Efforts courts et très durs.', ref: '6 à 10 mmol' }
+  { n: 1, get name() { return T('Endurance facile', 'Easy endurance'); }, get what() { return T('Sous LT1, lactate proche du repos. Le gros du volume.', 'Below LT1, lactate close to resting. The bulk of your volume.'); }, get ref() { return T('0,7 à 1,5 mmol', '0.7 to 1.5 mmol'); } },
+  { n: 2, get name() { return T('Endurance moyenne', 'Moderate endurance'); }, get what() { return T('De LT1 jusqu\'au bas de la Golden Zone.', 'From LT1 up to the bottom of the Golden Zone.'); }, get ref() { return T('1,5 à 2,5 mmol', '1.5 to 2.5 mmol'); } },
+  { n: 3, get name() { return T('Seuil, Golden Zone', 'Threshold, Golden Zone'); }, get what() { return T('Juste sous LT2 : les intervalles Bakken.', 'Just below LT2: the Bakken intervals.'); }, get ref() { return T('2,5 à 4 mmol', '2.5 to 4 mmol'); } },
+  { n: 4, get name() { return T('Au-dessus du seuil', 'Above threshold'); }, get what() { return T('Au-delà de LT2, le lactate grimpe sans plateau.', 'Past LT2, lactate keeps climbing with no plateau.'); }, get ref() { return T('4 à 6 mmol', '4 to 6 mmol'); } },
+  { n: 5, get name() { return T('VO2max', 'VO2max'); }, get what() { return T('Efforts courts et très durs.', 'Short, very hard efforts.'); }, get ref() { return T('6 à 10 mmol', '6 to 10 mmol'); } }
 ];
 const LA_I5 = 6;
 function zoneBounds(Z) {
@@ -843,7 +864,7 @@ function chartSVG({ series, xRange, yRange, y2Range, xFmt = v => fmt(v), yFmt = 
     }
     if (s.dots !== false) pts.forEach(p => {
       g += `<circle cx="${sx(p.x).toFixed(1)}" cy="${f(p.y).toFixed(1)}" r="${p.r || s.r || 4.5}" fill="${p.fill || s.color}" stroke="#2A0A4A" stroke-width="2" ${p.attrs || ''}/>`;
-      if (p.act) g += `<circle class="hit" cx="${sx(p.x).toFixed(1)}" cy="${f(p.y).toFixed(1)}" r="16" fill="transparent" data-act="${p.act}" data-id="${esc(p.id)}" role="button" tabindex="0" aria-label="${esc(p.label || 'Ouvrir')}"><title>${esc(p.label || '')}</title></circle>`;
+      if (p.act) g += `<circle class="hit" cx="${sx(p.x).toFixed(1)}" cy="${f(p.y).toFixed(1)}" r="16" fill="transparent" data-act="${p.act}" data-id="${esc(p.id)}" role="button" tabindex="0" aria-label="${esc(p.label || T('Ouvrir', 'Open'))}"><title>${esc(p.label || '')}</title></circle>`;
     });
   });
   return `<svg class="chart" viewBox="0 0 ${W} ${h}" role="img">${g}${extra ? extra(sx, sy) : ''}</svg>`;
@@ -853,7 +874,77 @@ const TEST_COLORS = ['#FF2D8E', '#6A2BF0', '#13B98A', '#F2A100', '#3AA0FF', '#B0
 /* ---------- Rendu ---------- */
 const app = () => $('#app');
 function header() {
-  return `<header class="top"><h1 class="wordmark">Globule<small>le labo lactate${state.name ? ' de ' + esc(state.name) : ''}</small></h1>${DEMO ? '<span class="demo-badge">mode démo</span>' : ''}</header>${sportSwitch()}`;
+  return `<header class="top"><h1 class="wordmark">Globule<small>${state.name ? T(`le labo lactate de ${esc(state.name)}`, `${esc(state.name)}'s lactate lab`) : T('le labo lactate', 'the lactate lab')}</small></h1>${DEMO ? `<span class="demo-badge">${T('mode démo', 'demo mode')}</span>` : ''}</header>${sportSwitch()}`;
+}
+
+/* ---------- Langue, partage, tuto écran d'accueil ---------- */
+const langSwitch = () => `<div class="seg" data-layout-id="lang" role="group" aria-label="${T('Langue', 'Language')}">
+  <button type="button" data-act="set-lang" data-val="fr" aria-pressed="${state.lang === 'fr'}">Français</button>
+  <button type="button" data-act="set-lang" data-val="en" aria-pressed="${state.lang === 'en'}">English</button></div>`;
+function setLang(l) {
+  if (l !== 'fr' && l !== 'en' || l === state.lang) return;
+  state.lang = l; document.documentElement.lang = l;
+  try { localStorage.setItem('globule:lang', l); } catch (e) { /* préférence non gardée */ }
+  if (state.user || DEMO) { if (sheetEl) closeSheet(); render(); } else renderLogin();
+}
+async function shareApp() {
+  const data = { title: 'Globule', text: T('Globule, le labo lactate : tests paliers, zones et Golden Zone.', 'Globule, the lactate lab: step tests, zones and Golden Zone.'), url: SITE_URL };
+  if (navigator.share) { try { await navigator.share(data); } catch (e) { /* partage annulé */ } return; }
+  try { await navigator.clipboard.writeText(SITE_URL); toast(T('Lien copié', 'Link copied'), true); }
+  catch (e) { prompt(T('Copie ce lien :', 'Copy this link:'), SITE_URL); }
+}
+const isStandalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const isPhone = () => /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+const platformGuess = () => (/Android/i.test(navigator.userAgent) ? 'android' : 'ios');
+const ICON_SHARE = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="M7.5 7.5 12 3l4.5 4.5"/><path d="M6 11H5v10h14V11h-1"/></svg>';
+const ICON_PLUS = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="4"/><path d="M12 8v8M8 12h8"/></svg>';
+const ICON_DOTS = '<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>';
+function a2hsSteps(pf) {
+  return pf === 'android' ? [
+    { ico: ICON_DOTS, say: T('Ouvre Globule dans Chrome et touche le menu ⋮ en haut à droite.', 'Open Globule in Chrome and tap the ⋮ menu at the top right.') },
+    { ico: ICON_PLUS, say: T('Choisis « Ajouter à l\'écran d\'accueil » ou « Installer l\'application ».', 'Choose “Add to Home screen” or “Install app”.') },
+    { ico: '✓', say: T('Touche « Ajouter ». Je t\'attends sur ton écran d\'accueil, en plein écran, sans barre d\'adresse.', 'Tap “Add”. I\'ll be waiting on your home screen, full screen, with no address bar.') }
+  ] : [
+    { ico: ICON_SHARE, say: T('Ouvre Globule dans Safari et touche le bouton Partager, le carré avec une flèche, en bas de l\'écran.', 'Open Globule in Safari and tap the Share button, the square with an arrow, at the bottom of the screen.') },
+    { ico: ICON_PLUS, say: T('Fais défiler et choisis « Sur l\'écran d\'accueil ».', 'Scroll down and choose “Add to Home Screen”.') },
+    { ico: '✓', say: T('Touche « Ajouter » en haut à droite. Je t\'attends sur ton écran d\'accueil, en plein écran.', 'Tap “Add” at the top right. I\'ll be waiting on your home screen, full screen.') }
+  ];
+}
+function a2hsTuto(pf = platformGuess(), i = 0) {
+  const steps = a2hsSteps(pf), st = steps[i], last = i === steps.length - 1;
+  const body = `
+    <div class="seg" data-layout-id="a2hs-pf" role="group" aria-label="${T('Téléphone', 'Phone')}" style="margin-bottom:12px">
+      <button type="button" data-act="a2hs-pf" data-val="ios" aria-pressed="${pf === 'ios'}">iPhone</button>
+      <button type="button" data-act="a2hs-pf" data-val="android" aria-pressed="${pf === 'android'}">Android</button></div>
+    <div class="tuto-step">
+      <div class="hero" style="margin:0">${globuleSVG(110)}<p class="bubble"><span class="tuto-n">${T('Étape', 'Step')} ${i + 1}/${steps.length}</span>${st.say}</p></div>
+      <div class="tuto-ico" aria-hidden="true">${st.ico}</div>
+    </div>
+    <div class="tuto-dots" aria-hidden="true">${steps.map((_, k) => `<i class="${k === i ? 'on' : ''}"></i>`).join('')}</div>
+    <div class="row-btns">
+      ${i > 0 ? `<button class="btn" data-act="a2hs-go" data-pf="${pf}" data-i="${i - 1}">${T('Retour', 'Back')}</button>` : ''}
+      ${last ? `<button class="btn rose" data-act="close">${T('C\'est fait !', 'Done!')}</button>`
+        : `<button class="btn rose" data-act="a2hs-go" data-pf="${pf}" data-i="${i + 1}">${T('Suivant', 'Next')}</button>`}
+    </div>
+    ${isStandalone() ? `<p class="muted" style="font-size:13px;margin:12px 0 0">${T('Tu utilises déjà Globule depuis ton écran d\'accueil.', 'You are already using Globule from your home screen.')}</p>` : ''}`;
+  const open = $('.sheet:not(.leaving)');
+  if (open && open.dataset.tuto) {
+    // On reste dans la même feuille : seul le contenu change, avec une révélation
+    $('.sheet-body', open).innerHTML = body;
+    $$('.seg', open).forEach(g => syncPill(g, true));
+    reveal([$('.tuto-step', open)]);
+    if (!RM()) { const svg = $('.tuto-step .globule', open); if (svg) setMascot(svg, 'hello'); }
+    return;
+  }
+  openSheet(T('Globule sur ton écran d\'accueil', 'Globule on your home screen'), body, root => {
+    root.dataset.tuto = '1';
+    const svg = $('.tuto-step .globule', root); if (svg) setMascot(svg, 'hello');
+  });
+}
+function maybeA2hs() {
+  if (!isPhone() || isStandalone()) return;
+  try { if (localStorage.getItem('globule:a2hs-seen')) return; localStorage.setItem('globule:a2hs-seen', '1'); } catch (e) { return; }
+  setTimeout(() => { if (!sheetEl) a2hsTuto(); }, 900);
 }
 function hero(text, size = 140) {
   return `<div class="hero">${globuleSVG(size)}<p class="bubble">${text}</p></div>`;
@@ -863,6 +954,9 @@ function render() {
   app().innerHTML = header() + v();
   $$('.tab').forEach(b => b.setAttribute('aria-current', b.dataset.tab === state.tab ? 'page' : 'false'));
   applyMascot();
+  const TAB = { home: 'Zones', journal: T('Journal', 'Log'), globule: 'Globule' };
+  $$('.tab').forEach(b => { const t = b.lastChild; if (t && t.nodeType === 3) t.textContent = TAB[b.dataset.tab]; });
+  document.title = T('Globule, labo lactate', 'Globule, lactate lab');
   syncPill($('#tabbar .inner'), true);
   $$('#app .seg').forEach(g => syncPill(g, !!g.dataset.layoutId));
   staggerLists(app());
@@ -871,8 +965,8 @@ const lastSource = () => { const all = [...state.sessions, ...state.tests].sort(
 
 function zonesPanel(Z) {
   if (Z.lt1 == null && Z.lt2 == null) {
-    return `<section class="panel empty"><p class="hand">Pas encore de zones. Un test paliers jusqu'à 4 mmol me donne tes deux seuils d'un coup.</p>
-      <button class="btn rose" data-act="new-steps">Saisir un test paliers</button></section>`;
+    return `<section class="panel empty"><p class="hand">${T('Pas encore de zones. Un test paliers jusqu\'à 4 mmol me donne tes deux seuils d\'un coup.', "No zones yet. One step test up to 4 mmol gives me both your thresholds at once.")}</p>
+      <button class="btn rose" data-act="new-steps">${T('Saisir un test paliers', 'Log a step test')}</button></section>`;
   }
   const { b, hr, G } = zoneBounds(Z);
   const W = v => fxu(v);
@@ -881,36 +975,36 @@ function zonesPanel(Z) {
     const lo = i > 0 ? b[i - 1] : null, hi = i < 4 ? b[i] : null;
     const pc = (a, b) => (isRun() ? (a != null && b != null ? paceRange(a, b) : a != null ? `${paceRaw(a)} /km` : '') : '');
     const j = (...x) => x.filter(Boolean).join('<br>');
-    if (i === 0) return { w: `&lt; ${W(hi)}`, h: j(isRun() && hi != null ? `&gt; ${paceRaw(hi)} /km` : '', HR(hr[0]) ? `FC &lt; ${HR(hr[0])}` : '') };
-    if (i === 4) return hi == null && lo == null ? { w: 'n.d.', h: 'test arrêté sous 6 mmol' } : { w: `&gt; ${W(lo)}`, h: j(isRun() ? `&lt; ${pc(lo)}` : '', HR(hr[3]) ? `FC &gt; ${HR(hr[3])}` : '') };
-    if (i === 3 && hi == null) return { w: `&gt; ${W(lo)}`, h: j(isRun() ? `&lt; ${pc(lo)}` : '', HR(hr[2]) ? `FC &gt; ${HR(hr[2])}` : '') };
-    return { w: `${fx(lo)} à ${W(hi)}`, h: j(pc(lo, hi), HR(hr[i - 1]) && HR(hr[i]) ? `FC ${HR(hr[i - 1])} à ${HR(hr[i])}` : '') };
+    if (i === 0) return { w: `&lt; ${W(hi)}`, h: j(isRun() && hi != null ? `&gt; ${paceRaw(hi)} /km` : '', HR(hr[0]) ? `${T('FC', 'HR')} &lt; ${HR(hr[0])}` : '') };
+    if (i === 4) return hi == null && lo == null ? { w: T('n.d.', 'n/a'), h: T('test arrêté sous 6 mmol', 'test stopped below 6 mmol') } : { w: `&gt; ${W(lo)}`, h: j(isRun() ? `&lt; ${pc(lo)}` : '', HR(hr[3]) ? `${T('FC', 'HR')} &gt; ${HR(hr[3])}` : '') };
+    if (i === 3 && hi == null) return { w: `&gt; ${W(lo)}`, h: j(isRun() ? `&lt; ${pc(lo)}` : '', HR(hr[2]) ? `${T('FC', 'HR')} &gt; ${HR(hr[2])}` : '') };
+    return { w: T(`${fx(lo)} à ${W(hi)}`, `${fx(lo)} to ${W(hi)}`), h: j(pc(lo, hi), HR(hr[i - 1]) && HR(hr[i]) ? T(`FC ${HR(hr[i - 1])} à ${HR(hr[i])}`, `HR ${HR(hr[i - 1])} to ${HR(hr[i])}`) : '') };
   };
   const flags = [];
-  if (Z.s && Z.s.status === 'toconfirm') flags.push('LT1 à confirmer');
-  if (Z.s && Z.s.status === 'manual') flags.push('LT1 choisi à la main');
-  if (Z.s2 && Z.s2.lt2Status === 'manual') flags.push('LT2 choisi à la main');
+  if (Z.s && Z.s.status === 'toconfirm') flags.push(T('LT1 à confirmer', 'LT1 to confirm'));
+  if (Z.s && Z.s.status === 'manual') flags.push(T('LT1 choisi à la main', 'LT1 set by hand'));
+  if (Z.s2 && Z.s2.lt2Status === 'manual') flags.push(T('LT2 choisi à la main', 'LT2 set by hand'));
   const gzLeg = G.wLo != null && G.wHi != null ? `<div class="gz-legend">
-      <span class="what"><i class="sw solid"></i>Golden Zone ${fx(G.wLo)} à ${fxu(G.wHi)}</span>
+      <span class="what"><i class="sw solid"></i>${T(`Golden Zone ${fx(G.wLo)} à ${fxu(G.wHi)}`, `Golden Zone ${fx(G.wLo)} to ${fxu(G.wHi)}`)}</span>
     </div>` : '';
-  return `<section class="panel zones" aria-label="Tes zones d'entraînement">
-    <h3>Tes 5 zones</h3>
+  return `<section class="panel zones" aria-label="${T('Tes zones d\'entraînement', 'Your training zones')}">
+    <h3>${T('Tes 5 zones', 'Your 5 zones')}</h3>
     <div class="thermo" aria-hidden="true">${ZONES.map((z, i) => `<div class="zi" style="width:${ZW[i]}%;background:${ZCOL[z.n]}"><span>I${z.n}</span></div>`).join('')}${gzThermo(Z)}</div>
     <div class="marks" aria-hidden="true">
       ${['LT1', 'GZ', 'LT2', '6 mmol'].map((l, i) => `<div class="mark" style="left:${ZX[i]}%"><b>${b[i] != null ? fx(b[i]) : '?'}</b><span>${l}</span></div>`).join('')}
     </div>
     ${gzLeg}
     <div class="zone-rows">
-      ${ZONES.map((z, i) => { const r = range(i); return `<div class="zrow"><span class="zdot" style="background:${ZCOL[z.n]}">I${z.n}</span><span class="what"><strong>${z.name}</strong>${z.what}<span class="ref">Repère : ${z.ref}</span></span><span class="val">${r.w}<small>${r.h}</small></span></div>`; }).join('')}
+      ${ZONES.map((z, i) => { const r = range(i); return `<div class="zrow"><span class="zdot" style="background:${ZCOL[z.n]}">I${z.n}</span><span class="what"><strong>${z.name}</strong>${z.what}<span class="ref">${T('Repère : ', 'Reference: ')}${z.ref}</span></span><span class="val">${r.w}<small>${r.h}</small></span></div>`; }).join('')}
     </div>
-    <p class="zones-note">Échelle d'intensité Olympiatoppen. Les mmol sont des repères généraux, tes ${SP().name === 'watts' ? 'watts' : 'vitesses'} et FC viennent de ton test.</p>
+    <p class="zones-note">${T(`Échelle d'intensité Olympiatoppen. Les mmol sont des repères généraux, tes ${SP().name === 'watts' ? 'watts' : 'vitesses'} et FC viennent de ton test.`, `Olympiatoppen intensity scale. The mmol values are general references, your ${SP().name === 'watts' ? 'watts' : 'speeds'} and HR come from your test.`)}</p>
     <div class="extras">
-      ${Z.sTest ? `<span class="chip">Test du ${fdate(Z.sTest.date)}</span>` : ''}
+      ${Z.sTest ? `<span class="chip">${T(`Test du ${fdate(Z.sTest.date)}`, `Test of ${fdate(Z.sTest.date)}`)}</span>` : ''}
       ${flags.map(f => `<span class="chip">${f}</span>`).join('')}
     </div>
-    ${Z.incoherent ? '<p class="warn">LT1 est au-dessus de LT2 : regarde la courbe du test et corrige un des deux seuils.</p>' : ''}
-    ${Z.lt2 == null ? '<p class="warn">Pas encore de LT2 : au prochain test, continue jusque vers 4 mmol, au moins 2 paliers après ton LT1.</p>'
-      : Z.s2 && Z.s2.lt2Status === 'short' ? `<p class="warn">LT2 à confirmer : ta courbe s'arrête à ${fmt(Z.s2.maxLa, 1)} mmol. Pousse un ou deux paliers de plus au prochain test.</p>` : ''}
+    ${Z.incoherent ? `<p class="warn">${T('LT1 est au-dessus de LT2 : regarde la courbe du test et corrige un des deux seuils.', "LT1 is above LT2: check the test curve and fix one of the two thresholds.")}</p>` : ''}
+    ${Z.lt2 == null ? `<p class="warn">${T('Pas encore de LT2 : au prochain test, continue jusque vers 4 mmol, au moins 2 paliers après ton LT1.', "No LT2 yet: on your next test, keep going to about 4 mmol, at least 2 steps past your LT1.")}</p>`
+      : Z.s2 && Z.s2.lt2Status === 'short' ? `<p class="warn">${T(`LT2 à confirmer : ta courbe s'arrête à ${fmt(Z.s2.maxLa, 1)} mmol. Pousse un ou deux paliers de plus au prochain test.`, `LT2 to confirm: your curve stops at ${fmt(Z.s2.maxLa, 1)} mmol. Push one or two more steps on your next test.`)}</p>` : ''}
   </section>`;
 }
 // Largeurs fixes des 5 segments de la barre (schéma), et position des frontières
@@ -926,82 +1020,82 @@ function gzThermo(Z) {
 function goldenPanel(Z) {
   const G = goldenZone(Z), wk = gzWeek(), r = v => fmt(v, 1);
   const cell = (v, l) => `<div><b>${v}</b><span>${l}</span></div>`;
-  const watts = G.wLo != null ? `${fx(G.wLo)} à ${fxu(G.wHi)}` : G.above ? 'au-dessus de ton LT2' : 'à calculer';
-  const hr = G.hrLo != null && G.hrHi != null ? `${fmt(G.hrLo)} à ${fmt(G.hrHi)}` : 'n.d.';
-  const note = G.above ? 'Ta plage commence au-dessus de ton LT2 : elle est trop haute pour toi. Baisse-la dans mon onglet.'
-    : G.wLo == null ? 'Il me faut une courbe de lactate qui traverse ta plage : un test paliers jusqu\'à 4 mmol.'
-    : G.capped ? 'Plafonnée à ton LT2 : la Golden Zone reste sous ton 2e seuil, jamais dessus.'
-    : `${SP().Name} et FC lues sur ta dernière courbe de lactate. Une plage, pas un chiffre : vise le bas sur les intervalles longs.`;
-  return `<section class="panel golden" aria-label="Ta Golden Zone">
-    <div class="gz-head"><span class="gz-star" aria-hidden="true">★</span><h3>Ta Golden Zone</h3></div>
-    <p class="gz-sub">Juste sous ton 2e seuil (LT2), jamais dessus.</p>
-    <div class="gz-watts">${watts}</div>${isRun() && G.wLo != null ? `<div class="gz-sub" style="margin:2px 0 0">Allure ${paceRange(G.wLo, G.wHi)}</div>` : ''}
-    <div class="kv" style="margin:10px 0 12px">${cell(`${r(G.lo)}–${r(G.hi)}`, 'mmol/L')}${cell(hr, 'FC (bpm)')}${cell(Z.lt2 != null ? fx(Z.lt2) : 'n.d.', `LT2 (${SP().u}), plafond`)}</div>
-    <div class="kv"><div><b>${wk.n}</b><span>séance${wk.n > 1 ? 's' : ''} cette semaine</span></div><div><b>${wk.min}</b><span>min en GZ</span></div><div><b>${wk.high}</b><span>trop haut</span></div></div>
+  const watts = G.wLo != null ? T(`${fx(G.wLo)} à ${fxu(G.wHi)}`, `${fx(G.wLo)} to ${fxu(G.wHi)}`) : G.above ? T('au-dessus de ton LT2', 'above your LT2') : T('à calculer', 'to be calculated');
+  const hr = G.hrLo != null && G.hrHi != null ? T(`${fmt(G.hrLo)} à ${fmt(G.hrHi)}`, `${fmt(G.hrLo)} to ${fmt(G.hrHi)}`) : T('n.d.', 'n/a');
+  const note = G.above ? T('Ta plage commence au-dessus de ton LT2 : elle est trop haute pour toi. Baisse-la dans mon onglet.', "Your range starts above your LT2: it's too high for you. Lower it in my tab.")
+    : G.wLo == null ? T('Il me faut une courbe de lactate qui traverse ta plage : un test paliers jusqu\'à 4 mmol.', 'I need a lactate curve that crosses your range: a step test up to 4 mmol.')
+    : G.capped ? T('Plafonnée à ton LT2 : la Golden Zone reste sous ton 2e seuil, jamais dessus.', 'Capped at your LT2: the Golden Zone stays below your 2nd threshold, never above.')
+    : T(`${SP().Name} et FC lues sur ta dernière courbe de lactate. Une plage, pas un chiffre : vise le bas sur les intervalles longs.`, `${SP().Name} and HR read from your latest lactate curve. A range, not a number: aim low on long intervals.`);
+  return `<section class="panel golden" aria-label="${T('Ta Golden Zone', 'Your Golden Zone')}">
+    <div class="gz-head"><span class="gz-star" aria-hidden="true">★</span><h3>${T('Ta Golden Zone', 'Your Golden Zone')}</h3></div>
+    <p class="gz-sub">${T('Juste sous ton 2e seuil (LT2), jamais dessus.', 'Just below your 2nd threshold (LT2), never above.')}</p>
+    <div class="gz-watts">${watts}</div>${isRun() && G.wLo != null ? `<div class="gz-sub" style="margin:2px 0 0">${T('Allure', 'Pace')} ${paceRange(G.wLo, G.wHi)}</div>` : ''}
+    <div class="kv" style="margin:10px 0 12px">${cell(`${r(G.lo)}–${r(G.hi)}`, 'mmol/L')}${cell(hr, T('FC (bpm)', 'HR (bpm)'))}${cell(Z.lt2 != null ? fx(Z.lt2) : T('n.d.', 'n/a'), T(`LT2 (${SP().u}), plafond`, `LT2 (${SP().u}), cap`))}</div>
+    <div class="kv"><div><b>${wk.n}</b><span>${T(`séance${wk.n > 1 ? 's' : ''} cette semaine`, `session${wk.n > 1 ? 's' : ''} this week`)}</span></div><div><b>${wk.min}</b><span>${T('min en GZ', 'min in GZ')}</span></div><div><b>${wk.high}</b><span>${T('trop haut', 'too high')}</span></div></div>
     <p class="gz-note">${note}</p>
-    <div class="row-btns" style="margin-top:0"><button class="btn" data-act="new-gz">+ Séance Golden Zone</button></div></section>`;
+    <div class="row-btns" style="margin-top:0"><button class="btn" data-act="new-gz">${T('+ Séance Golden Zone', '+ Golden Zone session')}</button></div></section>`;
 }
 function sessionItem(s, Z) {
   const z = zoneOf(num(s.watts), Z);
-  const meta = [fdate(s.date), s.duration_min ? `${s.duration_min} min` : '', s.hr ? `FC ${s.hr}` : '', s.source ? SOURCES[s.source] : ''].filter(Boolean).join(', ');
+  const meta = [fdate(s.date), s.duration_min ? `${s.duration_min} min` : '', s.hr ? `${T('FC', 'HR')} ${s.hr}` : '', s.source ? SOURCES[s.source] : ''].filter(Boolean).join(', ');
   return `<button class="item" data-act="edit-session" data-id="${s.id}">
     ${gzBadge(s) || `<span class="badge" style="background:${z ? ZCOL[z] : 'var(--surface-2)'}">${z ? 'I' + z : '?'}</span>`}
-    <span class="main"><strong>${esc((s.template && s.template.name) || s.kind || 'Séance')}</strong><span>${esc(meta)}</span></span>
+    <span class="main"><strong>${esc((s.template && s.template.name ? tplLabel(s.template.name) : '') || (s.kind ? kindLabel(s.kind) : '') || T('Séance', 'Session'))}</strong><span>${esc(meta)}</span></span>
     <span class="num">${s.lactate != null ? fmt(num(s.lactate), 1) + ' mmol' : ''}<small>${s.watts != null ? fxu(num(s.watts)) : ''}</small></span></button>`;
 }
 function gzBadge(s) {
   const g = gzStatus(s);
   if (!g) return '';
   const look = g.st === 'high' ? ['var(--z3)', 'GZ<br>↑', '#fff'] : g.st === 'low' ? ['#FFF1B8', 'GZ<br>↓', '#2A0A4A'] : [GZ_COLOR, 'GZ', '#2A0A4A'];
-  return `<span class="badge gz" style="background:${look[0]};color:${look[2]};font-size:13px" title="Golden Zone${g.st === 'high' ? ', trop haut' : g.st === 'low' ? ', trop bas' : ''}">${look[1]}</span>`;
+  return `<span class="badge gz" style="background:${look[0]};color:${look[2]};font-size:13px" title="Golden Zone${g.st === 'high' ? T(', trop haut', ', too high') : g.st === 'low' ? T(', trop bas', ', too low') : ''}">${look[1]}</span>`;
 }
 function testItem(t) {
   const a = analyzeSteps(t);
   const v = w => w != null ? fx(w) : '?';
   return `<button class="item" data-act="open-steps" data-id="${t.id}">
     <span class="badge" style="background:var(--violet);color:#fff">5'</span>
-    <span class="main"><strong>Test paliers</strong><span>${fdate(t.date)}, ${a.steps.length} paliers${t.source ? ', ' + SOURCES[t.source] : ''}</span></span>
+    <span class="main"><strong>${T('Test paliers', 'Step test')}</strong><span>${fdate(t.date)}, ${T(`${a.steps.length} paliers`, `${a.steps.length} steps`)}${t.source ? ', ' + SOURCES[t.source] : ''}</span></span>
     <span class="num">${v(a.lt1W)} / ${v(a.lt2W)} ${SP().u}<small>LT1 / LT2</small></span></button>`;
 }
 
 function viewHome() {
   const Z = currentZones();
-  const hi = state.name ? `Salut ${esc(state.name)} !` : 'Salut !';
-  const say = Z.lt1 != null && Z.lt2 != null ? `${hi} Tes zones du moment, et ta Golden Zone, juste sous ton 2e seuil.`
-    : Z.lt1 == null && Z.lt2 == null ? `${hi} Moi c'est Globule. Un test paliers jusqu'à 4 mmol et je te sors tes zones.`
-    : Z.lt2 == null ? 'Il me manque ton LT2. Au prochain test, monte jusque vers 4 mmol.'
-    : 'Il me manque ton LT1. Regarde ta dernière courbe de lactate.';
+  const hi = state.name ? T(`Salut ${esc(state.name)} !`, `Hi ${esc(state.name)}!`) : T('Salut !', 'Hi!');
+  const say = Z.lt1 != null && Z.lt2 != null ? T(`${hi} Tes zones du moment, et ta Golden Zone, juste sous ton 2e seuil.`, `${hi} Your current zones, and your Golden Zone, just below your 2nd threshold.`)
+    : Z.lt1 == null && Z.lt2 == null ? T(`${hi} Moi c'est Globule. Un test paliers jusqu'à 4 mmol et je te sors tes zones.`, `${hi} I'm Globule. One step test up to 4 mmol and I'll give you your zones.`)
+    : Z.lt2 == null ? T('Il me manque ton LT2. Au prochain test, monte jusque vers 4 mmol.', "I'm missing your LT2. On your next test, go up to about 4 mmol.")
+    : T('Il me manque ton LT1. Regarde ta dernière courbe de lactate.', "I'm missing your LT1. Check your latest lactate curve.");
   const recent = [...state.sessions.map(s => ({ ...s, _t: 's' })), ...state.tests.filter(t => t.kind === 'steps').map(t => ({ ...t, _t: 't' }))].sort(byDateDesc).slice(0, 4);
   return hero(say) + zonesPanel(Z) + (Z.lt1 != null || Z.lt2 != null ? goldenPanel(Z) : '') + `
     <div class="actions" style="grid-template-columns:1fr 1fr">
-      <button class="btn big rose" data-act="new-session"><span class="ico">+</span>Séance</button>
-      <button class="btn big violet" data-act="new-steps"><span class="ico">5'</span>Test paliers</button>
+      <button class="btn big rose" data-act="new-session"><span class="ico">+</span>${T('Séance', 'Session')}</button>
+      <button class="btn big violet" data-act="new-steps"><span class="ico">5'</span>${T('Test paliers', 'Step test')}</button>
     </div>
-    <h2 class="title">Derniers ajouts</h2>
+    <h2 class="title">${T('Derniers ajouts', 'Recently added')}</h2>
     ${recent.length ? `<div class="list">${recent.map(r => r._t === 's' ? sessionItem(r, Z) : testItem(r)).join('')}</div>`
-      : `<div class="panel empty"><p class="hand">Rien pour l'instant. Ta première goutte t'attend.</p></div>`}
-    <button class="btn ghost block" style="margin-top:10px" data-tab="journal">Tout le journal</button>`;
+      : `<div class="panel empty"><p class="hand">${T('Rien pour l\'instant. Ta première goutte t\'attend.', 'Nothing yet. Your first drop is waiting.')}</p></div>`}
+    <button class="btn ghost block" style="margin-top:10px" data-tab="journal">${T('Tout le journal', 'Full log')}</button>`;
 }
 
 function viewJournal() {
   const Z = currentZones();
-  const withLa = state.sessions.filter(s => num(s.lactate) != null).map(s => ({ id: s.id, label: `${(s.template && s.template.name) || s.kind || 'Séance'}, ${fdate(s.date)}, ${fmt(num(s.lactate), 1)} mmol`, x: Date.parse(s.date), y: num(s.lactate), z: zoneOf(num(s.watts), Z), gz: (gzStatus(s) || {}).st === 'in' })).sort((a, b) => a.x - b.x);
+  const withLa = state.sessions.filter(s => num(s.lactate) != null).map(s => ({ id: s.id, label: `${(s.template && s.template.name ? tplLabel(s.template.name) : '') || (s.kind ? kindLabel(s.kind) : '') || T('Séance', 'Session')}, ${fdate(s.date)}, ${fmt(num(s.lactate), 1)} mmol`, x: Date.parse(s.date), y: num(s.lactate), z: zoneOf(num(s.watts), Z), gz: (gzStatus(s) || {}).st === 'in' })).sort((a, b) => a.x - b.x);
   let chart = '';
   if (withLa.length) {
     let x0 = withLa[0].x, x1 = withLa[withLa.length - 1].x; if (x0 === x1) { x0 -= 3 * 864e5; x1 += 3 * 864e5; }
-    chart = `<section class="panel" style="margin-top:16px"><h3 class="hand" style="margin:0 0 6px">Lactate à l'entraînement</h3><p class="tap-hint" style="margin:0 0 4px">Touche un point pour ouvrir la séance.</p>
+    chart = `<section class="panel" style="margin-top:16px"><h3 class="hand" style="margin:0 0 6px">${T('Lactate à l\'entraînement', 'Lactate in training')}</h3><p class="tap-hint" style="margin:0 0 4px">${T('Touche un point pour ouvrir la séance.', 'Tap a dot to open the session.')}</p>
       ${chartSVG({ timeX: true, xRange: [x0, x1], yRange: [0, Math.max(4, gzTop() + .5, ...withLa.map(p => p.y))], xFmt: v => fdateShort(new Date(v).toISOString()), yTitle: 'mmol/L', h: 190,
         hbands: gzBands(), series: [{ pts: withLa.map(p => ({ act: 'edit-session', id: p.id, label: p.label, x: p.x, y: p.y, fill: p.gz ? GZ_COLOR : p.z ? ZHEX[p.z] : '#ffffff', r: p.gz ? 7.5 : 6 })), color: '#2A0A4A', line: false }] })}
       <div class="legend">${ZONES.map(z => `<span><i style="background:${ZCOL[z.n]}"></i>I${z.n}</span>`).join('')}<span><i style="background:#FFC21A"></i>Golden Zone</span></div></section>`;
   }
   const steps = state.tests.filter(t => t.kind === 'steps');
   let trend = '';
-  const l1 = steps.map(t => ({ act: 'open-steps', id: t.id, label: `Test du ${fdate(t.date)}`, x: Date.parse(t.date), y: analyzeSteps(t).lt1W })).filter(p => p.y != null).sort((a, b) => a.x - b.x);
-  const l2 = steps.map(t => ({ act: 'open-steps', id: t.id, label: `Test du ${fdate(t.date)}`, x: Date.parse(t.date), y: analyzeSteps(t).lt2W })).filter(p => p.y != null).sort((a, b) => a.x - b.x);
+  const l1 = steps.map(t => ({ act: 'open-steps', id: t.id, label: T(`Test du ${fdate(t.date)}`, `Test of ${fdate(t.date)}`), x: Date.parse(t.date), y: analyzeSteps(t).lt1W })).filter(p => p.y != null).sort((a, b) => a.x - b.x);
+  const l2 = steps.map(t => ({ act: 'open-steps', id: t.id, label: T(`Test du ${fdate(t.date)}`, `Test of ${fdate(t.date)}`), x: Date.parse(t.date), y: analyzeSteps(t).lt2W })).filter(p => p.y != null).sort((a, b) => a.x - b.x);
   if (l1.length + l2.length >= 2) {
     const all = [...l1, ...l2], xs = all.map(p => p.x), ys = all.map(p => p.y);
     let x0 = Math.min(...xs), x1 = Math.max(...xs); if (x0 === x1) { x0 -= 7 * 864e5; x1 += 7 * 864e5; }
-    trend = `<section class="panel" style="margin-top:14px"><h3 class="hand" style="margin:0 0 6px">Tes seuils dans le temps</h3><p class="tap-hint" style="margin:0 0 4px">Touche un point pour ouvrir le test.</p>
+    trend = `<section class="panel" style="margin-top:14px"><h3 class="hand" style="margin:0 0 6px">${T('Tes seuils dans le temps', 'Your thresholds over time')}</h3><p class="tap-hint" style="margin:0 0 4px">${T('Touche un point pour ouvrir le test.', 'Tap a dot to open the test.')}</p>
       ${chartSVG({ timeX: true, xRange: [x0, x1], yRange: [Math.min(...ys) - 10, Math.max(...ys) + 10], xFmt: v => fdateShort(new Date(v).toISOString()), yFmt: v => fx(v), yTitle: SP().u, h: 170,
         series: [{ pts: l1, color: '#13B98A', r: 5.5 }, { pts: l2, color: '#FF2D8E', r: 5.5 }] })}
       <div class="legend"><span><i style="background:#13B98A"></i>LT1</span><span><i style="background:#FF2D8E"></i>LT2</span></div></section>`;
@@ -1013,74 +1107,82 @@ function viewJournal() {
     const [y, m] = k.split('-');
     return `<p class="month">${MONTHS[+m - 1]} ${y}</p><div class="list">${groups[k].map(it => it._t === 's' ? sessionItem(it, Z) : testItem(it)).join('')}</div>`;
   }).join('');
-  return hero(items.length ? 'Séances et tests, tout au même endroit. Touche une ligne pour la voir.' : 'Ton journal est vide. Note ta prochaine séance ou ton prochain test.', 124) + `
-    <div class="row-btns" style="margin-top:0"><button class="btn rose" data-act="new-session">+ Séance</button><button class="btn violet" data-act="new-steps">+ Test paliers</button></div>
+  return hero(items.length ? T('Séances et tests, tout au même endroit. Touche une ligne pour la voir.', 'Sessions and tests, all in one place. Tap a row to see it.') : T('Ton journal est vide. Note ta prochaine séance ou ton prochain test.', 'Your log is empty. Add your next session or your next test.'), 124) + `
+    <div class="row-btns" style="margin-top:0"><button class="btn rose" data-act="new-session">${T('+ Séance', '+ Session')}</button><button class="btn violet" data-act="new-steps">${T('+ Test paliers', '+ Step test')}</button></div>
     ${chart}${trend}${list}`;
 }
 
 function viewGlobule() {
-  return hero('Je vis dans ton doigt, je compte tes mmol et je ne mens jamais. Enfin, à 0,3 près.', 150) + `
+  return hero(T('Je vis dans ton doigt, je compte tes mmol et je ne mens jamais. Enfin, à 0,3 près.', 'I live in your finger, I count your mmol and I never lie. Well, give or take 0.3.'), 150) + `
   <details class="panel proto golden-proto" open>
-    <summary><span><span class="t">★ Golden Zone</span><span class="s">Méthode norvégienne, le cœur du double seuil</span></span><span class="plus">+</span></summary>
-    <p class="say">Juste sous ton 2e seuil (LT2). Jamais dessus. C'est là que ça se passe.</p>
+    <summary><span><span class="t">★ Golden Zone</span><span class="s">${T('Méthode norvégienne, le cœur du double seuil', 'Norwegian method, the heart of double threshold')}</span></span><span class="plus">+</span></summary>
+    <p class="say">${T('Juste sous ton 2e seuil (LT2). Jamais dessus. C\'est là que ça se passe.', "Just below your 2nd threshold (LT2). Never above. That's where the magic happens.")}</p>
     <ol>
-      <li>Attention au mot "seuil" : ici c'est ton <b>2e seuil</b> (LT2). Ton 1er seuil (LT1), juste au-dessus du lactate de repos, c'est la fin de l'I1 : le terrain des jours faciles, pas de la Golden Zone.</li>
-      <li><b>Une plage, pas un seuil</b> : ${fmt(state.gz.lo, 1)} à ${fmt(state.gz.hi, 1)} mmol. C'est la plage que donne Marius Bakken pour des athlètes entraînés, volontairement prudente : le lactate varie avec la chaleur, le glycogène et l'erreur du lecteur. Viser un chiffre fixe, c'est se surcharger petit à petit.</li>
-      <li>Même si ton test place ton seuil plus haut (4 mmol par exemple), reste dans cette plage plusieurs mois avant de retester.</li>
-      <li>Intervalles longs : reste dans le bas de la plage, surtout en première moitié. Intervalles courts : après 4 ou 5 répétitions, tu peux t'approcher de 3,0.</li>
-      <li>Pique pendant la récup, après le 2e intervalle puis vers la fin. Au-dessus de la plage : baisse ${SP().les} au suivant. Le piège, c'est d'aller trop fort, pas trop doucement.</li>
-      <li>Double seuil : le matin plus prudent (bas de la plage), le soir un peu plus haut. Le reste de la semaine en I1.</li>
+      <li>${T(`Attention au mot "seuil" : ici c'est ton <b>2e seuil</b> (LT2). Ton 1er seuil (LT1), juste au-dessus du lactate de repos, c'est la fin de l'I1 : le terrain des jours faciles, pas de la Golden Zone.`, `Careful with the word “threshold”: here it means your <b>2nd threshold</b> (LT2). Your 1st threshold (LT1), just above resting lactate, is the end of I1: easy-day territory, not the Golden Zone.`)}</li>
+      <li>${T(`<b>Une plage, pas un seuil</b> : ${fmt(state.gz.lo, 1)} à ${fmt(state.gz.hi, 1)} mmol. C'est la plage que donne Marius Bakken pour des athlètes entraînés, volontairement prudente : le lactate varie avec la chaleur, le glycogène et l'erreur du lecteur. Viser un chiffre fixe, c'est se surcharger petit à petit.`, `<b>A range, not a threshold</b>: ${fmt(state.gz.lo, 1)} to ${fmt(state.gz.hi, 1)} mmol. That's the range Marius Bakken gives for trained athletes, deliberately cautious: lactate varies with heat, glycogen and meter error. Aiming for one fixed number means slowly overloading yourself.`)}</li>
+      <li>${T('Même si ton test place ton seuil plus haut (4 mmol par exemple), reste dans cette plage plusieurs mois avant de retester.', 'Even if your test puts your threshold higher (4 mmol, say), stay in this range for several months before retesting.')}</li>
+      <li>${T('Intervalles longs : reste dans le bas de la plage, surtout en première moitié. Intervalles courts : après 4 ou 5 répétitions, tu peux t\'approcher de 3,0.', 'Long intervals: stay at the low end of the range, especially in the first half. Short intervals: after 4 or 5 reps, you can get close to 3.0.')}</li>
+      <li>${T(`Pique pendant la récup, après le 2e intervalle puis vers la fin. Au-dessus de la plage : baisse ${SP().les} au suivant. Le piège, c'est d'aller trop fort, pas trop doucement.`, `Prick during recovery, after the 2nd interval and again near the end. Above the range: lower ${SP().les} on the next one. The trap is going too hard, not too easy.`)}</li>
+      <li>${T('Double seuil : le matin plus prudent (bas de la plage), le soir un peu plus haut. Le reste de la semaine en I1.', 'Double threshold: more cautious in the morning (low end of the range), a bit higher in the evening. The rest of the week in I1.')}</li>
     </ol>
-    <p>${bk('Tes watts sont lus', 'Ta vitesse est lue')} sur ta dernière courbe de lactate, là où elle traverse chaque plage, et plafonnée à ton LT2.</p>
+    <p>${T(`${bk('Tes watts sont lus', 'Ta vitesse est lue')} sur ta dernière courbe de lactate, là où elle traverse chaque plage, et plafonnée à ton LT2.`, `${bk('Your watts are read', 'Your speed is read')} from your latest lactate curve, where it crosses each range, and capped at your LT2.`)}</p>
   </details>
   <details class="panel proto">
-    <summary><span><span class="t">Test paliers 5 min + 30 s</span><span class="s">Le seul test : il donne LT1 et LT2</span></span><span class="plus">+</span></summary>
-    <p class="say">Un test, deux seuils, cinq zones.</p>
+    <summary><span><span class="t">${T('Test paliers 5 min + 30 s', 'Step test 5 min + 30 s')}</span><span class="s">${T('Le seul test : il donne LT1 et LT2', 'The only test: it gives LT1 and LT2')}</span></span><span class="plus">+</span></summary>
+    <p class="say">${T('Un test, deux seuils, cinq zones.', 'One test, two thresholds, five zones.')}</p>
     <ol>
-      <li>Mêmes conditions à chaque test : même heure, même repas, rien d'intense la veille. Glycogène bas = courbe faussement flatteuse.</li>
-      <li>Échauffement 10 à 15 min très facile. Lactate de repos si tu veux une référence.</li>
-      <li>Ton protocole fixe : départ ${fxu(proto().start)}, +${fxu(proto().step)} par palier de 5 min, ${bk('cadence stable', 'tapis à 1 % de pente')}. Toujours le même, pour que les courbes se comparent. Réglable en bas de page.</li>
-      <li>Entre chaque palier, <b>30 s de pause</b> pour prélever le lactate (protocole recommandé par Marius Bakken), puis repars sur le palier suivant. Doigt sec, première goutte essuyée : la sueur contient du lactate.</li>
-      <li>Note FC de fin de palier, lactate et RPE. ${bk('Les watts sont déjà remplis.', 'Les vitesses sont déjà remplies.')}</li>
-      <li><b>Va jusque vers 4 mmol</b>, au moins 2 paliers après le premier saut. Sans ça, pas de LT2 fiable.</li>
+      <li>${T('Mêmes conditions à chaque test : même heure, même repas, rien d\'intense la veille. Glycogène bas = courbe faussement flatteuse.', 'Same conditions every test: same time, same meal, nothing hard the day before. Low glycogen = a falsely flattering curve.')}</li>
+      <li>${T('Échauffement 10 à 15 min très facile. Lactate de repos si tu veux une référence.', 'Warm up 10 to 15 min very easy. Take a resting lactate if you want a baseline.')}</li>
+      <li>${T(`Ton protocole fixe : départ ${fxu(proto().start)}, +${fxu(proto().step)} par palier de 5 min, ${bk('cadence stable', 'tapis à 1 % de pente')}. Toujours le même, pour que les courbes se comparent. Réglable en bas de page.`, `Your fixed protocol: start at ${fxu(proto().start)}, +${fxu(proto().step)} per 5 min step, ${bk('steady cadence', 'treadmill at 1% incline')}. Always the same, so your curves can be compared. You can change it at the bottom of the page.`)}</li>
+      <li>${T('Entre chaque palier, <b>30 s de pause</b> pour prélever le lactate (protocole recommandé par Marius Bakken), puis repars sur le palier suivant. Doigt sec, première goutte essuyée : la sueur contient du lactate.', 'Between steps, take a <b>30 s break</b> to sample lactate (the protocol Marius Bakken recommends), then start the next step. Dry finger, wipe the first drop: sweat contains lactate.')}</li>
+      <li>${T('Note FC de fin de palier, lactate et RPE.', 'Log end-of-step HR, lactate and RPE.')} ${bk(T('Les watts sont déjà remplis.', 'Watts are already filled in.'), T('Les vitesses sont déjà remplies.', 'Speeds are already filled in.'))}</li>
+      <li>${T('<b>Va jusque vers 4 mmol</b>, au moins 2 paliers après le premier saut. Sans ça, pas de LT2 fiable.', '<b>Go up to about 4 mmol</b>, at least 2 steps past the first jump. Without that, no reliable LT2.')}</li>
     </ol>
-    <p class="say">Comment je calcule</p>
-    <p><b>LT1</b> = le palier juste avant le premier saut d'au moins 0,4 mmol. Les lecteurs ont environ 0,2 à 0,3 mmol d'erreur, donc je vérifie que ça reste haut au palier suivant.</p>
-    <p><b>LT2</b> = méthode Dmax modifiée : je lisse ta courbe, je trace une droite de LT1 au dernier palier, et LT2 est le point de la courbe le plus éloigné de cette droite. Si ta courbe s'arrête sous 3,5 mmol, j'écris "à confirmer".</p>
-    <p>Tu peux toujours déplacer LT1 ou LT2 à la main en touchant la courbe.</p>
+    <p class="say">${T('Comment je calcule', 'How I calculate')}</p>
+    <p>${T('<b>LT1</b> = le palier juste avant le premier saut d\'au moins 0,4 mmol. Les lecteurs ont environ 0,2 à 0,3 mmol d\'erreur, donc je vérifie que ça reste haut au palier suivant.', '<b>LT1</b> = the step just before the first jump of at least 0.4 mmol. Meters have about 0.2 to 0.3 mmol of error, so I check that it stays high on the next step.')}</p>
+    <p>${T('<b>LT2</b> = méthode Dmax modifiée : je lisse ta courbe, je trace une droite de LT1 au dernier palier, et LT2 est le point de la courbe le plus éloigné de cette droite. Si ta courbe s\'arrête sous 3,5 mmol, j\'écris "à confirmer".', '<b>LT2</b> = modified Dmax method: I smooth your curve, draw a straight line from LT1 to the last step, and LT2 is the point on the curve farthest from that line. If your curve stops below 3.5 mmol, I write “to confirm”.')}</p>
+    <p>${T('Tu peux toujours déplacer LT1 ou LT2 à la main en touchant la courbe.', 'You can always move LT1 or LT2 by hand by tapping the curve.')}</p>
   </details>
   <details class="panel proto">
-    <summary><span><span class="t">Tes 5 zones</span><span class="s">L'échelle Olympiatoppen, calée sur ton test</span></span><span class="plus">+</span></summary>
-    <p class="say">Cinq zones, quatre frontières, toutes tirées de ton test.</p>
-    <p><b>I1</b> sous LT1 : endurance facile, lactate quasi au repos. La majorité du volume.<br><b>I2</b> de LT1 au bas de la Golden Zone : endurance moyenne.<br><b>I3</b> du bas de la Golden Zone à LT2 : le seuil, là où vivent les intervalles Bakken.<br><b>I4</b> de LT2 au point où ta courbe passe 6 mmol : au-dessus du seuil.<br><b>I5</b> au-delà de 6 mmol : VO2max. Si ton test s'arrête avant, je ne peux pas la placer.</p>
-    <p class="muted">Les plages en mmol (I1 0,7 à 1,5, I2 1,5 à 2,5, I3 2,5 à 4, I4 4 à 6, I5 6 à 10) sont les repères généraux d'Olympiatoppen. Tes frontières à toi viennent de ta courbe.</p>
-    <p class="muted">${bk('Home trainer et capteur route', 'Tapis et montre GPS')} peuvent différer de quelques %. Je note la source de chaque mesure pour que tu compares ce qui est comparable.</p>
+    <summary><span><span class="t">${T('Tes 5 zones', 'Your 5 zones')}</span><span class="s">${T('L\'échelle Olympiatoppen, calée sur ton test', 'The Olympiatoppen scale, set from your test')}</span></span><span class="plus">+</span></summary>
+    <p class="say">${T('Cinq zones, quatre frontières, toutes tirées de ton test.', 'Five zones, four boundaries, all taken from your test.')}</p>
+    <p>${T('<b>I1</b> sous LT1 : endurance facile, lactate quasi au repos. La majorité du volume.<br><b>I2</b> de LT1 au bas de la Golden Zone : endurance moyenne.<br><b>I3</b> du bas de la Golden Zone à LT2 : le seuil, là où vivent les intervalles Bakken.<br><b>I4</b> de LT2 au point où ta courbe passe 6 mmol : au-dessus du seuil.<br><b>I5</b> au-delà de 6 mmol : VO2max. Si ton test s\'arrête avant, je ne peux pas la placer.', "<b>I1</b> below LT1: easy endurance, lactate near resting. Most of your volume.<br><b>I2</b> from LT1 to the bottom of the Golden Zone: moderate endurance.<br><b>I3</b> from the bottom of the Golden Zone to LT2: threshold, where Bakken intervals live.<br><b>I4</b> from LT2 to where your curve passes 6 mmol: above threshold.<br><b>I5</b> beyond 6 mmol: VO2max. If your test stops before that, I can't place it.")}</p>
+    <p class="muted">${T('Les plages en mmol (I1 0,7 à 1,5, I2 1,5 à 2,5, I3 2,5 à 4, I4 4 à 6, I5 6 à 10) sont les repères généraux d\'Olympiatoppen. Tes frontières à toi viennent de ta courbe.', 'The mmol ranges (I1 0.7 to 1.5, I2 1.5 to 2.5, I3 2.5 to 4, I4 4 to 6, I5 6 to 10) are general Olympiatoppen references. Your own boundaries come from your curve.')}</p>
+    <p class="muted">${T(`${bk('Home trainer et capteur route', 'Tapis et montre GPS')} peuvent différer de quelques %. Je note la source de chaque mesure pour que tu compares ce qui est comparable.`, `${bk('Indoor trainer and road power meter', 'Treadmill and GPS watch')} can differ by a few %. I log the source of each measurement so you compare like with like.`)}</p>
   </details>
   <section class="panel" style="margin-top:14px">
-    <h3 class="hand" style="margin:0 0 10px">Réglages</h3>
-    <label class="field"><span>Comment je t'appelle ?</span><input class="inp" id="set-name" value="${esc(state.name)}" placeholder="Ton prénom" autocomplete="given-name"></label>
-    <button class="btn violet block" data-act="save-name">Enregistrer le prénom</button>
+    <h3 class="hand" style="margin:0 0 10px">${T('Réglages', 'Settings')}</h3>
+    <label class="field"><span>${T('Comment je t\'appelle ?', 'What should I call you?')}</span><input class="inp" id="set-name" value="${esc(state.name)}" placeholder="${T('Ton prénom', 'Your first name')}" autocomplete="given-name"></label>
+    <button class="btn violet block" data-act="save-name">${T('Enregistrer le prénom', 'Save name')}</button>
     <div style="height:14px"></div>
-    <p class="hand" style="margin:0 0 6px">Mes sports</p>
-    <p class="muted" style="font-size:13px;margin:0 0 8px">${(state.sports || ['bike']).map(k => SPORTS[k].label).join(' et ')}. Chaque sport a ses tests, ses zones et ses séances.</p>
-    <button class="btn block" data-act="edit-sports">Changer mes sports</button>
+    <p class="hand" style="margin:0 0 6px">${T('Mes sports', 'My sports')}</p>
+    <p class="muted" style="font-size:13px;margin:0 0 8px">${(state.sports || ['bike']).map(k => SPORTS[k].label).join(T(' et ', ' and '))}. ${T('Chaque sport a ses tests, ses zones et ses séances.', 'Each sport has its own tests, zones and sessions.')}</p>
+    <button class="btn block" data-act="edit-sports">${T('Changer mes sports', 'Change my sports')}</button>
     <div style="height:14px"></div>
     <p class="hand" style="margin:0 0 6px">Golden Zone (mmol)</p>
-    <div class="grid2"><label class="field"><span>De (mmol)</span><input class="inp" id="set-gz-lo" inputmode="decimal" value="${inVal(state.gz.lo)}"></label>
-    <label class="field"><span>À (mmol)</span><input class="inp" id="set-gz-hi" inputmode="decimal" value="${inVal(state.gz.hi)}"></label></div>
-    <p class="muted" style="font-size:13px;margin:-4px 0 10px">Par défaut 2,3 à 3,0 mmol (Marius Bakken).</p>
-    <button class="btn block" style="background:#FFC21A;color:#2A0A4A" data-act="save-gz">Enregistrer ma Golden Zone</button>
+    <div class="grid2"><label class="field"><span>${T('De (mmol)', 'From (mmol)')}</span><input class="inp" id="set-gz-lo" inputmode="decimal" value="${inVal(state.gz.lo)}"></label>
+    <label class="field"><span>${T('À (mmol)', 'To (mmol)')}</span><input class="inp" id="set-gz-hi" inputmode="decimal" value="${inVal(state.gz.hi)}"></label></div>
+    <p class="muted" style="font-size:13px;margin:-4px 0 10px">${T('Par défaut 2,3 à 3,0 mmol (Marius Bakken).', 'Default 2.3 to 3.0 mmol (Marius Bakken).')}</p>
+    <button class="btn block" style="background:#FFC21A;color:#2A0A4A" data-act="save-gz">${T('Enregistrer ma Golden Zone', 'Save my Golden Zone')}</button>
     <div style="height:14px"></div>
-    <p class="hand" style="margin:0 0 6px">Mon protocole paliers ${SP().label.toLowerCase()} (5 min + 30 s de pause)</p>
-    <div class="grid3"><label class="field"><span>Départ (${SP().u})</span><input class="inp" id="set-p-start" inputmode="${SP().im}" value="${inVal(proto().start)}"></label>
-    <label class="field"><span>+ par palier (${SP().u})</span><input class="inp" id="set-p-step" inputmode="${SP().im}" value="${inVal(proto().step)}"></label>
-    <label class="field"><span>Paliers max</span><input class="inp" id="set-p-n" inputmode="numeric" value="${proto().n}"></label></div>
-    <button class="btn violet block" data-act="save-proto">Enregistrer mon protocole</button>
+    <p class="hand" style="margin:0 0 6px">${T(`Mon protocole paliers ${SP().label.toLowerCase()} (5 min + 30 s de pause)`, `My ${SP().label.toLowerCase()} step test protocol (5 min + 30 s rest)`)}</p>
+    <div class="grid3"><label class="field"><span>${T(`Départ (${SP().u})`, `Start (${SP().u})`)}</span><input class="inp" id="set-p-start" inputmode="${SP().im}" value="${inVal(proto().start)}"></label>
+    <label class="field"><span>${T(`+ par palier (${SP().u})`, `+ per step (${SP().u})`)}</span><input class="inp" id="set-p-step" inputmode="${SP().im}" value="${inVal(proto().step)}"></label>
+    <label class="field"><span>${T('Paliers max', 'Max steps')}</span><input class="inp" id="set-p-n" inputmode="numeric" value="${proto().n}"></label></div>
+    <button class="btn violet block" data-act="save-proto">${T('Enregistrer mon protocole', 'Save my protocol')}</button>
     <div style="height:10px"></div>
-    <button class="btn block" data-act="export">Exporter toutes mes données (CSV)</button>
-    ${DEMO ? `<p class="muted" style="font-size:14px;margin:12px 0 0">Mode démo : les données restent sur cet appareil, avec des exemples pour jouer. Ajoute les clés Supabase dans config.js pour la synchro iPhone et ordi.</p>
-      <div style="height:10px"></div><button class="btn danger block" data-act="reset-demo">Vider la démo</button>`
-      : `<div style="height:10px"></div><button class="btn ghost block" data-act="logout">Me déconnecter${state.user && state.user.email ? ' (' + esc(state.user.email) + ')' : ''}</button>`}
+    <button class="btn block" data-act="export">${T('Exporter toutes mes données (CSV)', 'Export all my data (CSV)')}</button>
+    <div style="height:14px"></div>
+    <p class="hand" style="margin:0 0 6px">${T('Langue', 'Language')}</p>
+    ${langSwitch()}
+    <div style="height:14px"></div>
+    <div class="grid2">
+      <button class="btn rose" data-act="share-app">${T('Partager Globule', 'Share Globule')}</button>
+      <button class="btn jaune" data-act="a2hs">${T('Mettre sur l\'écran d\'accueil', 'Add to Home Screen')}</button>
+    </div>
+    ${DEMO ? `<p class="muted" style="font-size:14px;margin:12px 0 0">${T('Mode démo : les données restent sur cet appareil, avec des exemples pour jouer. Ajoute les clés Supabase dans config.js pour la synchro iPhone et ordi.', 'Demo mode: data stays on this device, with examples to play with. Add the Supabase keys in config.js to sync between iPhone and computer.')}</p>
+      <div style="height:10px"></div><button class="btn danger block" data-act="reset-demo">${T('Vider la démo', 'Clear the demo')}</button>`
+      : `<div style="height:10px"></div><button class="btn ghost block" data-act="logout">${T('Me déconnecter', 'Log out')}${state.user && state.user.email ? ' (' + esc(state.user.email) + ')' : ''}</button>`}
   </section>`;
 }
 
@@ -1100,7 +1202,7 @@ function openSheet(title, body, mount) {
   sheetRefresh = null;
   const tmp = document.createElement('div');
   tmp.innerHTML = `<div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(title)}"><div class="grab"></div>
-    <h3><span>${esc(title)}</span><button class="btn ghost x" data-act="close">Fermer</button></h3><div class="sheet-body">${body}</div></div>`;
+    <h3><span>${esc(title)}</span><button class="btn ghost x" data-act="close">${T('Fermer', 'Close')}</button></h3><div class="sheet-body">${body}</div></div>`;
   const sheet = tmp.firstElementChild;
   // La nouvelle feuille entre pendant que l'ancienne s'en va
   if (old) sheetOut(old);
@@ -1131,7 +1233,7 @@ function closeSheet() {
   bd.classList.add('leaving');
   later(() => bd.remove(), T_OUT + 40);
 }
-const segHTML = (name, val) => `<div class="seg" role="group" aria-label="Mesuré avec" data-seg="${name}">
+const segHTML = (name, val) => `<div class="seg" role="group" aria-label="${T('Mesuré avec', 'Measured with')}" data-seg="${name}">
   ${Object.entries(SP().sources).map(([k, l]) => `<button type="button" data-val="${k}" aria-pressed="${val === k}">${l}</button>`).join('')}</div>`;
 const segVal = (root, name) => { const b = $(`[data-seg="${name}"] [aria-pressed="true"]`, root); return b ? b.dataset.val : null; };
 function wireSeg(root) {
@@ -1151,22 +1253,22 @@ async function persist(table, id, row, msg, event, after) {
     if (typeof event === 'function') state.mascotEvent = event(before);
     closeSheet(); render(); toast(msg, true);
     if (typeof after === 'function' && saved && saved.id) after(saved);
-  } catch (e) { const er = $('.sheet:not(.leaving) .err'); if (er) er.textContent = 'Pas enregistré : ' + (e.message || 'erreur réseau') + '. Réessaie.'; }
+  } catch (e) { const er = $('.sheet:not(.leaving) .err'); if (er) er.textContent = T('Pas enregistré : ', 'Not saved: ') + (e.message || T('erreur réseau', 'network error')) + T('. Réessaie.', '. Try again.'); }
 }
 async function destroy(table, id, what) {
-  if (!confirm(`Supprimer ${what} ? C'est définitif.`)) return;
-  try { await Store().remove(table, id); await loadAll(); closeSheet(); render(); toast('Supprimé'); }
-  catch (e) { toast('Suppression impossible : ' + (e.message || 'erreur')); }
+  if (!confirm(T(`Supprimer ${what} ? C'est définitif.`, `Delete ${what}? This can't be undone.`))) return;
+  try { await Store().remove(table, id); await loadAll(); closeSheet(); render(); toast(T('Supprimé', 'Deleted')); }
+  catch (e) { toast(T('Suppression impossible : ', "Couldn't delete: ") + (e.message || T('erreur', 'error'))); }
 }
 
 /* Test paliers : saisie */
 function stepRow(s, i) {
   return `<div class="step-row"><span class="n">${i + 1}</span>
-    <input class="inp" data-k="w" inputmode="${SP().im}" placeholder="${SP().u}" value="${inVal(s.w)}" aria-label="${SP().Name} palier ${i + 1}">
-    <input class="inp" data-k="hr" inputmode="numeric" placeholder="FC" value="${inVal(s.hr)}" aria-label="FC palier ${i + 1}">
-    <input class="inp" data-k="la" inputmode="decimal" placeholder="mmol" value="${inVal(s.la)}" aria-label="Lactate palier ${i + 1}">
-    <input class="inp" data-k="rpe" inputmode="numeric" placeholder="RPE" value="${inVal(s.rpe)}" aria-label="RPE palier ${i + 1}">
-    <button class="del" type="button" data-act="del-row" aria-label="Supprimer le palier ${i + 1}">×</button></div>`;
+    <input class="inp" data-k="w" inputmode="${SP().im}" placeholder="${SP().u}" value="${inVal(s.w)}" aria-label="${T(`${SP().Name} palier ${i + 1}`, `${SP().Name} step ${i + 1}`)}">
+    <input class="inp" data-k="hr" inputmode="numeric" placeholder="${T('FC', 'HR')}" value="${inVal(s.hr)}" aria-label="${T(`FC palier ${i + 1}`, `HR step ${i + 1}`)}">
+    <input class="inp" data-k="la" inputmode="decimal" placeholder="mmol" value="${inVal(s.la)}" aria-label="${T(`Lactate palier ${i + 1}`, `Lactate step ${i + 1}`)}">
+    <input class="inp" data-k="rpe" inputmode="numeric" placeholder="RPE" value="${inVal(s.rpe)}" aria-label="${T(`RPE palier ${i + 1}`, `RPE step ${i + 1}`)}">
+    <button class="del" type="button" data-act="del-row" aria-label="${T(`Supprimer le palier ${i + 1}`, `Delete step ${i + 1}`)}">×</button></div>`;
 }
 function validProto(p, k) {
   const L = SP(k).lim;
@@ -1193,24 +1295,24 @@ function stepForm(test) {
   const t = test || { date: todayISO(), source: lastSource(), data: { baseline: null, steps: [] }, note: '', lt1_manual: null };
   const P = proto();
   const rows = (t.data.steps && t.data.steps.length) ? t.data.steps : Array.from({ length: P.n }, (_, i) => ({ w: rnd(P.start + i * P.step) }));
-  openSheet(test ? 'Modifier le test paliers' : 'Nouveau test paliers', `
-    <div class="grid2"><label class="field"><span>Date</span><input class="inp" type="date" id="f-date" value="${t.date}"></label>
-    <label class="field"><span>Lactate de repos</span><input class="inp" id="f-base" inputmode="decimal" placeholder="optionnel" value="${inVal(t.data.baseline)}"></label></div>
+  openSheet(test ? T('Modifier le test paliers', 'Edit step test') : T('Nouveau test paliers', 'New step test'), `
+    <div class="grid2"><label class="field"><span>${T('Date', 'Date')}</span><input class="inp" type="date" id="f-date" value="${t.date}"></label>
+    <label class="field"><span>${T('Lactate de repos', 'Resting lactate')}</span><input class="inp" id="f-base" inputmode="decimal" placeholder="${T('optionnel', 'optional')}" value="${inVal(t.data.baseline)}"></label></div>
     <div class="field"><span class="muted" style="font-size:13px;font-weight:600">${SP().measured}</span>${segHTML('src', t.source)}</div>
-    ${test ? '' : `<p class="proto-line">Ton protocole : départ <b>${fxu(P.start)}</b>, <b>+${fxu(P.step)}</b>, paliers de 5 min${bk('', ' (tapis à 1 % de pente)')} avec <b>30 s de pause</b> entre chaque pour prélever le lactate, ${P.n} paliers. Remplis FC, lactate et RPE au fil du test ; les paliers vides ne sont pas enregistrés.</p>`}
-    <div class="steps-head"><span></span><span>${SP().col}</span><span>FC</span><span>Lactate</span><span>RPE</span><span></span></div>
+    ${test ? '' : `<p class="proto-line">${T(`Ton protocole : départ <b>${fxu(P.start)}</b>, <b>+${fxu(P.step)}</b>, paliers de 5 min${bk('', ' (tapis à 1 % de pente)')} avec <b>30 s de pause</b> entre chaque pour prélever le lactate, ${P.n} paliers. Remplis FC, lactate et RPE au fil du test ; les paliers vides ne sont pas enregistrés.`, `Your protocol: start at <b>${fxu(P.start)}</b>, <b>+${fxu(P.step)}</b> per step, 5 min steps${bk('', ' (treadmill at 1% incline)')} with a <b>30 s break</b> between each to take your lactate, ${P.n} steps. Fill in HR, lactate and RPE as you go; empty steps aren't saved.`)}</p>`}
+    <div class="steps-head"><span></span><span>${SP().col}</span><span>${T('FC', 'HR')}</span><span>${T('Lactate', 'Lactate')}</span><span>RPE</span><span></span></div>
     <div id="rows">${rows.map(stepRow).join('')}</div>
-    <button class="btn block" type="button" data-act="add-row">+ Ajouter un palier</button>
+    <button class="btn block" type="button" data-act="add-row">${T('+ Ajouter un palier', '+ Add a step')}</button>
     <div class="result" id="preview"></div>
-    <label class="field"><span>Note</span><textarea class="inp" id="f-note" placeholder="Forme du jour, conditions, capteur...">${esc(t.note)}</textarea></label>
+    <label class="field"><span>${T('Note', 'Note')}</span><textarea class="inp" id="f-note" placeholder="${T('Forme du jour, conditions, capteur...', 'How you felt, conditions, sensor...')}">${esc(t.note)}</textarea></label>
     <p class="err" role="alert"></p>
-    <button class="btn rose block" data-act="save-steps">Enregistrer le test</button>`, root => {
+    <button class="btn rose block" data-act="save-steps">${T('Enregistrer le test', 'Save test')}</button>`, root => {
     wireSeg(root);
     const upd = () => {
       const a = analyzeSteps({ data: { steps: readSteps(root) } });
-      $('#preview', root).innerHTML = a.steps.length < 3 ? liveStepChart(a) + '<span class="hand">Remplis au moins 3 paliers et je cherche tes seuils.</span>'
-        : liveStepChart(a) + `<div class="kv"><div><b>${a.autoW != null ? fx(a.autoW) : '?'}</b><span>LT1 auto (${SP().u})</span></div><div><b>${a.lt2Auto != null ? fx(a.lt2Auto) : '?'}</b><span>LT2 auto (${SP().u})</span></div><div><b>${fmt(a.maxLa, 1)}</b><span>mmol max</span></div></div>
-          <p class="hand" style="margin:8px 0 0">${a.autoW == null ? 'Pas encore de saut de 0,4 mmol. Continue.' : a.lt2Auto == null ? 'LT1 trouvé. Encore 2 paliers pour LT2.' : a.maxLa < 3.5 ? 'Encore un palier ou deux : vise 4 mmol.' : 'Les deux seuils sont là. Tu peux arrêter.'}</p>`;
+      $('#preview', root).innerHTML = a.steps.length < 3 ? liveStepChart(a) + '<span class="hand">' + T('Remplis au moins 3 paliers et je cherche tes seuils.', "Fill in at least 3 steps and I'll find your thresholds.") + '</span>'
+        : liveStepChart(a) + `<div class="kv"><div><b>${a.autoW != null ? fx(a.autoW) : '?'}</b><span>${T('LT1 auto', 'LT1 auto')} (${SP().u})</span></div><div><b>${a.lt2Auto != null ? fx(a.lt2Auto) : '?'}</b><span>${T('LT2 auto', 'LT2 auto')} (${SP().u})</span></div><div><b>${fmt(a.maxLa, 1)}</b><span>${T('mmol max', 'mmol max')}</span></div></div>
+          <p class="hand" style="margin:8px 0 0">${a.autoW == null ? T('Pas encore de saut de 0,4 mmol. Continue.', 'No 0.4 mmol jump yet. Keep going.') : a.lt2Auto == null ? T('LT1 trouvé. Encore 2 paliers pour LT2.', 'LT1 found. 2 more steps for LT2.') : a.maxLa < 3.5 ? T('Encore un palier ou deux : vise 4 mmol.', 'One or two more steps: aim for 4 mmol.') : T('Les deux seuils sont là. Tu peux arrêter.', 'Both thresholds are in. You can stop.')}</p>`;
     };
     root.addEventListener('input', upd); upd();
     sheetRefresh = upd;
@@ -1220,8 +1322,8 @@ function stepForm(test) {
 function saveSteps(root) {
   const steps = readSteps(root);
   const valid = steps.filter(s => s.w != null && s.la != null);
-  if (valid.length < 3) { $('.err', root).textContent = `Il faut au moins 3 paliers avec ${SP().name} et lactate.`; return; }
-  if (steps.some(s => s.la != null && (s.la < 0.3 || s.la > 25))) { $('.err', root).textContent = 'Un lactate semble faux (entre 0,3 et 25 mmol attendu). Vérifie la virgule.'; return; }
+  if (valid.length < 3) { $('.err', root).textContent = T(`Il faut au moins 3 paliers avec ${SP().name} et lactate.`, `You need at least 3 steps with ${SP().name} and lactate.`); return; }
+  if (steps.some(s => s.la != null && (s.la < 0.3 || s.la > 25))) { $('.err', root).textContent = T('Un lactate semble faux (entre 0,3 et 25 mmol attendu). Vérifie la virgule.', 'A lactate value looks wrong (expected between 0.3 and 25 mmol). Check the decimal point.'); return; }
   const id = root.dataset.id || null;
   const old = id ? state.tests.find(t => t.id === id) : null;
   persist('tests', id, {
@@ -1229,7 +1331,7 @@ function saveSteps(root) {
     data: { baseline: num($('#f-base', root).value), steps }, note: $('#f-note', root).value.trim() || null,
     lt1_manual: old && old.lt1_manual != null && valid.some(s => s.w === num(old.lt1_manual)) ? old.lt1_manual : null,
     lt2_manual: old && old.lt2_manual != null ? old.lt2_manual : null
-  }, 'Test enregistré', before => { const now = bestMarks(); return beats(now.lt1, before.lt1) || beats(now.lt2, before.lt2) ? 'record' : null; },
+  }, T('Test enregistré', 'Test saved'), before => { const now = bestMarks(); return beats(now.lt1, before.lt1) || beats(now.lt2, before.lt2) ? 'record' : null; },
   saved => { state.pick = 'lt1'; stepDetail(saved.id); });
 }
 
@@ -1252,8 +1354,8 @@ function liveStepChart(a) {
   const vlines = [];
   if (a.lt1W != null) vlines.push({ x: a.lt1W, color: '#13B98A', label: 'LT1' });
   if (a.lt2W != null) vlines.push({ x: a.lt2W, color: '#C2006A', label: 'LT2' });
-  return `<p class="hand" style="margin:0 0 4px">Ta courbe en direct</p>` + chartSVG({ xRange: [Math.min(...ws), Math.max(...ws)], yRange: [0, Math.max(4, gzTop() + .5, ...las)], y2Range: hrs.length > 1 ? [Math.min(...hrs) - 5, Math.max(...hrs) + 5] : null,
-    xTitle: SP().name, yTitle: 'mmol/L', y2Title: hrs.length > 1 ? 'FC' : '', h: 200, series, vlines, hbands: gzBands() });
+  return `<p class="hand" style="margin:0 0 4px">${T('Ta courbe en direct', 'Your live curve')}</p>` + chartSVG({ xRange: [Math.min(...ws), Math.max(...ws)], yRange: [0, Math.max(4, gzTop() + .5, ...las)], y2Range: hrs.length > 1 ? [Math.min(...hrs) - 5, Math.max(...hrs) + 5] : null,
+    xTitle: SP().name, yTitle: 'mmol/L', y2Title: hrs.length > 1 ? T('FC', 'HR') : '', h: 200, series, vlines, hbands: gzBands() });
 }
 function stepDetail(id) {
   const t = state.tests.find(x => x.id === id); if (!t) return;
@@ -1273,84 +1375,84 @@ function stepDetail(id) {
   if (a.manualW != null && a.autoW != null && a.autoW !== a.manualW) vlines.push({ x: a.autoW, color: '#9A88B8', dash: '4 4' });
   if (a.lt2Manual != null && a.lt2Auto != null && a.lt2Auto !== a.lt2Manual) vlines.push({ x: a.lt2Auto, color: '#9A88B8', dash: '4 4' });
   const chart = a.steps.length > 1 ? chartSVG({ xRange: [Math.min(...ws), Math.max(...ws)], yRange: [0, Math.max(4, gzTop() + .5, ...las)], y2Range: hrs.length > 1 ? [Math.min(...hrs) - 5, Math.max(...hrs) + 5] : null,
-    xTitle: SP().name, yTitle: 'mmol/L', y2Title: hrs.length > 1 ? 'FC' : '', h: 230, series, vlines, hbands: gzBands(),
-    extra: (sx, sy) => a.steps.map(s => `<circle cx="${sx(s.w)}" cy="${sy(s.la)}" r="18" fill="transparent" data-act="set-thr" data-id="${t.id}" data-w="${s.w}" style="cursor:pointer"><title>Choisir ${fxu(s.w)} comme ${pick.toUpperCase()}</title></circle>`).join('') }) : '';
+    xTitle: SP().name, yTitle: 'mmol/L', y2Title: hrs.length > 1 ? T('FC', 'HR') : '', h: 230, series, vlines, hbands: gzBands(),
+    extra: (sx, sy) => a.steps.map(s => `<circle cx="${sx(s.w)}" cy="${sy(s.la)}" r="18" fill="transparent" data-act="set-thr" data-id="${t.id}" data-w="${s.w}" style="cursor:pointer"><title>${T(`Choisir ${fxu(s.w)} comme ${pick.toUpperCase()}`, `Set ${fxu(s.w)} as ${pick.toUpperCase()}`)}</title></circle>`).join('') }) : '';
   const m1 = {
-    confirmed: a.auto ? `LT1 : saut de ${fmt(a.steps[a.auto.jumpIdx].la - a.steps[a.auto.idx].la, 1)} mmol entre ${fx(a.steps[a.auto.idx].w)} et ${fxu(a.steps[a.auto.jumpIdx].w)}, confirmé au palier suivant.` : '',
-    toconfirm: 'LT1 : saut détecté mais pas confirmé. Regarde la courbe et tranche.',
-    manual: `LT1 choisi à la main. L'auto disait ${a.autoW != null ? fxu(a.autoW) : 'rien'}.`,
-    none: 'LT1 : aucun saut de 0,4 mmol. La prochaine fois, pousse plus loin.'
+    confirmed: a.auto ? T(`LT1 : saut de ${fmt(a.steps[a.auto.jumpIdx].la - a.steps[a.auto.idx].la, 1)} mmol entre ${fx(a.steps[a.auto.idx].w)} et ${fxu(a.steps[a.auto.jumpIdx].w)}, confirmé au palier suivant.`, `LT1: ${fmt(a.steps[a.auto.jumpIdx].la - a.steps[a.auto.idx].la, 1)} mmol jump between ${fx(a.steps[a.auto.idx].w)} and ${fxu(a.steps[a.auto.jumpIdx].w)}, confirmed at the next step.`) : '',
+    toconfirm: T('LT1 : saut détecté mais pas confirmé. Regarde la courbe et tranche.', 'LT1: jump found but not confirmed. Look at the curve and decide.'),
+    manual: T(`LT1 choisi à la main. L'auto disait ${a.autoW != null ? fxu(a.autoW) : 'rien'}.`, `LT1 set by hand. Auto said ${a.autoW != null ? fxu(a.autoW) : 'nothing'}.`),
+    none: T('LT1 : aucun saut de 0,4 mmol. La prochaine fois, pousse plus loin.', 'LT1: no 0.4 mmol jump. Next time, push further.')
   }[a.status];
   const m2 = {
-    auto: `LT2 par Dmax modifiée : ${fxu(a.lt2W)}.`,
-    short: `LT2 à confirmer : la courbe s'arrête à ${fmt(a.maxLa, 1)} mmol. Vise 4 mmol au prochain test.`,
-    manual: `LT2 choisi à la main. L'auto disait ${a.lt2Auto != null ? fxu(a.lt2Auto) : 'rien'}.`,
-    none: 'LT2 : pas assez de paliers après LT1. Il en faut au moins 2 de plus, idéalement jusqu\'à 4 mmol.'
+    auto: T(`LT2 par Dmax modifiée : ${fxu(a.lt2W)}.`, `LT2 by modified Dmax: ${fxu(a.lt2W)}.`),
+    short: T(`LT2 à confirmer : la courbe s'arrête à ${fmt(a.maxLa, 1)} mmol. Vise 4 mmol au prochain test.`, `LT2 to confirm: the curve stops at ${fmt(a.maxLa, 1)} mmol. Aim for 4 mmol next test.`),
+    manual: T(`LT2 choisi à la main. L'auto disait ${a.lt2Auto != null ? fxu(a.lt2Auto) : 'rien'}.`, `LT2 set by hand. Auto said ${a.lt2Auto != null ? fxu(a.lt2Auto) : 'nothing'}.`),
+    none: T('LT2 : pas assez de paliers après LT1. Il en faut au moins 2 de plus, idéalement jusqu\'à 4 mmol.', 'LT2: not enough steps after LT1. You need at least 2 more, ideally up to 4 mmol.')
   }[a.lt2Status];
-  const box = (w, hr, lab) => `<div><b>${w != null ? fx(w) : 'n.d.'}</b><span>${lab}${hr != null ? ', FC ' + fmt(hr) : ''}</span></div>`;
-  openSheet(`Test paliers du ${fdate(t.date)}`, `
+  const box = (w, hr, lab) => `<div><b>${w != null ? fx(w) : T('n.d.', 'n/a')}</b><span>${lab}${hr != null ? T(', FC ', ', HR ') + fmt(hr) : ''}</span></div>`;
+  openSheet(T(`Test paliers du ${fdate(t.date)}`, `Step test, ${fdate(t.date)}`), `
     ${chart}
-    ${pa ? `<div class="legend"><span><i style="background:#FF2D8E"></i>ce test</span><span><i style="background:#9A88B8"></i>test du ${fdate(prev.date)}</span>${hrs.length > 1 ? '<span><i style="background:#6A2BF0"></i>FC</span>' : ''}</div>` : ''}
-    <div class="field" style="margin-top:10px"><span class="muted" style="font-size:13px;font-weight:600">Touche un point de la courbe pour régler</span>
-      <div class="seg" role="group" aria-label="Seuil à régler"><button type="button" data-act="pick" data-id="${t.id}" data-mode="lt1" aria-pressed="${pick === 'lt1'}">LT1</button><button type="button" data-act="pick" data-id="${t.id}" data-mode="lt2" aria-pressed="${pick === 'lt2'}">LT2</button></div></div>
-    <div class="kv">${box(a.lt1W, a.lt1Hr, `LT1 (${SP().u})`)}${box(a.lt2W, a.lt2Hr, `LT2 (${SP().u})`)}<div><b>${a.maxLa != null ? fmt(a.maxLa, 1) : 'n.d.'}</b><span>mmol max</span></div></div>
+    ${pa ? `<div class="legend"><span><i style="background:#FF2D8E"></i>${T('ce test', 'this test')}</span><span><i style="background:#9A88B8"></i>${T(`test du ${fdate(prev.date)}`, `test on ${fdate(prev.date)}`)}</span>${hrs.length > 1 ? '<span><i style="background:#6A2BF0"></i>' + T('FC', 'HR') + '</span>' : ''}</div>` : ''}
+    <div class="field" style="margin-top:10px"><span class="muted" style="font-size:13px;font-weight:600">${T('Touche un point de la courbe pour régler', 'Tap a point on the curve to set it')}</span>
+      <div class="seg" role="group" aria-label="${T('Seuil à régler', 'Threshold to set')}"><button type="button" data-act="pick" data-id="${t.id}" data-mode="lt1" aria-pressed="${pick === 'lt1'}">LT1</button><button type="button" data-act="pick" data-id="${t.id}" data-mode="lt2" aria-pressed="${pick === 'lt2'}">LT2</button></div></div>
+    <div class="kv">${box(a.lt1W, a.lt1Hr, `LT1 (${SP().u})`)}${box(a.lt2W, a.lt2Hr, `LT2 (${SP().u})`)}<div><b>${a.maxLa != null ? fmt(a.maxLa, 1) : T('n.d.', 'n/a')}</b><span>${T('mmol max', 'mmol max')}</span></div></div>
     <div class="result"><span class="hand">${m1}<br>${m2}</span></div>
-    ${(G => G ? `<div class="result gz-result" style="margin-top:0">★ <b>Ta Golden Zone sur ce test : ${fx(G.wLo)} à ${fxu(G.wHi)}</b>${G.hrLo != null && G.hrHi != null ? `, FC ${fmt(G.hrLo)} à ${fmt(G.hrHi)}` : ''} (${fmt(state.gz.lo, 1)} à ${fmt(state.gz.hi, 1)} mmol).</div>` : '')(testGZ(a))}
-    ${a.steps.length ? (matchesProto(a.steps, proto()) ? '<p class="chip" style="display:inline-block;margin:0 0 12px">Protocole standard</p>' : `<p class="warn" style="margin:0 0 12px">Hors protocole (départ ${fxu(a.steps[0].w)}) : à comparer avec prudence aux autres tests.</p>`) : ''}
-    ${a.manualW != null ? `<button class="btn block" data-act="reset-thr" data-field="lt1_manual" data-id="${t.id}">LT1 automatique</button><div style="height:10px"></div>` : ''}
-    ${a.lt2Manual != null ? `<button class="btn block" data-act="reset-thr" data-field="lt2_manual" data-id="${t.id}">LT2 automatique</button><div style="height:10px"></div>` : ''}
+    ${(G => G ? `<div class="result gz-result" style="margin-top:0">★ ${T(`<b>Ta Golden Zone sur ce test : ${fx(G.wLo)} à ${fxu(G.wHi)}</b>${G.hrLo != null && G.hrHi != null ? `, FC ${fmt(G.hrLo)} à ${fmt(G.hrHi)}` : ''} (${fmt(state.gz.lo, 1)} à ${fmt(state.gz.hi, 1)} mmol).`, `<b>Your Golden Zone on this test: ${fx(G.wLo)} to ${fxu(G.wHi)}</b>${G.hrLo != null && G.hrHi != null ? `, HR ${fmt(G.hrLo)} to ${fmt(G.hrHi)}` : ''} (${fmt(state.gz.lo, 1)} to ${fmt(state.gz.hi, 1)} mmol).`)}</div>` : '')(testGZ(a))}
+    ${a.steps.length ? (matchesProto(a.steps, proto()) ? '<p class="chip" style="display:inline-block;margin:0 0 12px">' + T('Protocole standard', 'Standard protocol') + '</p>' : `<p class="warn" style="margin:0 0 12px">${T(`Hors protocole (départ ${fxu(a.steps[0].w)}) : à comparer avec prudence aux autres tests.`, `Off protocol (start at ${fxu(a.steps[0].w)}): compare with other tests carefully.`)}</p>`) : ''}
+    ${a.manualW != null ? `<button class="btn block" data-act="reset-thr" data-field="lt1_manual" data-id="${t.id}">${T('LT1 automatique', 'Automatic LT1')}</button><div style="height:10px"></div>` : ''}
+    ${a.lt2Manual != null ? `<button class="btn block" data-act="reset-thr" data-field="lt2_manual" data-id="${t.id}">${T('LT2 automatique', 'Automatic LT2')}</button><div style="height:10px"></div>` : ''}
     <div class="list" style="box-shadow:none">${a.steps.map((s, i) => `<div class="item" style="cursor:default"><span class="badge" style="background:${s.w === a.lt1W ? 'var(--menthe)' : 'var(--surface-2)'}">${i + 1}</span>
-      <span class="main"><strong>${fxu(s.w)}${isRun() ? ` <small style="font-weight:500">${paceRaw(s.w)} /km</small>` : ''}</strong><span>${s.hr != null ? 'FC ' + fmt(s.hr) : ''}${s.rpe != null ? (s.hr != null ? ', ' : '') + 'RPE ' + fmt(s.rpe) : ''}</span></span><span class="num">${fmt(s.la, 1)} mmol</span></div>`).join('')}</div>
-    ${num(t.data.baseline) != null ? `<p class="muted" style="font-size:14px">Repos : ${fmt(num(t.data.baseline), 1)} mmol.</p>` : ''}
-    ${t.source ? `<p class="muted" style="font-size:14px">Mesuré avec : ${SOURCES[t.source]}.</p>` : ''}
+      <span class="main"><strong>${fxu(s.w)}${isRun() ? ` <small style="font-weight:500">${paceRaw(s.w)} /km</small>` : ''}</strong><span>${s.hr != null ? T('FC ', 'HR ') + fmt(s.hr) : ''}${s.rpe != null ? (s.hr != null ? ', ' : '') + 'RPE ' + fmt(s.rpe) : ''}</span></span><span class="num">${fmt(s.la, 1)} mmol</span></div>`).join('')}</div>
+    ${num(t.data.baseline) != null ? `<p class="muted" style="font-size:14px">${T(`Repos : ${fmt(num(t.data.baseline), 1)} mmol.`, `Resting: ${fmt(num(t.data.baseline), 1)} mmol.`)}</p>` : ''}
+    ${t.source ? `<p class="muted" style="font-size:14px">${T(`Mesuré avec : ${SOURCES[t.source]}.`, `Measured with: ${SOURCES[t.source]}.`)}</p>` : ''}
     ${t.note ? `<p style="font-size:15px">${esc(t.note)}</p>` : ''}
-    <div class="row-btns"><button class="btn violet" data-act="edit-steps" data-id="${t.id}">Modifier</button><button class="btn danger" data-act="del-test" data-id="${t.id}">Supprimer</button></div>`);
+    <div class="row-btns"><button class="btn violet" data-act="edit-steps" data-id="${t.id}">${T('Modifier', 'Edit')}</button><button class="btn danger" data-act="del-test" data-id="${t.id}">${T('Supprimer', 'Delete')}</button></div>`);
 }
 async function setThr(id, field, w) {
   try {
     await Store().update('tests', id, { [field]: w }); await loadAll(); render(); stepDetail(id);
     const lab = field === 'lt2_manual' ? 'LT2' : 'LT1';
-    toast(w == null ? `${lab} automatique` : `${lab} fixé à ${fxu(w)}`);
-  } catch (e) { toast('Pas enregistré : ' + (e.message || 'erreur')); }
+    toast(w == null ? T(`${lab} automatique`, `Automatic ${lab}`) : T(`${lab} fixé à ${fxu(w)}`, `${lab} set to ${fxu(w)}`));
+  } catch (e) { toast(T('Pas enregistré : ', 'Not saved: ') + (e.message || T('erreur', 'error'))); }
 }
 
 /* Séance */
 function sessionForm(s, kind) {
   const x = s || { date: todayISO(), kind: kind || 'Endurance', source: lastSource() };
   const Z = currentZones();
-  openSheet(s ? 'Modifier la séance' : 'Nouvelle séance', `
-    <div class="grid2"><label class="field"><span>Date</span><input class="inp" type="date" id="f-date" value="${x.date}"></label>
-    <label class="field"><span>Type</span><select class="inp" id="f-kind">${(SESSION_KINDS.includes(x.kind) ? SESSION_KINDS : [...SESSION_KINDS, x.kind]).map(k => `<option ${k === x.kind ? 'selected' : ''}>${k}</option>`).join('')}</select></label></div>
-    <div class="grid3"><label class="field"><span>Durée (min)</span><input class="inp" id="f-dur" inputmode="numeric" value="${inVal(x.duration_min)}"></label>
-    <label class="field"><span>${SP().Name} moy.</span><input class="inp" id="f-w" inputmode="${SP().im}" value="${inVal(x.watts)}"></label>
-    <label class="field"><span>FC moy.</span><input class="inp" id="f-hr" inputmode="numeric" value="${inVal(x.hr)}"></label></div>
-    <label class="field"><span>Lactate (mmol)</span><input class="inp" id="f-la" inputmode="decimal" value="${inVal(x.lactate)}"></label>
-    <div class="field"><span class="muted" style="font-size:13px;font-weight:600">RPE</span><div class="rpe" role="group" aria-label="RPE de 1 à 10">${[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => `<button type="button" data-val="${n}" aria-pressed="${num(x.rpe) === n}">${n}</button>`).join('')}</div></div>
+  openSheet(s ? T('Modifier la séance', 'Edit session') : T('Nouvelle séance', 'New session'), `
+    <div class="grid2"><label class="field"><span>${T('Date', 'Date')}</span><input class="inp" type="date" id="f-date" value="${x.date}"></label>
+    <label class="field"><span>${T('Type', 'Type')}</span><select class="inp" id="f-kind">${(SESSION_KINDS.includes(x.kind) ? SESSION_KINDS : [...SESSION_KINDS, x.kind]).map(k => `<option value="${esc(k)}" ${k === x.kind ? 'selected' : ''}>${esc(kindLabel(k))}</option>`).join('')}</select></label></div>
+    <div class="grid3"><label class="field"><span>${T('Durée (min)', 'Duration (min)')}</span><input class="inp" id="f-dur" inputmode="numeric" value="${inVal(x.duration_min)}"></label>
+    <label class="field"><span>${T(`${SP().Name} moy.`, `Avg ${SP().name}`)}</span><input class="inp" id="f-w" inputmode="${SP().im}" value="${inVal(x.watts)}"></label>
+    <label class="field"><span>${T('FC moy.', 'Avg HR')}</span><input class="inp" id="f-hr" inputmode="numeric" value="${inVal(x.hr)}"></label></div>
+    <label class="field"><span>${T('Lactate (mmol)', 'Lactate (mmol)')}</span><input class="inp" id="f-la" inputmode="decimal" value="${inVal(x.lactate)}"></label>
+    <div class="field"><span class="muted" style="font-size:13px;font-weight:600">RPE</span><div class="rpe" role="group" aria-label="${T('RPE de 1 à 10', 'RPE from 1 to 10')}">${[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => `<button type="button" data-val="${n}" aria-pressed="${num(x.rpe) === n}">${n}</button>`).join('')}</div></div>
     <div class="field"><span class="muted" style="font-size:13px;font-weight:600">${SP().measured}</span>${segHTML('src', x.source)}</div>
     <div id="preview"></div>
-    <label class="field"><span>Note</span><textarea class="inp" id="f-note" placeholder="Contenu de la séance, sensations...">${esc(x.note)}</textarea></label>
+    <label class="field"><span>${T('Note', 'Note')}</span><textarea class="inp" id="f-note" placeholder="${T('Contenu de la séance, sensations...', 'What you did, how it felt...')}">${esc(x.note)}</textarea></label>
     <p class="err" role="alert"></p>
-    <button class="btn rose block" data-act="save-session">Enregistrer la séance</button>
-    ${s ? `<div style="height:10px"></div><button class="btn danger block" data-act="del-session" data-id="${s.id}">Supprimer</button>` : ''}`, root => {
+    <button class="btn rose block" data-act="save-session">${T('Enregistrer la séance', 'Save session')}</button>
+    ${s ? `<div style="height:10px"></div><button class="btn danger block" data-act="del-session" data-id="${s.id}">${T('Supprimer', 'Delete')}</button>` : ''}`, root => {
     wireSeg(root);
     root.dataset.id = s ? s.id : '';
     const upd = () => {
       const w = num($('#f-w', root).value), la = num($('#f-la', root).value), z = zoneOf(w, Z);
       let h = '';
       if (z) h = `<div class="result" style="margin-top:0"><span class="zdot" style="display:inline-grid;width:28px;height:28px;font-size:12px;background:${ZCOL[z]};vertical-align:middle;margin-right:8px">I${z}</span><b>${fxu(w)} = I${z}</b>, ${ZONES[z - 1].name.toLowerCase()}`;
-      if (z === 1 && la != null && Z.s && Z.s.lt1La != null && la > Z.s.lt1La + 0.3) h += `<br><span class="hand">Lactate au-dessus de ton LT1 (${fmt(Z.s.lt1La, 1)} mmol) pour de l'I1. Fatigue, chaleur, ou zones à revoir ?</span>`;
+      if (z === 1 && la != null && Z.s && Z.s.lt1La != null && la > Z.s.lt1La + 0.3) h += `<br><span class="hand">${T(`Lactate au-dessus de ton LT1 (${fmt(Z.s.lt1La, 1)} mmol) pour de l'I1. Fatigue, chaleur, ou zones à revoir ?`, `Lactate above your LT1 (${fmt(Z.s.lt1La, 1)} mmol) for I1. Fatigue, heat, or zones to update?`)}</span>`;
       const kind = $('#f-kind', root).value, G = goldenZone(Z), band = GZ_KINDS.includes(kind);
       let gz = '';
       if (band && la != null) {
         const r = state.gz, nm = 'Golden Zone';
-        gz = la > r.hi ? `<b>${fmt(la - r.hi, 1)} mmol au-dessus de ta ${nm}.</b> Baisse un peu ${SP().les} au prochain intervalle : on reste sous ton 2e seuil (LT2).`
-          : la < r.lo ? `Sous ta ${nm} (${fmt(r.lo, 1)} à ${fmt(r.hi, 1)} mmol). Tu peux monter légèrement.`
-          : `<b>Pile dans ta ${nm}.</b> Globule approuve.`;
+        gz = la > r.hi ? T(`<b>${fmt(la - r.hi, 1)} mmol au-dessus de ta ${nm}.</b> Baisse un peu ${SP().les} au prochain intervalle : on reste sous ton 2e seuil (LT2).`, `<b>${fmt(la - r.hi, 1)} mmol above your ${nm}.</b> Ease off ${SP().les} a little on the next interval: we stay under your 2nd threshold (LT2).`)
+          : la < r.lo ? T(`Sous ta ${nm} (${fmt(r.lo, 1)} à ${fmt(r.hi, 1)} mmol). Tu peux monter légèrement.`, `Below your ${nm} (${fmt(r.lo, 1)} to ${fmt(r.hi, 1)} mmol). You can push a little harder.`)
+          : T(`<b>Pile dans ta ${nm}.</b> Globule approuve.`, `<b>Right in your ${nm}.</b> Globule approves.`);
       } else if (GZ_QUALITY.includes(kind) && la != null) {
         const g = gzStatus({ kind, lactate: la });
-        gz = g ? 'Ce lactate tombe dans ta <b>Golden Zone</b>.' : la > gzTop() ? 'Au-dessus de ta Golden Zone : séance plus dure que du sous-seuil.' : '';
+        gz = g ? T('Ce lactate tombe dans ta <b>Golden Zone</b>.', 'This lactate lands in your <b>Golden Zone</b>.') : la > gzTop() ? T('Au-dessus de ta Golden Zone : séance plus dure que du sous-seuil.', 'Above your Golden Zone: a harder session than sub-threshold.') : '';
       } else if (band && w != null && G.wLo != null) {
-        gz = w > G.wHi ? `${SP().Name} au-dessus de ta Golden Zone (${fx(G.wLo)} à ${fxu(G.wHi)}). Vérifie au lactate.` : w < G.wLo ? `${SP().Name} sous ta Golden Zone.` : `${SP().Name} dans ta Golden Zone.`;
+        gz = w > G.wHi ? T(`${SP().Name} au-dessus de ta Golden Zone (${fx(G.wLo)} à ${fxu(G.wHi)}). Vérifie au lactate.`, `${SP().Name} above your Golden Zone (${fx(G.wLo)} to ${fxu(G.wHi)}). Check with lactate.`) : w < G.wLo ? T(`${SP().Name} sous ta Golden Zone.`, `${SP().Name} below your Golden Zone.`) : T(`${SP().Name} dans ta Golden Zone.`, `${SP().Name} in your Golden Zone.`);
       }
       $('#preview', root).innerHTML = (z ? h + '</div>' : '') + (gz ? `<div class="result gz-result" style="margin-top:${z ? 0 : 0}px">${gz}</div>` : '');
     };
@@ -1359,14 +1461,14 @@ function sessionForm(s, kind) {
 }
 function saveSession(root) {
   const la = num($('#f-la', root).value);
-  if (la != null && (la < 0.3 || la > 25)) { $('.err', root).textContent = 'Lactate entre 0,3 et 25 mmol attendu. Vérifie la virgule.'; return; }
+  if (la != null && (la < 0.3 || la > 25)) { $('.err', root).textContent = T('Lactate entre 0,3 et 25 mmol attendu. Vérifie la virgule.', 'Expected lactate between 0.3 and 25 mmol. Check the decimal point.'); return; }
   const rpeB = $('.rpe [aria-pressed="true"]', root);
   const int = v => { const n = num(v); return n == null ? null : Math.round(n); };
   persist('sessions', root.dataset.id || null, {
     date: $('#f-date', root).value || todayISO(), kind: $('#f-kind', root).value, duration_min: int($('#f-dur', root).value),
     watts: rnd(num($('#f-w', root).value)), hr: int($('#f-hr', root).value), lactate: la, rpe: rpeB ? +rpeB.dataset.val : null,
     source: segVal(root, 'src'), note: $('#f-note', root).value.trim() || null
-  }, 'Séance enregistrée', () => { const g = gzStatus({ kind: $('#f-kind', root).value, lactate: la }); return g ? (g.st === 'in' && la != null ? 'golden' : g.st === 'high' ? 'high' : null) : null; });
+  }, T('Séance enregistrée', 'Session saved'), () => { const g = gzStatus({ kind: $('#f-kind', root).value, lactate: la }); return g ? (g.st === 'in' && la != null ? 'golden' : g.st === 'high' ? 'high' : null) : null; });
 }
 
 /* ---------- Séances préenregistrées (modèles) + saisie intervalle par intervalle ---------- */
@@ -1392,7 +1494,8 @@ function fmtDur(sec) {
   const m = Math.floor(sec / 60), r = sec % 60;
   return r ? `${m} min ${String(r).padStart(2, '0')}` : `${m} min`;
 }
-const tplLine = t => `${t.reps} × ${fmtDur(t.work)}${t.rest ? `, récup ${fmtDur(t.rest)}` : ''}, ${TARGETS[t.target] || t.target}`;
+const tgtLabel = k => (k === 'Intervalles' ? T(TARGETS[k], 'Other intensity') : TARGETS[k] ? kindLabel(TARGETS[k]) : kindLabel(k));
+const tplLine = t => `${t.reps} × ${fmtDur(t.work)}${t.rest ? `, ${T('récup', 'recovery')} ${fmtDur(t.rest)}` : ''}, ${tgtLabel(t.target)}`;
 const validTpl = t => !!t && String(t.name || '').trim().length > 0 && num(t.reps) >= 1 && num(t.reps) <= 60 && num(t.work) >= 10 && num(t.work) <= 7200 && num(t.rest) >= 0 && num(t.rest) <= 3600 && !!TARGETS[t.target];
 function loadTemplates(raw) { state.templates = Array.isArray(raw) ? raw.filter(validTpl) : []; }
 async function saveTemplates(list) {
@@ -1402,49 +1505,49 @@ async function saveTemplates(list) {
 }
 
 function pickSession() {
-  openSheet('Choisis ta séance', `
+  openSheet(T('Choisis ta séance', 'Pick your session'), `
     <div class="list">${templates().map(t => `<div class="tpl-row">
       <button class="item" data-act="use-tpl" data-id="${esc(t.id)}">
         <span class="badge" style="background:${t.target === 'Golden Zone' ? GZ_COLOR : 'var(--z2)'}">${t.reps}×</span>
-        <span class="main"><strong>${esc(t.name)}</strong><span>${esc(tplLine(t))}</span></span><span></span></button>
-      ${t.id.startsWith('d-') ? '' : `<button class="del" type="button" data-act="del-tpl" data-id="${esc(t.id)}" aria-label="Supprimer le modèle ${esc(t.name)}">×</button>`}</div>`).join('')}</div>
+        <span class="main"><strong>${esc(tplLabel(t.name))}</strong><span>${esc(tplLine(t))}</span></span><span></span></button>
+      ${t.id.startsWith('d-') ? '' : `<button class="del" type="button" data-act="del-tpl" data-id="${esc(t.id)}" aria-label="${T(`Supprimer le modèle ${esc(t.name)}`, `Delete template ${esc(t.name)}`)}">×</button>`}</div>`).join('')}</div>
     <div style="height:12px"></div>
-    <button class="btn violet block" data-act="new-tpl">+ Créer un modèle</button>`);
+    <button class="btn violet block" data-act="new-tpl">+ ${T('Créer un modèle', 'Create a template')}</button>`);
 }
 function tplForm() {
-  openSheet('Nouveau modèle', `
-    <label class="field"><span>Nom</span><input class="inp" id="t-name" placeholder="ex. 6 × 6 min GZ"></label>
-    <div class="grid3"><label class="field"><span>Répétitions</span><input class="inp" id="t-reps" inputmode="numeric" value="6"></label>
-    <label class="field"><span>Effort</span><input class="inp" id="t-work" value="6"></label>
-    <label class="field"><span>Récup</span><input class="inp" id="t-rest" value="1"></label></div>
-    <p class="muted" style="font-size:13px;margin:-4px 0 10px">Durées en minutes (« 6 ») ou en secondes (« 45 s », « 1:30 »).</p>
-    <div class="field"><span class="muted" style="font-size:13px;font-weight:600">Intensité visée</span>
-      <div class="seg" role="group" aria-label="Intensité visée" data-seg="target">${Object.entries(TARGETS).map(([k, l]) => `<button type="button" data-val="${k}" aria-pressed="${k === 'Golden Zone'}">${l}</button>`).join('')}</div></div>
+  openSheet(T('Nouveau modèle', 'New template'), `
+    <label class="field"><span>${T('Nom', 'Name')}</span><input class="inp" id="t-name" placeholder="${T('ex. 6 × 6 min GZ', 'e.g. 6 × 6 min GZ')}"></label>
+    <div class="grid3"><label class="field"><span>${T('Répétitions', 'Reps')}</span><input class="inp" id="t-reps" inputmode="numeric" value="6"></label>
+    <label class="field"><span>${T('Effort', 'Work')}</span><input class="inp" id="t-work" value="6"></label>
+    <label class="field"><span>${T('Récup', 'Recovery')}</span><input class="inp" id="t-rest" value="1"></label></div>
+    <p class="muted" style="font-size:13px;margin:-4px 0 10px">${T('Durées en minutes (« 6 ») ou en secondes (« 45 s », « 1:30 »).', 'Durations in minutes (“6”) or seconds (“45 s”, “1:30”).')}</p>
+    <div class="field"><span class="muted" style="font-size:13px;font-weight:600">${T('Intensité visée', 'Target intensity')}</span>
+      <div class="seg" role="group" aria-label="${T('Intensité visée', 'Target intensity')}" data-seg="target">${Object.entries(TARGETS).map(([k, l]) => `<button type="button" data-val="${k}" aria-pressed="${k === 'Golden Zone'}">${tgtLabel(k)}</button>`).join('')}</div></div>
     <p class="err" role="alert"></p>
-    <button class="btn rose block" data-act="save-tpl">Enregistrer le modèle</button>
-    <div style="height:10px"></div><button class="btn ghost block" data-act="new-session">Retour aux séances</button>`, root => wireSeg(root));
+    <button class="btn rose block" data-act="save-tpl">${T('Enregistrer le modèle', 'Save template')}</button>
+    <div style="height:10px"></div><button class="btn ghost block" data-act="new-session">${T('Retour aux séances', 'Back to sessions')}</button>`, root => wireSeg(root));
 }
 async function saveTpl(root) {
   const t = { id: 'u-' + uid(), name: $('#t-name', root).value.trim(), reps: Math.round(num($('#t-reps', root).value)), work: parseDur($('#t-work', root).value), rest: parseDur($('#t-rest', root).value) ?? 0, target: segVal(root, 'target') || 'Golden Zone' };
-  if (!t.name) { $('.err', root).textContent = 'Donne un nom à ton modèle.'; return; }
-  if (!validTpl(t)) { $('.err', root).textContent = 'Vérifie les valeurs : 1 à 60 répétitions, effort de 10 s à 2 h, récup jusqu’à 1 h.'; return; }
-  try { await saveTemplates([...state.templates, t]); toast('Modèle enregistré'); pickSession(); }
-  catch (e) { $('.err', root).textContent = 'Pas enregistré : ' + (e.message || 'erreur réseau'); }
+  if (!t.name) { $('.err', root).textContent = T('Donne un nom à ton modèle.', 'Give your template a name.'); return; }
+  if (!validTpl(t)) { $('.err', root).textContent = T('Vérifie les valeurs : 1 à 60 répétitions, effort de 10 s à 2 h, récup jusqu’à 1 h.', 'Check the values: 1 to 60 reps, work from 10 s to 2 h, recovery up to 1 h.'); return; }
+  try { await saveTemplates([...state.templates, t]); toast(T('Modèle enregistré', 'Template saved')); pickSession(); }
+  catch (e) { $('.err', root).textContent = T('Pas enregistré : ', 'Not saved: ') + (e.message || T('erreur réseau', 'network error')); }
 }
 async function delTpl(id) {
   const t = state.templates.find(x => x.id === id); if (!t) return;
-  if (!confirm(`Supprimer le modèle « ${t.name} » ? Les séances déjà saisies restent.`)) return;
-  try { await saveTemplates(state.templates.filter(x => x.id !== id)); toast('Modèle supprimé'); pickSession(); }
-  catch (e) { toast('Suppression impossible : ' + (e.message || 'erreur')); }
+  if (!confirm(T(`Supprimer le modèle « ${t.name} » ? Les séances déjà saisies restent.`, `Delete the template “${tplLabel(t.name)}”? Sessions already logged stay.`))) return;
+  try { await saveTemplates(state.templates.filter(x => x.id !== id)); toast(T('Modèle supprimé', 'Template deleted')); pickSession(); }
+  catch (e) { toast(T('Suppression impossible : ', 'Could not delete: ') + (e.message || T('erreur', 'error'))); }
 }
 
 function ivRow(r, i) {
   return `<div class="step-row"><span class="n">${i + 1}</span>
-    <input class="inp" data-k="w" inputmode="${SP().im}" placeholder="${SP().u}" value="${inVal(r.w)}" aria-label="${SP().Name} intervalle ${i + 1}">
-    <input class="inp" data-k="hr" inputmode="numeric" placeholder="FC" value="${inVal(r.hr)}" aria-label="FC intervalle ${i + 1}">
-    <input class="inp" data-k="la" inputmode="decimal" placeholder="mmol" value="${inVal(r.la)}" aria-label="Lactate intervalle ${i + 1}">
-    <input class="inp" data-k="rpe" inputmode="numeric" placeholder="RPE" value="${inVal(r.rpe)}" aria-label="RPE intervalle ${i + 1}">
-    <button class="del" type="button" data-act="del-row" aria-label="Supprimer l'intervalle ${i + 1}">×</button></div>`;
+    <input class="inp" data-k="w" inputmode="${SP().im}" placeholder="${SP().u}" value="${inVal(r.w)}" aria-label="${T(`${SP().Name} intervalle ${i + 1}`, `${SP().Name} interval ${i + 1}`)}">
+    <input class="inp" data-k="hr" inputmode="numeric" placeholder="${T('FC', 'HR')}" value="${inVal(r.hr)}" aria-label="${T(`FC intervalle ${i + 1}`, `HR interval ${i + 1}`)}">
+    <input class="inp" data-k="la" inputmode="decimal" placeholder="mmol" value="${inVal(r.la)}" aria-label="${T(`Lactate intervalle ${i + 1}`, `Lactate interval ${i + 1}`)}">
+    <input class="inp" data-k="rpe" inputmode="numeric" placeholder="RPE" value="${inVal(r.rpe)}" aria-label="${T(`RPE intervalle ${i + 1}`, `RPE interval ${i + 1}`)}">
+    <button class="del" type="button" data-act="del-row" aria-label="${T(`Supprimer l'intervalle ${i + 1}`, `Delete interval ${i + 1}`)}">×</button></div>`;
 }
 const ivFilled = r => !!r && (r.w != null || r.hr != null || r.la != null || r.rpe != null);
 function readRows(root) {
@@ -1459,53 +1562,53 @@ function sessionChart(all, isGZ) {
   const chart = chartSVG({
     xRange: n > 1 ? [1, n] : [0.5, 1.5], yRange: [0, Math.max(4, gzTop() + .5, ...la.map(r => r.la))],
     y2Range: ws.length ? [Math.min(...ws) - 15, Math.max(...ws) + 15] : null,
-    xFmt: v => Number.isInteger(v) ? String(v) : '', yTitle: 'mmol/L', y2Title: ws.length ? SP().u : '', xTitle: 'intervalle', h: 210,
+    xFmt: v => Number.isInteger(v) ? String(v) : '', yTitle: 'mmol/L', y2Title: ws.length ? SP().u : '', xTitle: T('intervalle', 'interval'), h: 210,
     hbands: isGZ ? gzBands() : [],
     series: [
       { pts: wt.map(r => ({ x: r.x, y: r.w })), color: '#6A2BF0', right: true, r: 3.5, width: 2.5, dash: '5 4' },
       { pts: la.map(r => ({ x: r.x, y: r.la, fill: isGZ && r.la > state.gz.hi + 1e-9 ? '#FF2D8E' : isGZ && r.la >= state.gz.lo - 1e-9 ? GZ_COLOR : '#3FE8B9' })), color: '#FF7AB8', r: 6.5, width: 2.5 }
     ]
   });
-  return `<section class="result" style="margin-top:12px"><p class="hand" style="margin:0 0 4px">Ta séance en un coup d'œil</p>${chart}
+  return `<section class="result" style="margin-top:12px"><p class="hand" style="margin:0 0 4px">${T('Ta séance en un coup d\'œil', 'Your session at a glance')}</p>${chart}
     <div class="legend"><span><i style="background:#FF7AB8"></i>Lactate</span>${ws.length ? `<span><i style="background:#6A2BF0"></i>${SP().Name}</span>` : ''}${isGZ ? '<span><i style="background:#FFC21A"></i>Golden Zone</span>' : ''}</div></section>`;
 }
 const avgOf = (rows, k, d = 0) => { const v = rows.map(r => r[k]).filter(x => x != null); return v.length ? +(v.reduce((a, b) => a + b, 0) / v.length).toFixed(d) : null; };
 function intervalForm(tpl, s) {
-  const T = (s && s.template) || tpl;
-  const x = s || { date: todayISO(), source: lastSource(), note: '', duration_min: Math.round(T.reps * (T.work + T.rest) / 60) };
+  const TP = (s && s.template) || tpl;
+  const x = s || { date: todayISO(), source: lastSource(), note: '', duration_min: Math.round(TP.reps * (TP.work + TP.rest) / 60) };
   const saved = (s && Array.isArray(s.intervals)) ? s.intervals : [];
-  const rows = Array.from({ length: Math.max(T.reps, saved.length) }, (_, i) => saved[i] || {});
-  const isGZ = GZ_KINDS.includes(T.target), G = goldenZone(currentZones()), r1 = v => fmt(v, 1);
-  const target = !isGZ ? '' : G.wLo != null ? ` Cible : <b>${fx(G.wLo)} à ${fxu(G.wHi)}</b>, ${r1(state.gz.lo)} à ${r1(state.gz.hi)} mmol.` : ` Cible : ${r1(state.gz.lo)} à ${r1(state.gz.hi)} mmol.`;
-  openSheet(s ? `Modifier : ${T.name}` : T.name, `
+  const rows = Array.from({ length: Math.max(TP.reps, saved.length) }, (_, i) => saved[i] || {});
+  const isGZ = GZ_KINDS.includes(TP.target), G = goldenZone(currentZones()), r1 = v => fmt(v, 1);
+  const target = !isGZ ? '' : G.wLo != null ? T(` Cible : <b>${fx(G.wLo)} à ${fxu(G.wHi)}</b>, ${r1(state.gz.lo)} à ${r1(state.gz.hi)} mmol.`, ` Target: <b>${fx(G.wLo)} to ${fxu(G.wHi)}</b>, ${r1(state.gz.lo)} to ${r1(state.gz.hi)} mmol.`) : T(` Cible : ${r1(state.gz.lo)} à ${r1(state.gz.hi)} mmol.`, ` Target: ${r1(state.gz.lo)} to ${r1(state.gz.hi)} mmol.`);
+  openSheet(s ? T(`Modifier : ${tplLabel(TP.name)}`, `Edit: ${tplLabel(TP.name)}`) : tplLabel(TP.name), `
     <div class="grid2"><label class="field"><span>Date</span><input class="inp" type="date" id="f-date" value="${x.date}"></label>
-    <label class="field"><span>Durée totale (min)</span><input class="inp" id="f-dur" inputmode="numeric" value="${inVal(x.duration_min)}"></label></div>
-    <p class="proto-line">${esc(tplLine(T))}.${target} Remplis au fil de la séance : ${SP().name}, FC, lactate quand tu piques, RPE. Les intervalles vides ne sont pas enregistrés.</p>
+    <label class="field"><span>${T('Durée totale (min)', 'Total time (min)')}</span><input class="inp" id="f-dur" inputmode="numeric" value="${inVal(x.duration_min)}"></label></div>
+    <p class="proto-line">${esc(tplLine(TP))}.${target} ${T(`Remplis au fil de la séance : ${SP().name}, FC, lactate quand tu piques, RPE. Les intervalles vides ne sont pas enregistrés.`, `Fill it in as you go: ${SP().name}, HR, lactate when you prick, RPE. Empty intervals aren't saved.`)}</p>
     <div id="preview"></div>
-    <div class="steps-head"><span></span><span>${SP().col}</span><span>FC</span><span>Lactate</span><span>RPE</span><span></span></div>
+    <div class="steps-head"><span></span><span>${SP().col}</span><span>${T('FC', 'HR')}</span><span>Lactate</span><span>RPE</span><span></span></div>
     <div id="rows">${rows.map(ivRow).join('')}</div>
-    <button class="btn block" type="button" data-act="add-iv">+ Ajouter un intervalle</button>
+    <button class="btn block" type="button" data-act="add-iv">+ ${T('Ajouter un intervalle', 'Add an interval')}</button>
     <div class="field"><span class="muted" style="font-size:13px;font-weight:600">${SP().measured}</span>${segHTML('src', x.source)}</div>
-    <label class="field"><span>Note</span><textarea class="inp" id="f-note" placeholder="Sensations, conditions, lecteur...">${esc(x.note)}</textarea></label>
+    <label class="field"><span>Note</span><textarea class="inp" id="f-note" placeholder="${T('Sensations, conditions, lecteur...', 'Feel, conditions, meter...')}">${esc(x.note)}</textarea></label>
     <p class="err" role="alert"></p>
-    <button class="btn rose block" data-act="save-iv">Enregistrer la séance</button>
-    ${s ? `<div style="height:10px"></div><button class="btn danger block" data-act="del-session" data-id="${s.id}">Supprimer</button>` : ''}`, root => {
+    <button class="btn rose block" data-act="save-iv">${T('Enregistrer la séance', 'Save session')}</button>
+    ${s ? `<div style="height:10px"></div><button class="btn danger block" data-act="del-session" data-id="${s.id}">${T('Supprimer', 'Delete')}</button>` : ''}`, root => {
     wireSeg(root);
     root.dataset.id = s ? s.id : '';
-    root.dataset.tpl = JSON.stringify({ name: T.name, reps: T.reps, work: T.work, rest: T.rest, target: T.target });
+    root.dataset.tpl = JSON.stringify({ name: TP.name, reps: TP.reps, work: TP.work, rest: TP.rest, target: TP.target });
     const upd = () => {
       const iv = readIntervals(root), las = iv.map(r => r.la).filter(v => v != null);
-      if (!iv.length) { $('#preview', root).innerHTML = '<p class="hand" style="margin:12px 0">Pique après le 2e intervalle, puis vers la fin. Je te dis où tu en es.</p>'; return; }
+      if (!iv.length) { $('#preview', root).innerHTML = '<p class="hand" style="margin:12px 0">' + T('Pique après le 2e intervalle, puis vers la fin. Je te dis où tu en es.', "Prick after the 2nd interval, then near the end. I'll tell you where you stand.") + '</p>'; return; }
       const mx = las.length ? Math.max(...las) : null, mn = las.length ? Math.min(...las) : null;
       let msg = '';
       if (isGZ && las.length) {
         const r = state.gz, above = las.filter(v => v > r.hi + 1e-9).length;
-        msg = above ? `<b>${above} prélèvement${above > 1 ? 's' : ''} au-dessus de ta Golden Zone</b> (max ${r1(mx)} mmol). Baisse un peu ${SP().les} au prochain intervalle.`
-          : mn < r.lo - 1e-9 ? `Sous ta Golden Zone (${r1(r.lo)} à ${r1(r.hi)} mmol). Tu peux monter légèrement.`
-          : '<b>Tous tes prélèvements sont dans ta Golden Zone.</b> Globule approuve.';
+        msg = above ? T(`<b>${above} prélèvement${above > 1 ? 's' : ''} au-dessus de ta Golden Zone</b> (max ${r1(mx)} mmol). Baisse un peu ${SP().les} au prochain intervalle.`, `<b>${above} sample${above > 1 ? 's' : ''} above your Golden Zone</b> (max ${r1(mx)} mmol). Bring ${SP().les} down a little on the next interval.`)
+          : mn < r.lo - 1e-9 ? T(`Sous ta Golden Zone (${r1(r.lo)} à ${r1(r.hi)} mmol). Tu peux monter légèrement.`, `Below your Golden Zone (${r1(r.lo)} to ${r1(r.hi)} mmol). You can push a little harder.`)
+          : T('<b>Tous tes prélèvements sont dans ta Golden Zone.</b> Globule approuve.', '<b>All your samples are in your Golden Zone.</b> Globule approves.');
       }
-      if (las.length > 1) { const d = las[las.length - 1] - las[0]; msg += `${msg ? '<br>' : ''}Du 1er au dernier prélèvement : ${d >= 0 ? '+' : ''}${r1(d)} mmol.`; }
-      $('#preview', root).innerHTML = sessionChart(readRows(root).slice(0, readRows(root).map(ivFilled).lastIndexOf(true) + 1), isGZ) + `<div class="result"><div class="kv"><div><b>${fx(avgOf(iv, 'w', SP().d))}</b><span>${SP().name} moy.</span></div><div><b>${fmt(avgOf(iv, 'hr'))}</b><span>FC moy.</span></div><div><b>${mx != null ? r1(mx) : 'n.d.'}</b><span>lactate max</span></div></div></div>`
+      if (las.length > 1) { const d = las[las.length - 1] - las[0]; msg += `${msg ? '<br>' : ''}${T(`Du 1er au dernier prélèvement : ${d >= 0 ? '+' : ''}${r1(d)} mmol.`, `From first to last sample: ${d >= 0 ? '+' : ''}${r1(d)} mmol.`)}`; }
+      $('#preview', root).innerHTML = sessionChart(readRows(root).slice(0, readRows(root).map(ivFilled).lastIndexOf(true) + 1), isGZ) + `<div class="result"><div class="kv"><div><b>${fx(avgOf(iv, 'w', SP().d))}</b><span>${T(`${SP().name} moy.`, `avg ${SP().name}`)}</span></div><div><b>${fmt(avgOf(iv, 'hr'))}</b><span>${T('FC moy.', 'avg HR')}</span></div><div><b>${mx != null ? r1(mx) : T('n.d.', 'n/a')}</b><span>${T('lactate max', 'max lactate')}</span></div></div></div>`
         + (msg ? `<div class="result gz-result" style="margin-top:0">${msg}</div>` : '');
     };
     root.addEventListener('input', upd); upd();
@@ -1520,15 +1623,15 @@ function addIv(root) {
 }
 function saveIntervals(root) {
   const iv = readIntervals(root);
-  if (!iv.length) { $('.err', root).textContent = 'Remplis au moins un intervalle.'; return; }
-  if (iv.some(r => r.la != null && (r.la < 0.3 || r.la > 25))) { $('.err', root).textContent = 'Un lactate semble faux (entre 0,3 et 25 mmol attendu). Vérifie la virgule.'; return; }
-  const T = JSON.parse(root.dataset.tpl), las = iv.map(r => r.la).filter(v => v != null), rpes = iv.map(r => r.rpe).filter(v => v != null);
+  if (!iv.length) { $('.err', root).textContent = T('Remplis au moins un intervalle.', 'Fill in at least one interval.'); return; }
+  if (iv.some(r => r.la != null && (r.la < 0.3 || r.la > 25))) { $('.err', root).textContent = T('Un lactate semble faux (entre 0,3 et 25 mmol attendu). Vérifie la virgule.', 'A lactate value looks off (expected between 0.3 and 25 mmol). Check the decimal point.'); return; }
+  const TP = JSON.parse(root.dataset.tpl), las = iv.map(r => r.la).filter(v => v != null), rpes = iv.map(r => r.rpe).filter(v => v != null);
   const la = las.length ? Math.max(...las) : null, dur = num($('#f-dur', root).value);
   persist('sessions', root.dataset.id || null, {
-    date: $('#f-date', root).value || todayISO(), kind: T.target, duration_min: dur == null ? null : Math.round(dur),
+    date: $('#f-date', root).value || todayISO(), kind: TP.target, duration_min: dur == null ? null : Math.round(dur),
     watts: avgOf(iv, 'w', SP().d), hr: avgOf(iv, 'hr'), lactate: la, rpe: rpes.length ? Math.max(...rpes) : null,
-    source: segVal(root, 'src'), note: $('#f-note', root).value.trim() || null, intervals: (all => all.slice(0, all.map(ivFilled).lastIndexOf(true) + 1))(readRows(root)), template: T
-  }, 'Séance enregistrée', () => { const g = gzStatus({ kind: T.target, lactate: la }); return g ? (g.st === 'in' && la != null ? 'golden' : g.st === 'high' ? 'high' : null) : null; },
+    source: segVal(root, 'src'), note: $('#f-note', root).value.trim() || null, intervals: (all => all.slice(0, all.map(ivFilled).lastIndexOf(true) + 1))(readRows(root)), template: TP
+  }, T('Séance enregistrée', 'Session saved'), () => { const g = gzStatus({ kind: TP.target, lactate: la }); return g ? (g.st === 'in' && la != null ? 'golden' : g.st === 'high' ? 'high' : null) : null; },
   saved => { const ss = state.sessions.find(x => x.id === saved.id); if (ss) intervalForm(null, ss); });
 }
 
@@ -1548,7 +1651,7 @@ function exportCSV() {
   const name = `globule_export_${todayISO()}.csv`;
   const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
   const file = typeof File === 'function' ? new File([blob], name, { type: 'text/csv' }) : null;
-  if (file && navigator.canShare && navigator.canShare({ files: [file] })) { navigator.share({ files: [file], title: 'Export Globule' }).catch(() => {}); return; }
+  if (file && navigator.canShare && navigator.canShare({ files: [file] })) { navigator.share({ files: [file], title: T('Export Globule', 'Globule export') }).catch(() => {}); return; }
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 4000);
 }
@@ -1559,76 +1662,77 @@ const EMAIL_RE = /^\S+@\S+\.\S+$/;
 function renderLogin(mode, email = '', info = '') {
   if (!mode) mode = localStorage.getItem('globule:has-account') ? 'login' : 'signup';
   $('#tabbar').hidden = true;
-  const emailF = `<label class="field"><span>Email</span><input class="inp" id="l-email" type="email" autocomplete="email" inputmode="email" value="${esc(email)}"></label>`;
+  const emailF = `<label class="field"><span>${T('Email', 'Email')}</span><input class="inp" id="l-email" type="email" autocomplete="email" inputmode="email" value="${esc(email)}"></label>`;
   const tabs = (mode === 'signup' || mode === 'login') ? `<div class="seg" data-layout-id="auth" style="margin-bottom:14px">
-      <button data-act="auth-mode" data-mode="signup" aria-pressed="${mode === 'signup'}">Créer un compte</button>
-      <button data-act="auth-mode" data-mode="login" aria-pressed="${mode === 'login'}">Me connecter</button></div>` : '';
+      <button data-act="auth-mode" data-mode="signup" aria-pressed="${mode === 'signup'}">${T('Créer un compte', 'Create account')}</button>
+      <button data-act="auth-mode" data-mode="login" aria-pressed="${mode === 'login'}">${T('Me connecter', 'Log in')}</button></div>` : '';
   let body = '';
-  if (mode === 'signup') body = `<p class="hand" style="margin-top:0">Salut ! Crée ton compte : tes tests et tes séances restent à toi.</p>
-      <label class="field"><span>Prénom</span><input class="inp" id="l-name" autocomplete="given-name"></label>${emailF}
-      <label class="field"><span>Mot de passe (8 caractères minimum)</span><input class="inp" id="l-pass" type="password" autocomplete="new-password"></label>
-      <button class="btn rose block" data-act="signup" data-main>Créer mon compte</button>`;
-  else if (mode === 'login') body = `<p class="hand" style="margin-top:0">Re-salut ! Connecte-toi pour retrouver tes gouttes.</p>${emailF}
-      <label class="field"><span>Mot de passe</span><input class="inp" id="l-pass" type="password" autocomplete="current-password"></label>
-      <button class="btn rose block" data-act="login" data-main>Me connecter</button>
-      <div style="height:10px"></div><button class="btn ghost block" data-act="auth-mode" data-mode="forgot">Mot de passe oublié ?</button>`;
-  else if (mode === 'forgot') body = `<p class="hand" style="margin-top:0">Ton email, et je t'envoie un lien pour choisir un nouveau mot de passe.</p>${emailF}
-      <button class="btn rose block" data-act="forgot" data-main>Recevoir le lien</button>
-      <div style="height:10px"></div><button class="btn ghost block" data-act="auth-mode" data-mode="login">Retour</button>`;
-  else if (mode === 'reset') body = `<p class="hand" style="margin-top:0">Choisis ton nouveau mot de passe.</p>
-      <label class="field"><span>Nouveau mot de passe (8 caractères minimum)</span><input class="inp" id="l-pass" type="password" autocomplete="new-password"></label>
-      <button class="btn rose block" data-act="reset" data-main>Enregistrer</button>`;
+  if (mode === 'signup') body = `<p class="hand" style="margin-top:0">${T('Salut ! Crée ton compte : tes tests et tes séances restent à toi.', 'Hi! Create your account: your tests and sessions stay yours.')}</p>
+      <label class="field"><span>${T('Prénom', 'First name')}</span><input class="inp" id="l-name" autocomplete="given-name"></label>${emailF}
+      <label class="field"><span>${T('Mot de passe (8 caractères minimum)', 'Password (8 characters minimum)')}</span><input class="inp" id="l-pass" type="password" autocomplete="new-password"></label>
+      <button class="btn rose block" data-act="signup" data-main>${T('Créer mon compte', 'Create my account')}</button>`;
+  else if (mode === 'login') body = `<p class="hand" style="margin-top:0">${T('Re-salut ! Connecte-toi pour retrouver tes gouttes.', 'Hi again! Log in to get your drops back.')}</p>${emailF}
+      <label class="field"><span>${T('Mot de passe', 'Password')}</span><input class="inp" id="l-pass" type="password" autocomplete="current-password"></label>
+      <button class="btn rose block" data-act="login" data-main>${T('Me connecter', 'Log in')}</button>
+      <div style="height:10px"></div><button class="btn ghost block" data-act="auth-mode" data-mode="forgot">${T('Mot de passe oublié ?', 'Forgot password?')}</button>`;
+  else if (mode === 'forgot') body = `<p class="hand" style="margin-top:0">${T('Ton email, et je t\'envoie un lien pour choisir un nouveau mot de passe.', "Your email, and I'll send you a link to pick a new password.")}</p>${emailF}
+      <button class="btn rose block" data-act="forgot" data-main>${T('Recevoir le lien', 'Send me the link')}</button>
+      <div style="height:10px"></div><button class="btn ghost block" data-act="auth-mode" data-mode="login">${T('Retour', 'Back')}</button>`;
+  else if (mode === 'reset') body = `<p class="hand" style="margin-top:0">${T('Choisis ton nouveau mot de passe.', 'Pick your new password.')}</p>
+      <label class="field"><span>${T('Nouveau mot de passe (8 caractères minimum)', 'New password (8 characters minimum)')}</span><input class="inp" id="l-pass" type="password" autocomplete="new-password"></label>
+      <button class="btn rose block" data-act="reset" data-main>${T('Enregistrer', 'Save')}</button>`;
   else if (mode === 'check') body = `<p class="hand" style="margin-top:0">${esc(info)}</p>
-      <button class="btn rose block" data-act="auth-mode" data-mode="login" data-email="${esc(email)}">Aller à la connexion</button>`;
-  app().innerHTML = `<div class="login">${globuleSVG(200)}<h1 class="wordmark" style="font-size:40px;margin-top:10px">Globule</h1>
+      <button class="btn rose block" data-act="auth-mode" data-mode="login" data-email="${esc(email)}">${T('Aller à la connexion', 'Go to log in')}</button>`;
+  app().innerHTML = `<div class="login"><div class="login-lang">${langSwitch()}</div>${globuleSVG(200)}<h1 class="wordmark" style="font-size:40px;margin-top:10px">Globule</h1>
     <section class="panel">${tabs}${body}<p class="err" role="alert"></p></section></div>`;
   setMascot($('#app .globule'), 'hello');
-  syncPill($('.login .seg'), true);
+  $$('.login .seg').forEach(g => syncPill(g, true));
   reveal($$('.login .panel > :not(.seg)'));
+  document.title = T('Globule, labo lactate', 'Globule, lactate lab');
 }
 function showErr(msg) { const e = $('.login .err'); if (e) e.textContent = msg; $$('.login [data-main]').forEach(b => { b.disabled = false; }); }
 function authErr(e) {
   const m = ((e && e.message) || '').toLowerCase();
-  if (m.includes('invalid login')) return 'Email ou mot de passe incorrect.';
-  if (m.includes('already registered') || m.includes('already been registered')) return 'Ce compte existe déjà : connecte-toi.';
-  if (m.includes('not confirmed')) return "Confirme d'abord ton email avec le lien reçu (regarde aussi dans les spams).";
-  if (m.includes('rate limit') || m.includes('too many')) return 'Trop d’essais d’un coup. Réessaie dans quelques minutes.';
-  if (m.includes('password')) return 'Mot de passe refusé : 8 caractères minimum.';
-  return (e && e.message) || 'Erreur réseau, réessaie.';
+  if (m.includes('invalid login')) return T('Email ou mot de passe incorrect.', 'Wrong email or password.');
+  if (m.includes('already registered') || m.includes('already been registered')) return T('Ce compte existe déjà : connecte-toi.', 'This account already exists: log in.');
+  if (m.includes('not confirmed')) return T("Confirme d'abord ton email avec le lien reçu (regarde aussi dans les spams).", 'Confirm your email first with the link you got (check your spam too).');
+  if (m.includes('rate limit') || m.includes('too many')) return T('Trop d’essais d’un coup. Réessaie dans quelques minutes.', 'Too many tries at once. Try again in a few minutes.');
+  if (m.includes('password')) return T('Mot de passe refusé : 8 caractères minimum.', 'Password rejected: 8 characters minimum.');
+  return (e && e.message) || T('Erreur réseau, réessaie.', 'Network error, try again.');
 }
 const readAuth = () => ({ email: ($('#l-email') ? $('#l-email').value : '').trim(), pass: $('#l-pass') ? $('#l-pass').value : '', name: ($('#l-name') ? $('#l-name').value : '').trim() });
 async function signUp() {
   const { email, pass, name } = readAuth();
-  if (!name) return showErr('Ton prénom ?');
-  if (!EMAIL_RE.test(email)) return showErr('Cet email ne ressemble pas à un email.');
-  if (pass.length < 8) return showErr('Le mot de passe fait au moins 8 caractères.');
+  if (!name) return showErr(T('Ton prénom ?', 'Your first name?'));
+  if (!EMAIL_RE.test(email)) return showErr(T('Cet email ne ressemble pas à un email.', "That email doesn't look like an email."));
+  if (pass.length < 8) return showErr(T('Le mot de passe fait au moins 8 caractères.', 'The password needs at least 8 characters.'));
   const { data, error } = await sb.auth.signUp({ email, password: pass, options: { data: { name }, emailRedirectTo: SITE_URL } });
   if (error) return showErr(authErr(error));
   if (data.session) return enter(data.session.user);
-  if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) { renderLogin('login', email); return showErr('Ce compte existe déjà : connecte-toi.'); }
+  if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) { renderLogin('login', email); return showErr(T('Ce compte existe déjà : connecte-toi.', 'This account already exists: log in.')); }
   localStorage.setItem('globule:has-account', '1');
-  renderLogin('check', email, `Presque fini, ${name} ! Clique sur le lien envoyé à ${email} pour confirmer ton compte (regarde aussi dans les spams), puis connecte-toi.`);
+  renderLogin('check', email, T(`Presque fini, ${name} ! Clique sur le lien envoyé à ${email} pour confirmer ton compte (regarde aussi dans les spams), puis connecte-toi.`, `Almost done, ${name}! Click the link sent to ${email} to confirm your account (check your spam too), then log in.`));
 }
 async function logIn() {
   const { email, pass } = readAuth();
-  if (!EMAIL_RE.test(email) || !pass) return showErr('Ton email et ton mot de passe, s’il te plaît.');
+  if (!EMAIL_RE.test(email) || !pass) return showErr(T('Ton email et ton mot de passe, s’il te plaît.', 'Your email and password, please.'));
   const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
   if (error) return showErr(authErr(error));
   enter(data.user);
 }
 async function forgotPass() {
   const { email } = readAuth();
-  if (!EMAIL_RE.test(email)) return showErr('Cet email ne ressemble pas à un email.');
+  if (!EMAIL_RE.test(email)) return showErr(T('Cet email ne ressemble pas à un email.', "That email doesn't look like an email."));
   const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: SITE_URL });
   if (error) return showErr(authErr(error));
-  renderLogin('check', email, `Si un compte existe pour ${email}, un lien vient de partir. Ouvre-le pour choisir un nouveau mot de passe.`);
+  renderLogin('check', email, T(`Si un compte existe pour ${email}, un lien vient de partir. Ouvre-le pour choisir un nouveau mot de passe.`, `If an account exists for ${email}, a link is on its way. Open it to pick a new password.`));
 }
 async function resetPass() {
   const { pass } = readAuth();
-  if (pass.length < 8) return showErr('Le mot de passe fait au moins 8 caractères.');
+  if (pass.length < 8) return showErr(T('Le mot de passe fait au moins 8 caractères.', 'The password needs at least 8 characters.'));
   const { data, error } = await sb.auth.updateUser({ password: pass });
   if (error) return showErr(authErr(error));
-  toast('Mot de passe changé');
+  toast(T('Mot de passe changé', 'Password changed'));
   enter(data.user);
 }
 function enter(user) {
@@ -1647,6 +1751,11 @@ document.addEventListener('click', async e => {
   const act = el.dataset.act, id = el.dataset.id, root = $('.sheet:not(.leaving)');
   switch (act) {
     case 'close': closeSheet(); break;
+    case 'set-lang': setLang(el.dataset.val); break;
+    case 'share-app': shareApp(); break;
+    case 'a2hs': a2hsTuto(); break;
+    case 'a2hs-pf': a2hsTuto(el.dataset.val, 0); break;
+    case 'a2hs-go': a2hsTuto(el.dataset.pf, +el.dataset.i); break;
     case 'set-sport': if (SPORTS[el.dataset.val] && el.dataset.val !== state.sport) { state.sport = el.dataset.val; try { localStorage.setItem('globule:sport', state.sport); } catch (e) {} applySport(); render(); } break;
     case 'edit-sports': profileSheet(false); break;
     case 'toggle-sport': {
@@ -1659,9 +1768,9 @@ document.addEventListener('click', async e => {
     }
     case 'save-sports': {
       const sel = JSON.parse(root.dataset.sel || '[]');
-      if (!sel.length) { $('.err', root).textContent = 'Choisis au moins un sport.'; break; }
+      if (!sel.length) { $('.err', root).textContent = T('Choisis au moins un sport.', 'Pick at least one sport.'); break; }
       if (!sel.includes(state.sport)) state.sport = sel[0];
-      if (await saveSports(sel)) { closeSheet(); render(); toast(sel.map(k => SPORTS[k].label).join(' et '), true); }
+      if (await saveSports(sel)) { closeSheet(); render(); toast(sel.map(k => SPORTS[k].label).join(T(' et ', ' and ')), true); }
       break;
     }
     case 'new-session': pickSession(); break;
@@ -1673,7 +1782,7 @@ document.addEventListener('click', async e => {
     case 'add-iv': addIv(root); break;
     case 'save-iv': saveIntervals(root); break;
     case 'save-session': saveSession(root); break;
-    case 'del-session': destroy('sessions', id, 'cette séance'); break;
+    case 'del-session': destroy('sessions', id, T('cette séance', 'this session')); break;
     case 'new-steps': stepForm(); break;
     case 'open-steps': state.pick = 'lt1'; stepDetail(id); break;
     case 'edit-steps': stepForm(state.tests.find(t => t.id === id)); break;
@@ -1694,40 +1803,40 @@ document.addEventListener('click', async e => {
     case 'pick': state.pick = el.dataset.mode === 'lt2' ? 'lt2' : 'lt1'; stepDetail(id); break;
     case 'set-thr': setThr(id, state.pick === 'lt2' ? 'lt2_manual' : 'lt1_manual', num(el.dataset.w)); break;
     case 'reset-thr': setThr(id, el.dataset.field === 'lt2_manual' ? 'lt2_manual' : 'lt1_manual', null); break;
-    case 'del-test': destroy('tests', id, 'ce test'); break;
+    case 'del-test': destroy('tests', id, T('ce test', 'this test')); break;
     case 'save-name': {
       const name = $('#set-name').value.trim().slice(0, 40);
       state.name = name;
       if (DEMO) localStorage.setItem('globule:name', name);
-      else { const { error } = await sb.auth.updateUser({ data: { name } }); if (error) { toast('Pas enregistré : ' + error.message); break; } }
-      render(); toast(name ? `Salut ${name} !` : 'Prénom effacé');
+      else { const { error } = await sb.auth.updateUser({ data: { name } }); if (error) { toast(T('Pas enregistré : ', 'Not saved: ') + error.message); break; } }
+      render(); toast(name ? T(`Salut ${name} !`, `Hi ${name}!`) : T('Prénom effacé', 'First name cleared'));
       break;
     }
     case 'new-gz': pickSession(); break;
     case 'save-proto': {
       const P = { start: rnd(num($('#set-p-start').value)), step: rnd(num($('#set-p-step').value)), n: Math.round(num($('#set-p-n').value)) };
       const L = SP().lim;
-      if (!validProto(P)) { toast(`Protocole invalide : départ ${fx(L.start[0])} à ${fxu(L.start[1])}, +${fx(L.step[0])} à ${fxu(L.step[1])}, 3 à 15 paliers`); break; }
+      if (!validProto(P)) { toast(T(`Protocole invalide : départ ${fx(L.start[0])} à ${fxu(L.start[1])}, +${fx(L.step[0])} à ${fxu(L.step[1])}, 3 à 15 paliers`, `Invalid protocol: start ${fx(L.start[0])} to ${fxu(L.start[1])}, +${fx(L.step[0])} to ${fxu(L.step[1])}, 3 to 15 steps`)); break; }
       state.protos[state.sport] = P;
       const key = isRun() ? 'protoRun' : 'proto';
       if (DEMO) localStorage.setItem(isRun() ? 'globule:proto-run' : 'globule:proto', JSON.stringify(P));
-      else { const { error } = await sb.auth.updateUser({ data: { [key]: P } }); if (error) { toast('Pas enregistré : ' + error.message); break; } }
-      render(); toast(`Protocole : ${fxu(P.start)}, +${fxu(P.step)}, ${P.n} paliers`);
+      else { const { error } = await sb.auth.updateUser({ data: { [key]: P } }); if (error) { toast(T('Pas enregistré : ', 'Not saved: ') + error.message); break; } }
+      render(); toast(T(`Protocole : ${fxu(P.start)}, +${fxu(P.step)}, ${P.n} paliers`, `Protocol: ${fxu(P.start)}, +${fxu(P.step)}, ${P.n} steps`));
       break;
     }
     case 'save-gz': {
       const v = id => num($(id).value);
       const gz = { lo: v('#set-gz-lo'), hi: v('#set-gz-hi') };
-      if (!validGz(gz)) { toast('Plage invalide : "de" plus petit que "à", entre 0,5 et 10 mmol'); break; }
+      if (!validGz(gz)) { toast(T('Plage invalide : "de" plus petit que "à", entre 0,5 et 10 mmol', 'Invalid range: "from" lower than "to", between 0.5 and 10 mmol')); break; }
       state.gz = gz;
       if (DEMO) localStorage.setItem('globule:gz3', JSON.stringify(gz));
-      else { const { error } = await sb.auth.updateUser({ data: { gz3: gz } }); if (error) { toast('Pas enregistré : ' + error.message); break; } }
-      render(); toast('Golden Zone enregistrée');
+      else { const { error } = await sb.auth.updateUser({ data: { gz3: gz } }); if (error) { toast(T('Pas enregistré : ', 'Not saved: ') + error.message); break; } }
+      render(); toast(T('Golden Zone enregistrée', 'Golden Zone saved'));
       break;
     }
     case 'export': exportCSV(); break;
     case 'reset-demo':
-      if (confirm('Vider toutes les données de démo de cet appareil ?')) { ['tests', 'sessions'].forEach(t => localStorage.removeItem('globule:' + t)); state.tests = []; state.sessions = []; render(); }
+      if (confirm(T('Vider toutes les données de démo de cet appareil ?', 'Clear all demo data from this device?'))) { ['tests', 'sessions'].forEach(t => localStorage.removeItem('globule:' + t)); state.tests = []; state.sessions = []; render(); }
       break;
     case 'logout': await sb.auth.signOut(); state.user = null; state.tests = []; state.sessions = []; renderLogin('login'); break;
     case 'auth-mode': renderLogin(el.dataset.mode, el.dataset.email || readAuth().email); break;
@@ -1746,10 +1855,10 @@ document.addEventListener('keydown', e => {
 /* ---------- Démarrage ---------- */
 async function start() {
   $('#tabbar').hidden = false;
-  app().innerHTML = header() + hero('Je remonte tes gouttes...', 124);
-  try { await loadAll(); render(); if (!state.sports) profileSheet(true); }
+  app().innerHTML = header() + hero(T('Je remonte tes gouttes...', 'Fetching your drops...'), 124);
+  try { await loadAll(); render(); if (!state.sports) profileSheet(true); else maybeA2hs(); }
   catch (e) {
-    app().innerHTML = header() + hero('Impossible de récupérer tes données. Vérifie ta connexion.', 124) + `<button class="btn rose block" onclick="start()">Réessayer</button><p class="err">${esc(e.message || '')}</p>`;
+    app().innerHTML = header() + hero(T('Impossible de récupérer tes données. Vérifie ta connexion.', "Couldn't load your data. Check your connection."), 124) + `<button class="btn rose block" onclick="start()">${T('Réessayer', 'Try again')}</button><p class="err">${esc(e.message || '')}</p>`;
   }
 }
 function validGz(g) { return !!g && num(g.lo) >= 0.5 && num(g.hi) > num(g.lo) && num(g.hi) <= 10; }
@@ -1779,7 +1888,7 @@ async function boot() {
     const m = /error_description=([^&]+)/.exec(location.hash);
     if (location.hash) history.replaceState(null, '', SITE_URL);
     renderLogin();
-    if (m) showErr('Lien expiré ou déjà utilisé. ' + decodeURIComponent(m[1].replace(/\+/g, ' ')));
+    if (m) showErr(T('Lien expiré ou déjà utilisé. ', 'Link expired or already used. ') + decodeURIComponent(m[1].replace(/\+/g, ' ')));
     return;
   }
   enter(data.session.user);
