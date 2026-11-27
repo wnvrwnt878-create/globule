@@ -860,9 +860,11 @@ function crossW(steps, la) {
 }
 function bandWatts(Z) {
   const { lo, hi } = state.gz;
-  const B = { lo, hi, wLo: null, wHi: null, hrLo: null, hrHi: null, capped: false, above: false };
+  const B = { lo, hi, wLo: null, wHi: null, hrLo: null, hrHi: null, capped: false, above: false, startsAbove: false, firstLa: null };
   if (!GZ_ON()) return B; // Golden Zone désactivée dans les réglages
   const curve = Z.s2 || Z.s;
+  // Courbe qui ne descend jamais sous le haut de la plage : impossible d'y placer la Golden Zone
+  if (curve && curve.steps.length && Math.min(...curve.steps.map(x => x.la)) > hi + 1e-9) { B.startsAbove = true; B.firstLa = curve.steps[0].la; B.minLa = Math.min(...curve.steps.map(x => x.la)); return B; }
   if (curve) {
     B.wLo = crossW(curve.steps, lo); B.wHi = crossW(curve.steps, hi);
     if (B.wLo != null && B.wHi == null && Z.lt2 != null) { B.wHi = Z.lt2; B.capped = true; }
@@ -1298,9 +1300,11 @@ function gzThermo(Z) {
 function goldenPanel(Z) {
   const G = goldenZone(Z), wk = gzWeek(), r = v => fmt(v, 1);
   const cell = (v, l) => `<div><b>${v}</b><span>${l}</span></div>`;
-  const watts = G.wLo != null ? T(`${fx(G.wLo)} à ${fxu(G.wHi)}`, `${fx(G.wLo)} to ${fxu(G.wHi)}`) : G.above ? T('au-dessus de ton LT2', 'above your LT2') : T('à calculer', 'to be calculated');
+  const watts = G.wLo != null ? T(`${fx(G.wLo)} à ${fxu(G.wHi)}`, `${fx(G.wLo)} to ${fxu(G.wHi)}`) : G.above ? T('au-dessus de ton LT2', 'above your LT2') : G.startsAbove ? T('hors de ta courbe', 'off your curve') : T('à calculer', 'to be calculated');
   const hr = G.hrLo != null && G.hrHi != null ? T(`${fmt(G.hrLo)} à ${fmt(G.hrHi)}`, `${fmt(G.hrLo)} to ${fmt(G.hrHi)}`) : T('n.d.', 'n/a');
-  const note = G.above ? T('Ta plage commence au-dessus de ton LT2 : elle est trop haute pour toi. Baisse-la dans mon onglet.', "Your range starts above your LT2: it's too high for you. Lower it in my tab.")
+  const note = G.startsAbove ? T(`Anomalie au labo : ta courbe ne descend jamais sous ${fmt(G.minLa, 1)} mmol (1er palier à ${fmt(G.firstLa, 1)} mmol), donc elle ne traverse pas ta plage de ${fmt(G.lo, 1)} à ${fmt(G.hi, 1)} mmol. Causes fréquentes : échauffement trop court ou trop dur, départ trop haut, doigt pas sec (la sueur contient du lactate). Au prochain test, échauffe-toi 15 min très facile et pars plus bas.`,
+      `Lab anomaly: your curve never drops below ${fmt(G.minLa, 1)} mmol (first step at ${fmt(G.firstLa, 1)} mmol), so it never crosses your ${fmt(G.lo, 1)} to ${fmt(G.hi, 1)} mmol range. Common causes: warm-up too short or too hard, start too high, finger not dry (sweat contains lactate). Next test, warm up 15 min very easy and start lower.`)
+    : G.above ? T('Ta plage commence au-dessus de ton LT2 : elle est trop haute pour toi. Baisse-la dans mon onglet.', "Your range starts above your LT2: it's too high for you. Lower it in my tab.")
     : G.wLo == null ? T('Il me faut une courbe de lactate qui traverse ta plage : un test paliers jusqu\'à 5 mmol.', 'I need a lactate curve that crosses your range: a step test up to 5 mmol.')
     : G.capped ? T('Plafonnée à ton LT2 : la Golden Zone reste sous ton 2e seuil, jamais dessus.', 'Capped at your LT2: the Golden Zone stays below your 2nd threshold, never above.')
     : T(`${SP().Name} et FC lues sur ta dernière courbe de lactate. Une plage, pas un chiffre : vise le bas sur les intervalles longs.`, `${SP().Name} and HR read from your latest lactate curve. A range, not a number: aim low on long intervals.`);
@@ -1740,7 +1744,8 @@ function stepDetail(id) {
       <div class="seg" role="group" aria-label="${T('Seuil à régler', 'Threshold to set')}"><button type="button" data-act="pick" data-id="${t.id}" data-mode="lt1" aria-pressed="${pick === 'lt1'}">LT1</button><button type="button" data-act="pick" data-id="${t.id}" data-mode="lt2" aria-pressed="${pick === 'lt2'}">LT2</button></div></div>
     <div class="kv">${box(a.lt1W, a.lt1Hr, `LT1 (${SP().u})`)}${box(a.lt2W, a.lt2Hr, `LT2 (${SP().u})`)}<div><b>${a.maxLa != null ? fmt(a.maxLa, 1) : T('n.d.', 'n/a')}</b><span>${T('mmol max', 'mmol max')}</span></div></div>
     <div class="result"><span class="hand">${m1}<br>${m2}</span></div>
-    ${(G => G ? `<div class="result gz-result" style="margin-top:0">★ ${T(`<b>Ta Golden Zone sur ce test : ${fx(G.wLo)} à ${fxu(G.wHi)}</b>${G.hrLo != null && G.hrHi != null ? `, FC ${fmt(G.hrLo)} à ${fmt(G.hrHi)}` : ''} (${fmt(state.gz.lo, 1)} à ${fmt(state.gz.hi, 1)} mmol).`, `<b>Your Golden Zone on this test: ${fx(G.wLo)} to ${fxu(G.wHi)}</b>${G.hrLo != null && G.hrHi != null ? `, HR ${fmt(G.hrLo)} to ${fmt(G.hrHi)}` : ''} (${fmt(state.gz.lo, 1)} to ${fmt(state.gz.hi, 1)} mmol).`)}</div>` : '')(testGZ(a))}
+    ${(G => G ? `<div class="result gz-result" style="margin-top:0">★ ${T(`<b>Ta Golden Zone sur ce test : ${fx(G.wLo)} à ${fxu(G.wHi)}</b>${G.hrLo != null && G.hrHi != null ? `, FC ${fmt(G.hrLo)} à ${fmt(G.hrHi)}` : ''} (${fmt(state.gz.lo, 1)} à ${fmt(state.gz.hi, 1)} mmol).`, `<b>Your Golden Zone on this test: ${fx(G.wLo)} to ${fxu(G.wHi)}</b>${G.hrLo != null && G.hrHi != null ? `, HR ${fmt(G.hrLo)} to ${fmt(G.hrHi)}` : ''} (${fmt(state.gz.lo, 1)} to ${fmt(state.gz.hi, 1)} mmol).`)}</div>` : (GZ_ON() && a.steps.length && Math.min(...a.steps.map(x => x.la)) > state.gz.hi + 1e-9
+      ? `<p class="warn" style="margin:0 0 12px">${T(`Golden Zone introuvable sur ce test : la courbe ne descend jamais sous ${fmt(Math.min(...a.steps.map(x => x.la)), 1)} mmol, au-dessus de ta plage (${fmt(state.gz.lo, 1)} à ${fmt(state.gz.hi, 1)} mmol). Échauffement trop court ou départ trop haut ? Au prochain test, 15 min très facile avant et un départ plus bas.`, `Golden Zone not found on this test: the curve never drops below ${fmt(Math.min(...a.steps.map(x => x.la)), 1)} mmol, above your range (${fmt(state.gz.lo, 1)} to ${fmt(state.gz.hi, 1)} mmol). Warm-up too short or start too high? Next test, 15 min very easy first and a lower start.`)}</p>` : ''))(testGZ(a))}
     ${rampLine(t.data && t.data.ramp)}
     ${a.steps.length ? (matchesProto(a.steps, proto()) ? '<p class="chip" style="display:inline-block;margin:0 0 12px">' + T('Protocole standard', 'Standard protocol') + '</p>' : `<p class="warn" style="margin:0 0 12px">${T(`Hors protocole (départ ${fxu(a.steps[0].w)}) : à comparer avec prudence aux autres tests.`, `Off protocol (start at ${fxu(a.steps[0].w)}): compare with other tests carefully.`)}</p>`) : ''}
     ${a.manualW != null ? `<button class="btn block" data-act="reset-thr" data-field="lt1_manual" data-id="${t.id}">${T('LT1 automatique', 'Automatic LT1')}</button><div style="height:10px"></div>` : ''}
