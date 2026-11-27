@@ -1197,6 +1197,8 @@ function testProgress(root) {
   bar.innerHTML = `<div class="tprog-dots">${rows.map((r, i) => `<i class="${done[i] ? 'on' : ''}${i === cur ? ' cur' : ''}" title="${T('Palier', 'Step')} ${i + 1}"></i>`).join('')}</div>
     <span>${cur < 0 ? T('Tous les paliers notés', 'All steps logged') : T(`Palier ${cur + 1} sur ${rows.length}`, `Step ${cur + 1} of ${rows.length}`)}${a.maxLa != null ? ` · ${fmt(a.maxLa, 1)} mmol max` : ''}</span>`;
 }
+// Pseudo proposé par défaut : aucun vrai nom n'est nécessaire
+const randomPseudo = () => T('Cobaye n° ', 'Lab rat #') + (1000 + Math.floor(Math.random() * 9000));
 function hero(text, size = 140) {
   return `<div class="hero">${globuleSVG(size)}<p class="bubble">${text}</p></div>`;
 }
@@ -1468,8 +1470,9 @@ function viewGlobule() {
 }
 function settingsSheet() {
   openSheet(T('Réglages', 'Settings'), `
-    <label class="field"><span>${T('Comment je t\'appelle ?', 'What should I call you?')}</span><input class="inp" id="set-name" value="${esc(state.name)}" placeholder="${T('Ton prénom', 'Your first name')}" autocomplete="given-name"></label>
-    <button class="btn violet block" data-act="save-name">${T('Enregistrer le prénom', 'Save name')}</button>
+    <label class="field"><span>${T('Ton pseudo au labo', 'Your lab nickname')}</span><input class="inp" id="set-name" value="${esc(state.name)}" placeholder="${T('ex. Cobaye n° 4821', 'e.g. Lab rat #4821')}" autocomplete="off" autocapitalize="off"></label>
+    <p class="muted" style="font-size:13px;margin:-4px 0 10px">${T('Pas besoin de ton vrai nom : un pseudo suffit. Ton entraîneur le verra aussi.', 'No need for your real name: a nickname is enough. Your coach sees it too.')}</p>
+    <button class="btn violet block" data-act="save-name">${T('Enregistrer le pseudo', 'Save nickname')}</button>
     <div style="height:14px"></div>
     <p class="hand" style="margin:0 0 6px">${T('Mes sports', 'My sports')}</p>
     <p class="muted" style="font-size:13px;margin:0 0 8px">${(state.sports || ['bike']).map(k => SPORTS[k].label).join(T(' et ', ' and '))}. ${T('Chaque sport a ses tests, ses zones et ses séances.', 'Each sport has its own tests, zones and sessions.')}</p>
@@ -2337,7 +2340,7 @@ function renderLogin(mode, email = '', info = '') {
       <button data-act="auth-mode" data-mode="login" aria-pressed="${mode === 'login'}">${T('Me connecter', 'Log in')}</button></div>` : '';
   let body = '';
   if (mode === 'signup') body = `<p class="hand" style="margin-top:0">${T('Bienvenue au labo ! Crée ton compte : tes tests et tes séances restent à toi.', 'Welcome to the lab! Create your account: your tests and sessions stay yours.')}</p>
-      <label class="field"><span>${T('Prénom', 'First name')}</span><input class="inp" id="l-name" autocomplete="given-name"></label>${emailF}
+      <label class="field"><span>${T('Pseudo', 'Nickname')}</span><input class="inp" id="l-name" value="${esc(randomPseudo())}" autocapitalize="off" autocomplete="given-name"></label>${emailF}
       <label class="field"><span>${T('Mot de passe (8 caractères minimum)', 'Password (8 characters minimum)')}</span><input class="inp" id="l-pass" type="password" autocomplete="new-password"></label>
       <label class="consent"><input type="checkbox" id="l-consent"><span>${consentText()}</span></label>
       <button class="btn rose block" data-act="signup" data-main>${T('Créer mon compte', 'Create my account')}</button>`;
@@ -2374,7 +2377,7 @@ function authErr(e) {
 const readAuth = () => ({ email: ($('#l-email') ? $('#l-email').value : '').trim(), pass: $('#l-pass') ? $('#l-pass').value : '', name: ($('#l-name') ? $('#l-name').value : '').trim() });
 async function signUp() {
   const { email, pass, name } = readAuth();
-  if (!name) return showErr(T('Ton prénom ?', 'Your first name?'));
+  if (!name) return showErr(T('Choisis un pseudo (pas besoin de ton vrai nom).', 'Pick a nickname (no need for your real name).'));
   if (!EMAIL_RE.test(email)) return showErr(T('Cet email ne ressemble pas à un email.', "That email doesn't look like an email."));
   if (pass.length < 8) return showErr(T('Le mot de passe fait au moins 8 caractères.', 'The password needs at least 8 characters.'));
   if (!($('#l-consent') && $('#l-consent').checked)) return showErr(T('Coche la case : sans ton accord, je ne peux pas garder tes données de lactate.', 'Tick the box: without your consent, I can\'t keep your lactate data.'));
@@ -2537,7 +2540,7 @@ document.addEventListener('click', async e => {
       state.name = name;
       if (DEMO) localStorage.setItem('globule:name', name);
       else { const { error } = await updMeta({ data: { name } }); if (error) { toast(T('Pas enregistré : ', 'Not saved: ') + error.message); break; } }
-      render(); toast(name ? T(`Salut ${name} !`, `Hi ${name}!`) : T('Prénom effacé', 'First name cleared'));
+      render(); toast(name ? T(`Salut ${name} !`, `Hi ${name}!`) : T('Pseudo effacé', 'Nickname cleared'));
       break;
     }
     case 'new-gz': pickSession(); break;
