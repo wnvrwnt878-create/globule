@@ -449,7 +449,7 @@ const kindLabel = k => (state.lang === 'en' && k && KIND_EN[k] ? KIND_EN[k] : k)
 const TPL_EN = { '8 × 5 min': '8 × 5 min', 'Intervalles longs GZ': 'Long GZ intervals', 'Intervalles courts GZ': 'Short GZ intervals' };
 const tplLabel = name => (state.lang === 'en' && name && TPL_EN[name] ? TPL_EN[name] : name);
 const PREF = (k, d) => { try { const v = localStorage.getItem('globule:' + k); return v == null ? d : v; } catch (e) { return d; } };
-const state = { links: [], viewAs: null, viewName: '', coachReady: null, gzOn: true, zonesOpen: PREF('zones-open', '0') === '1', jRange: PREF('jrange', '8w'), lang: LANG0, allTests: [], allSessions: [], sport: 'bike', sports: null, protos: { bike: null, run: null }, tests: [], sessions: [], name: '', tab: 'home', user: null, mascotEvent: null, proto: null, templates: [], pick: 'lt1', gz: { lo: 2.3, hi: 3.0 } };
+const state = { gzMode: 'lt2', gzOff: { lo: 60, hi: 80 }, links: [], viewAs: null, viewName: '', coachReady: null, gzOn: true, zonesOpen: PREF('zones-open', '0') === '1', jRange: PREF('jrange', '8w'), lang: LANG0, allTests: [], allSessions: [], sport: 'bike', sports: null, protos: { bike: null, run: null }, tests: [], sessions: [], name: '', tab: 'home', user: null, mascotEvent: null, proto: null, templates: [], pick: 'lt1', gz: { lo: 2.3, hi: 3.0 } };
 
 /* ---------- Outils ---------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -623,7 +623,7 @@ async function updMeta(arg) {
 async function syncProfile() {
   if (DEMO || !state.user || state.viewAs) return;
   const m = state.user.user_metadata || {};
-  const { error } = await sb.from('profiles').upsert({ id: state.user.id, name: m.name || null, sports: m.sports || null, gz: m.gz3 || null,
+  const { error } = await sb.from('profiles').upsert({ id: state.user.id, name: m.name || null, sports: m.sports || null, gz: { fixed: m.gz3 || null, mode: m.gzMode || 'lt2', off: m.gzOff || null },
     gz_on: typeof m.gzOn === 'boolean' ? m.gzOn : null, protos: { bike: m.proto || null, run: m.protoRun || null }, templates: m.templates || null, updated_at: new Date().toISOString() });
   if (error) console.warn('Profil non partagé :', error.message);
 }
@@ -647,7 +647,8 @@ async function viewAthlete(id) {
     const l = myAthletes().find(x => x.athlete_id === id); if (!l) return;
     const { data: pr } = await sb.from('profiles').select('*').eq('id', id).maybeSingle();
     const pf = pr || {};
-    const meta = { name: pf.name || l.athlete_name || '', gz3: pf.gz, gzOn: pf.gz_on, proto: pf.protos && pf.protos.bike, protoRun: pf.protos && pf.protos.run, sports: pf.sports, templates: pf.templates };
+    const gzp = pf.gz || {}, isNew = gzp && (gzp.mode || gzp.fixed || gzp.off);
+    const meta = { name: pf.name || l.athlete_name || '', gz3: isNew ? gzp.fixed : pf.gz, gzMode: isNew ? gzp.mode : 'lt2', gzOff: isNew ? gzp.off : null, gzOn: pf.gz_on, proto: pf.protos && pf.protos.bike, protoRun: pf.protos && pf.protos.run, sports: pf.sports, templates: pf.templates };
     state.viewAs = id; state.viewName = meta.name || T('ton athlète', 'your athlete');
     state.name = meta.name;
     loadGz({ user_metadata: meta }); loadGzOn(meta); loadProto({ user_metadata: meta }); loadSports(meta); loadTemplates(meta.templates);
@@ -682,7 +683,7 @@ function coachSection() {
       <button type="button" class="btn violet" data-act="claim-code">${T('Ajouter', 'Add')}</button></div>
     <div style="height:4px"></div>`;
 }
-const WRITE_ACTS = new Set(['delete-account', 'give-consent', 'new-session', 'new-steps', 'save-steps', 'save-iv', 'save-session', 'save-tpl', 'new-tpl', 'del-tpl', 'use-tpl', 'del-session', 'del-test', 'set-thr', 'reset-thr', 'edit-steps',
+const WRITE_ACTS = new Set(['gz-mode', 'delete-account', 'give-consent', 'new-session', 'new-steps', 'save-steps', 'save-iv', 'save-session', 'save-tpl', 'new-tpl', 'del-tpl', 'use-tpl', 'del-session', 'del-test', 'set-thr', 'reset-thr', 'edit-steps',
   'add-row', 'del-row', 'add-iv', 'save-name', 'save-gz', 'save-proto', 'set-gzon', 'edit-sports', 'save-sports', 'toggle-sport', 'calc-start', 'settings', 'export', 'new-gz', 'pick',
   'invite-coach', 'claim-code', 'unlink', 'share-code']);
 
@@ -858,8 +859,34 @@ function crossW(steps, la) {
   }
   return null;
 }
+// Golden Zone individuelle : une plage de lactate proportionnelle au lactate de TON LT2, lue sur ta courbe.
+// Par défaut 60 à 80 % du lactate à LT2 : pour un LT2 vers 3,8 mmol, cela redonne la plage de Bakken (2,3 à 3,0 mmol).
+// Le bas ne descend jamais sous le lactate de LT1 : la Golden Zone reste entre tes deux seuils.
+const GZ_OFF_DEFAULT = { lo: 60, hi: 80 };
+function gzRangeFor(a) {
+  if (state.gzMode === 'lt2' && a && a.lt2W != null) {
+    const la2 = laAt(a.steps, a.lt2W);
+    if (la2 != null) {
+      const la1 = a.lt1W != null ? laAt(a.steps, a.lt1W) : null;
+      let lo = la2 * state.gzOff.lo / 100, hi = la2 * state.gzOff.hi / 100;
+      if (la1 != null && lo < la1) lo = la1;
+      if (hi < lo + 0.2) hi = Math.min(la2, lo + 0.2);
+      return { lo: +lo.toFixed(1), hi: +hi.toFixed(1), la2: +la2.toFixed(1), indiv: true };
+    }
+  }
+  return { lo: state.gz.lo, hi: state.gz.hi, indiv: false };
+}
+let gzMemo = null;
+function GZR() {
+  const key = [state.sport, state.gzMode, state.gzOff.lo, state.gzOff.hi, state.gz.lo, state.gz.hi, state.tests.length, state.tests.map(t => t.id + (t.lt2_manual || '')).join(',')].join('|');
+  if (gzMemo && gzMemo.key === key) return gzMemo.r;
+  const Z = currentZones();
+  const r = gzRangeFor(Z.s2);
+  gzMemo = { key, r };
+  return r;
+}
 function bandWatts(Z) {
-  const { lo, hi } = state.gz;
+  const { lo, hi } = gzRangeFor(Z.s2);
   const B = { lo, hi, wLo: null, wHi: null, hrLo: null, hrHi: null, capped: false, above: false, startsAbove: false, firstLa: null };
   if (!GZ_ON()) return B; // Golden Zone désactivée dans les réglages
   const curve = Z.s2 || Z.s;
@@ -878,7 +905,7 @@ function bandWatts(Z) {
 function goldenZone(Z) { return bandWatts(Z); }
 function inRange(la, r) { return la >= r.lo - 1e-9 && la <= r.hi + 1e-9; }
 function gzStatus(s) {
-  const la = num(s.lactate), r = state.gz;
+  const la = num(s.lactate), r = GZR();
   if (GZ_KINDS.includes(s.kind)) {
     if (la == null || inRange(la, r)) return { st: 'in' };
     return { st: la > r.hi ? 'high' : 'low' };
@@ -893,8 +920,8 @@ function gzWeek() {
   return { n: list.length, min: list.reduce((a, s) => a + (num(s.duration_min) || 0), 0), high: list.filter(s => gzStatus(s).st === 'high').length };
 }
 const GZ_ON = () => state.gzOn !== false;
-const gzBands = () => (GZ_ON() ? [{ y0: state.gz.lo, y1: state.gz.hi, color: GZ_COLOR, op: .45, label: 'Golden Zone' }] : []);
-const gzTop = () => state.gz.hi;
+const gzBands = () => (GZ_ON() ? [{ y0: GZR().lo, y1: GZR().hi, color: GZ_COLOR, op: .45, label: 'Golden Zone' }] : []);
+const gzTop = () => GZR().hi;
 
 // 5 zones Olympiatoppen (I1 à I5), calées sur ton test :
 // I1 < LT1 < I2 < bas de la Golden Zone < I3 < LT2 < I4 < 6 mmol < I5
@@ -1418,7 +1445,8 @@ function viewGlobule() {
     <p class="say">${T('Mon expérience préférée : juste sous ton 2e seuil (LT2). Jamais dessus.', "My favorite experiment: just below your 2nd threshold (LT2). Never above.")}</p>
     <ol>
       <li>${T(`Attention au mot "seuil" : ici c'est ton <b>2e seuil</b> (LT2). Ton 1er seuil (LT1), juste au-dessus du lactate de repos, c'est la fin de l'I1 : le terrain des jours faciles, pas de la Golden Zone.`, `Careful with the word “threshold”: here it means your <b>2nd threshold</b> (LT2). Your 1st threshold (LT1), just above resting lactate, is the end of I1: easy-day territory, not the Golden Zone.`)}</li>
-      <li>${T(`<b>Une plage, pas un seuil</b> : ${fmt(state.gz.lo, 1)} à ${fmt(state.gz.hi, 1)} mmol. C'est la plage que donne Marius Bakken pour des athlètes entraînés, volontairement prudente : le lactate varie avec la chaleur, le glycogène et l'erreur du lecteur. Viser un chiffre fixe, c'est se surcharger petit à petit.`, `<b>A range, not a threshold</b>: ${fmt(state.gz.lo, 1)} to ${fmt(state.gz.hi, 1)} mmol. That's the range Marius Bakken gives for trained athletes, deliberately cautious: lactate varies with heat, glycogen and meter error. Aiming for one fixed number means slowly overloading yourself.`)}</li>
+      ${GZR().indiv ? `<li>${T(`<b>Ta plage, à toi</b> : ${fmt(GZR().lo, 1)} à ${fmt(GZR().hi, 1)} mmol, juste sous le lactate de ton LT2 (${fmt(GZR().la2, 1)} mmol). Chacun a sa courbe : la Golden Zone suit la tienne, pas une valeur générale. Je prends 60 à 80 % du lactate à ton LT2 : pour un LT2 vers 3,8 mmol, on retombe sur la plage de Bakken (2,3 à 3,0 mmol).`, `<b>Your own range</b>: ${fmt(GZR().lo, 1)} to ${fmt(GZR().hi, 1)} mmol, just below your LT2 lactate (${fmt(GZR().la2, 1)} mmol). Everyone has their own curve: the Golden Zone follows yours, not a general value. I take 60 to 80% of your LT2 lactate: for an LT2 around 3.8 mmol, you land on Bakken's range (2.3 to 3.0 mmol).`)}</li>` : ''}
+      ${GZR().indiv ? '' : `<li>${T(`<b>Une plage, pas un seuil</b> : ${fmt(GZR().lo, 1)} à ${fmt(GZR().hi, 1)} mmol. C'est la plage que donne Marius Bakken pour des athlètes entraînés, volontairement prudente : le lactate varie avec la chaleur, le glycogène et l'erreur du lecteur. Viser un chiffre fixe, c'est se surcharger petit à petit.`, `<b>A range, not a threshold</b>: ${fmt(GZR().lo, 1)} to ${fmt(GZR().hi, 1)} mmol. That's the range Marius Bakken gives for trained athletes, deliberately cautious: lactate varies with heat, glycogen and meter error. Aiming for one fixed number means slowly overloading yourself.`)}</li>`}
       <li>${T('Même si ton test place ton seuil plus haut (4 mmol par exemple), reste dans cette plage plusieurs mois avant de retester.', 'Even if your test puts your threshold higher (4 mmol, say), stay in this range for several months before retesting.')}</li>
       <li>${T('Intervalles longs : reste dans le bas de la plage, surtout en première moitié. Intervalles courts : après 4 ou 5 répétitions, tu peux t\'approcher de 3,0.', 'Long intervals: stay at the low end of the range, especially in the first half. Short intervals: after 4 or 5 reps, you can get close to 3.0.')}</li>
       <li>${T(`Pique pendant la récup, après le 2e intervalle puis vers la fin. Au-dessus de la plage : baisse ${SP().les} au suivant. Le piège, c'est d'aller trop fort, pas trop doucement.`, `Prick during recovery, after the 2nd interval and again near the end. Above the range: lower ${SP().les} on the next one. The trap is going too hard, not too easy.`)}</li>
@@ -1488,9 +1516,15 @@ function settingsSheet() {
       <button type="button" data-act="set-gzon" data-val="0" aria-pressed="${!GZ_ON()}">${T('Pas pour moi', 'Not for me')}</button></div>
     <p class="muted" style="font-size:13px;margin:0 0 10px">${T('Désactivée, je cache la Golden Zone de l\'accueil, des graphiques et des explications. Tes 5 zones restent.', 'When off, I hide the Golden Zone from home, the charts and the guides. Your 5 zones stay.')}</p>
     ${GZ_ON() ? `
-    <div class="grid2"><label class="field"><span>${T('De (mmol)', 'From (mmol)')}</span><input class="inp" id="set-gz-lo" inputmode="decimal" value="${inVal(state.gz.lo)}"></label>
+    <div class="seg" data-layout-id="gzmode" role="group" aria-label="${T('Calcul de la Golden Zone', 'Golden Zone method')}" style="margin-bottom:8px">
+      <button type="button" data-act="gz-mode" data-val="lt2" aria-pressed="${state.gzMode === 'lt2'}">${T('Individuelle', 'Individual')}</button>
+      <button type="button" data-act="gz-mode" data-val="fixed" aria-pressed="${state.gzMode !== 'lt2'}">${T('Plage fixe', 'Fixed range')}</button></div>
+    ${state.gzMode === 'lt2' ? `<div class="grid2"><label class="field"><span>${T('De (% du lactate à LT2)', 'From (% of LT2 lactate)')}</span><input class="inp" id="set-gz-olo" inputmode="decimal" value="${inVal(state.gzOff.lo)}"></label>
+    <label class="field"><span>${T('À (% du lactate à LT2)', 'To (% of LT2 lactate)')}</span><input class="inp" id="set-gz-ohi" inputmode="decimal" value="${inVal(state.gzOff.hi)}"></label></div>
+    <p class="muted" style="font-size:13px;margin:-4px 0 10px">${GZR().indiv ? T(`Avec ton dernier test : LT2 à ${fmt(GZR().la2, 1)} mmol, Golden Zone de ${fmt(GZR().lo, 1)} à ${fmt(GZR().hi, 1)} mmol.`, `With your latest test: LT2 at ${fmt(GZR().la2, 1)} mmol, Golden Zone from ${fmt(GZR().lo, 1)} to ${fmt(GZR().hi, 1)} mmol.`) : T('Il me faut un test avec LT2 ; en attendant j\'utilise la plage fixe.', 'I need a test with LT2; until then I use the fixed range.')} ${T('Par défaut 60 à 80 % : pour un LT2 vers 3,8 mmol, c\'est la plage de Bakken.', 'Default 60 to 80%: for an LT2 around 3.8 mmol, that is Bakken\'s range.')}</p>`
+    : `<div class="grid2"><label class="field"><span>${T('De (mmol)', 'From (mmol)')}</span><input class="inp" id="set-gz-lo" inputmode="decimal" value="${inVal(state.gz.lo)}"></label>
     <label class="field"><span>${T('À (mmol)', 'To (mmol)')}</span><input class="inp" id="set-gz-hi" inputmode="decimal" value="${inVal(state.gz.hi)}"></label></div>
-    <p class="muted" style="font-size:13px;margin:-4px 0 10px">${T('Par défaut 2,3 à 3,0 mmol (Marius Bakken).', 'Default 2.3 to 3.0 mmol (Marius Bakken).')}</p>
+    <p class="muted" style="font-size:13px;margin:-4px 0 10px">${T('Plage générale de Marius Bakken : 2,3 à 3,0 mmol.', 'Marius Bakken general range: 2.3 to 3.0 mmol.')}</p>`}
     <button class="btn block" style="background:#FFC21A;color:#2A0A4A" data-act="save-gz">${T('Enregistrer ma Golden Zone', 'Save my Golden Zone')}</button>` : ''}
     <div style="height:14px"></div>
     <p class="hand" style="margin:0 0 6px">${T(`Mon protocole paliers ${SP().label.toLowerCase()} (${proto().dur} min + 30 s de pause)`, `My ${SP().label.toLowerCase()} step test protocol (${proto().dur} min + 30 s rest)`)}</p>
@@ -1685,7 +1719,7 @@ function saveSteps(root) {
 // Golden Zone lue sur un test donné, plafonnée à son LT2
 function testGZ(a) {
   if (!GZ_ON()) return null;
-  const { lo, hi } = state.gz;
+  const { lo, hi } = gzRangeFor(a);
   let wLo = crossW(a.steps, lo), wHi = crossW(a.steps, hi);
   if (wLo != null && wHi == null && a.lt2W != null) wHi = a.lt2W;
   if (wHi != null && a.lt2W != null && wHi > a.lt2W) wHi = a.lt2W;
@@ -1744,8 +1778,8 @@ function stepDetail(id) {
       <div class="seg" role="group" aria-label="${T('Seuil à régler', 'Threshold to set')}"><button type="button" data-act="pick" data-id="${t.id}" data-mode="lt1" aria-pressed="${pick === 'lt1'}">LT1</button><button type="button" data-act="pick" data-id="${t.id}" data-mode="lt2" aria-pressed="${pick === 'lt2'}">LT2</button></div></div>
     <div class="kv">${box(a.lt1W, a.lt1Hr, `LT1 (${SP().u})`)}${box(a.lt2W, a.lt2Hr, `LT2 (${SP().u})`)}<div><b>${a.maxLa != null ? fmt(a.maxLa, 1) : T('n.d.', 'n/a')}</b><span>${T('mmol max', 'mmol max')}</span></div></div>
     <div class="result"><span class="hand">${m1}<br>${m2}</span></div>
-    ${(G => G ? `<div class="result gz-result" style="margin-top:0">★ ${T(`<b>Ta Golden Zone sur ce test : ${fx(G.wLo)} à ${fxu(G.wHi)}</b>${G.hrLo != null && G.hrHi != null ? `, FC ${fmt(G.hrLo)} à ${fmt(G.hrHi)}` : ''} (${fmt(state.gz.lo, 1)} à ${fmt(state.gz.hi, 1)} mmol).`, `<b>Your Golden Zone on this test: ${fx(G.wLo)} to ${fxu(G.wHi)}</b>${G.hrLo != null && G.hrHi != null ? `, HR ${fmt(G.hrLo)} to ${fmt(G.hrHi)}` : ''} (${fmt(state.gz.lo, 1)} to ${fmt(state.gz.hi, 1)} mmol).`)}</div>` : (GZ_ON() && a.steps.length && Math.min(...a.steps.map(x => x.la)) > state.gz.hi + 1e-9
-      ? `<p class="warn" style="margin:0 0 12px">${T(`Golden Zone introuvable sur ce test : la courbe ne descend jamais sous ${fmt(Math.min(...a.steps.map(x => x.la)), 1)} mmol, au-dessus de ta plage (${fmt(state.gz.lo, 1)} à ${fmt(state.gz.hi, 1)} mmol). Échauffement trop court ou départ trop haut ? Au prochain test, 15 min très facile avant et un départ plus bas.`, `Golden Zone not found on this test: the curve never drops below ${fmt(Math.min(...a.steps.map(x => x.la)), 1)} mmol, above your range (${fmt(state.gz.lo, 1)} to ${fmt(state.gz.hi, 1)} mmol). Warm-up too short or start too high? Next test, 15 min very easy first and a lower start.`)}</p>` : ''))(testGZ(a))}
+    ${(G => G ? `<div class="result gz-result" style="margin-top:0">★ ${T(`<b>Ta Golden Zone sur ce test : ${fx(G.wLo)} à ${fxu(G.wHi)}</b>${G.hrLo != null && G.hrHi != null ? `, FC ${fmt(G.hrLo)} à ${fmt(G.hrHi)}` : ''} (${fmt(GZR().lo, 1)} à ${fmt(GZR().hi, 1)} mmol).`, `<b>Your Golden Zone on this test: ${fx(G.wLo)} to ${fxu(G.wHi)}</b>${G.hrLo != null && G.hrHi != null ? `, HR ${fmt(G.hrLo)} to ${fmt(G.hrHi)}` : ''} (${fmt(GZR().lo, 1)} to ${fmt(GZR().hi, 1)} mmol).`)}</div>` : (GZ_ON() && a.steps.length && Math.min(...a.steps.map(x => x.la)) > gzRangeFor(a).hi + 1e-9
+      ? `<p class="warn" style="margin:0 0 12px">${T(`Golden Zone introuvable sur ce test : la courbe ne descend jamais sous ${fmt(Math.min(...a.steps.map(x => x.la)), 1)} mmol, au-dessus de ta plage (${fmt(gzRangeFor(a).lo, 1)} à ${fmt(gzRangeFor(a).hi, 1)} mmol). Échauffement trop court ou départ trop haut ? Au prochain test, 15 min très facile avant et un départ plus bas.`, `Golden Zone not found on this test: the curve never drops below ${fmt(Math.min(...a.steps.map(x => x.la)), 1)} mmol, above your range (${fmt(gzRangeFor(a).lo, 1)} to ${fmt(gzRangeFor(a).hi, 1)} mmol). Warm-up too short or start too high? Next test, 15 min very easy first and a lower start.`)}</p>` : ''))(testGZ(a))}
     ${rampLine(t.data && t.data.ramp)}
     ${a.steps.length ? (matchesProto(a.steps, proto()) ? '<p class="chip" style="display:inline-block;margin:0 0 12px">' + T('Protocole standard', 'Standard protocol') + '</p>' : `<p class="warn" style="margin:0 0 12px">${T(`Hors protocole (départ ${fxu(a.steps[0].w)}) : à comparer avec prudence aux autres tests.`, `Off protocol (start at ${fxu(a.steps[0].w)}): compare with other tests carefully.`)}</p>`) : ''}
     ${a.manualW != null ? `<button class="btn block" data-act="reset-thr" data-field="lt1_manual" data-id="${t.id}">${T('LT1 automatique', 'Automatic LT1')}</button><div style="height:10px"></div>` : ''}
@@ -1793,7 +1827,7 @@ function sessionForm(s, kind) {
       const kind = $('#f-kind', root).value, G = goldenZone(Z), band = GZ_KINDS.includes(kind);
       let gz = '';
       if (band && la != null) {
-        const r = state.gz, nm = 'Golden Zone';
+        const r = GZR(), nm = 'Golden Zone';
         gz = la > r.hi ? T(`<b>${fmt(la - r.hi, 1)} mmol au-dessus de ta ${nm}.</b> L'éprouvette chauffe : baisse un peu ${SP().les} au prochain intervalle, on reste sous ton 2e seuil (LT2).`, `<b>${fmt(la - r.hi, 1)} mmol above your ${nm}.</b> The test tube is overheating: ease off ${SP().les} a little on the next interval, we stay under your 2nd threshold (LT2).`)
           : la < r.lo ? T(`Sous ta ${nm} (${fmt(r.lo, 1)} à ${fmt(r.hi, 1)} mmol). Réaction trop timide : tu peux monter légèrement.`, `Below your ${nm} (${fmt(r.lo, 1)} to ${fmt(r.hi, 1)} mmol). Reaction too mild: you can push a little harder.`)
           : T(`<b>Pile dans ta ${nm}.</b> Expérience réussie, Globule approuve !`, `<b>Right in your ${nm}.</b> Experiment successful, Globule approves!`);
@@ -1882,7 +1916,7 @@ function tplForm() {
     <p class="muted" style="font-size:13px;margin:-4px 0 10px">${T('Durées en minutes (« 6 ») ou en secondes (« 45 s », « 1:30 »). Exemple : 2 séries de 6 × 1 min, récup 1 min, et 3 min entre les séries.', 'Durations in minutes (“6”) or seconds (“45 s”, “1:30”). Example: 2 sets of 6 × 1 min, 1 min rest, and 3 min between sets.')}</p>
     <p class="hand" id="t-sum" style="margin:-2px 0 10px"></p>
     <div class="field"><span class="muted lbl-info" style="font-size:13px;font-weight:600">${T('Intensité visée', 'Target intensity')} <button type="button" class="info" data-act="info" data-for="tgt-info" aria-expanded="false" aria-label="${T('À quoi ça sert ?', 'What is this for?')}">i</button></span>
-      <p class="info-text" id="tgt-info" hidden>${T('<b>Golden Zone</b> : pendant la séance, Globule compare chaque lactate à ta plage (', '<b>Golden Zone</b>: during the session, Globule checks each lactate against your range (')}${fmt(state.gz.lo, 1)}–${fmt(state.gz.hi, 1)} mmol${T('), la dessine sur le graphique, et règle les fichiers Rouvy et Zwift au milieu de ta Golden Zone. <b>Autre intensité</b> : pas de cible, tu notes simplement tes valeurs (VO2max, sprints, tempo…).', '), draws it on the chart, and sets the Rouvy and Zwift files to the middle of your Golden Zone. <b>Other intensity</b>: no target, you simply log your values (VO2max, sprints, tempo…).')}</p>
+      <p class="info-text" id="tgt-info" hidden>${T('<b>Golden Zone</b> : pendant la séance, Globule compare chaque lactate à ta plage (', '<b>Golden Zone</b>: during the session, Globule checks each lactate against your range (')}${fmt(GZR().lo, 1)}–${fmt(GZR().hi, 1)} mmol${T('), la dessine sur le graphique, et règle les fichiers Rouvy et Zwift au milieu de ta Golden Zone. <b>Autre intensité</b> : pas de cible, tu notes simplement tes valeurs (VO2max, sprints, tempo…).', '), draws it on the chart, and sets the Rouvy and Zwift files to the middle of your Golden Zone. <b>Other intensity</b>: no target, you simply log your values (VO2max, sprints, tempo…).')}</p>
       <div class="seg" role="group" aria-label="${T('Intensité visée', 'Target intensity')}" data-seg="target">${Object.entries(TARGETS).map(([k, l]) => `<button type="button" data-val="${k}" aria-pressed="${k === 'Golden Zone'}">${tgtLabel(k)}</button>`).join('')}</div></div>
     <p class="err" role="alert"></p>
     <button class="btn rose block" data-act="save-tpl">${T('Enregistrer le modèle', 'Save template')}</button>
@@ -1938,7 +1972,7 @@ function sessionChart(all, isGZ) {
     hbands: isGZ ? gzBands() : [],
     series: [
       { pts: wt.map(r => ({ x: r.x, y: r.w })), color: '#6A2BF0', right: true, r: 3.5, width: 2.5, dash: '5 4' },
-      { pts: la.map(r => ({ x: r.x, y: r.la, fill: isGZ && r.la > state.gz.hi + 1e-9 ? '#FF2D8E' : isGZ && r.la >= state.gz.lo - 1e-9 ? GZ_COLOR : '#3FE8B9' })), color: '#FF7AB8', r: 6.5, width: 2.5 }
+      { pts: la.map(r => ({ x: r.x, y: r.la, fill: isGZ && r.la > GZR().hi + 1e-9 ? '#FF2D8E' : isGZ && r.la >= GZR().lo - 1e-9 ? GZ_COLOR : '#3FE8B9' })), color: '#FF7AB8', r: 6.5, width: 2.5 }
     ]
   });
   return `<section class="result" style="margin-top:12px"><p class="hand" style="margin:0 0 4px">${T('Ta séance en un coup d\'œil', 'Your session at a glance')}</p>${chart}
@@ -1952,7 +1986,7 @@ function intervalForm(tpl, s) {
   const per = setsOf(TP) > 1 ? TP.reps : 0;
   const rows = Array.from({ length: Math.max(totalReps(TP), saved.length) }, (_, i) => saved[i] || {});
   const isGZ = GZ_KINDS.includes(TP.target), G = goldenZone(currentZones()), r1 = v => fmt(v, 1);
-  const target = !isGZ ? '' : G.wLo != null ? T(` Cible : <b>${fx(G.wLo)} à ${fxu(G.wHi)}</b>, ${r1(state.gz.lo)} à ${r1(state.gz.hi)} mmol.`, ` Target: <b>${fx(G.wLo)} to ${fxu(G.wHi)}</b>, ${r1(state.gz.lo)} to ${r1(state.gz.hi)} mmol.`) : T(` Cible : ${r1(state.gz.lo)} à ${r1(state.gz.hi)} mmol.`, ` Target: ${r1(state.gz.lo)} to ${r1(state.gz.hi)} mmol.`);
+  const target = !isGZ ? '' : G.wLo != null ? T(` Cible : <b>${fx(G.wLo)} à ${fxu(G.wHi)}</b>, ${r1(GZR().lo)} à ${r1(GZR().hi)} mmol.`, ` Target: <b>${fx(G.wLo)} to ${fxu(G.wHi)}</b>, ${r1(GZR().lo)} to ${r1(GZR().hi)} mmol.`) : T(` Cible : ${r1(GZR().lo)} à ${r1(GZR().hi)} mmol.`, ` Target: ${r1(GZR().lo)} to ${r1(GZR().hi)} mmol.`);
   openSheet(s ? T(`Modifier : ${tplLabel(TP.name)}`, `Edit: ${tplLabel(TP.name)}`) : tplLabel(TP.name), `
     <div class="grid2"><label class="field"><span>Date</span><input class="inp" type="date" id="f-date" value="${x.date}"></label>
     <label class="field"><span>${T('Durée totale (min)', 'Total time (min)')}</span><input class="inp" id="f-dur" inputmode="numeric" value="${inVal(x.duration_min)}"></label></div>
@@ -1975,7 +2009,7 @@ function intervalForm(tpl, s) {
       const mx = las.length ? Math.max(...las) : null, mn = las.length ? Math.min(...las) : null;
       let msg = '';
       if (isGZ && las.length) {
-        const r = state.gz, above = las.filter(v => v > r.hi + 1e-9).length;
+        const r = GZR(), above = las.filter(v => v > r.hi + 1e-9).length;
         msg = above ? T(`<b>${above} prélèvement${above > 1 ? 's' : ''} au-dessus de ta Golden Zone</b> (max ${r1(mx)} mmol). Ça bouillonne trop : baisse un peu ${SP().les} au prochain intervalle.`, `<b>${above} sample${above > 1 ? 's' : ''} above your Golden Zone</b> (max ${r1(mx)} mmol). Too much bubbling: bring ${SP().les} down a little on the next interval.`)
           : mn < r.lo - 1e-9 ? T(`Sous ta Golden Zone (${r1(r.lo)} à ${r1(r.hi)} mmol). Le mélange est trop doux : tu peux monter légèrement.`, `Below your Golden Zone (${r1(r.lo)} to ${r1(r.hi)} mmol). The mix is too mild: you can push a little harder.`)
           : T('<b>Tous tes prélèvements sont dans ta Golden Zone.</b> Eurêka, protocole parfait !', '<b>All your samples are in your Golden Zone.</b> Eureka, flawless protocol!');
@@ -2561,15 +2595,23 @@ document.addEventListener('click', async e => {
       break;
     }
     case 'save-gz': {
-      const v = id => num($(id).value);
-      const gz = { lo: v('#set-gz-lo'), hi: v('#set-gz-hi') };
-      if (!validGz(gz)) { toast(T('Plage invalide : "de" plus petit que "à", entre 0,5 et 10 mmol', 'Invalid range: "from" lower than "to", between 0.5 and 10 mmol')); break; }
-      state.gz = gz;
-      if (DEMO) localStorage.setItem('globule:gz3', JSON.stringify(gz));
-      else { const { error } = await updMeta({ data: { gz3: gz } }); if (error) { toast(T('Pas enregistré : ', 'Not saved: ') + error.message); break; } }
-      render(); toast(T('Golden Zone enregistrée', 'Golden Zone saved'));
+      const v = id => ($(id) ? num($(id).value) : null);
+      const data = { gzMode: state.gzMode };
+      if (state.gzMode === 'lt2') {
+        const off = { lo: v('#set-gz-olo'), hi: v('#set-gz-ohi') };
+        if (!(off.lo < off.hi && off.lo >= 30 && off.hi <= 100)) { toast(T('Plage invalide : « de » plus petit que « à », entre 30 et 100 %', 'Invalid range: “from” lower than “to”, between 30 and 100%')); break; }
+        state.gzOff = off; data.gzOff = off;
+      } else {
+        const gz = { lo: v('#set-gz-lo'), hi: v('#set-gz-hi') };
+        if (!validGz(gz)) { toast(T('Plage invalide : "de" plus petit que "à", entre 0,5 et 10 mmol', 'Invalid range: "from" lower than "to", between 0.5 and 10 mmol')); break; }
+        state.gz = gz; data.gz3 = gz;
+      }
+      if (DEMO) { localStorage.setItem('globule:gz3', JSON.stringify(state.gz)); localStorage.setItem('globule:gzmode', JSON.stringify({ mode: state.gzMode, off: state.gzOff })); }
+      else { const { error } = await updMeta({ data }); if (error) { toast(T('Pas enregistré : ', 'Not saved: ') + error.message); break; } }
+      render(); settingsSheet(); toast(T('Golden Zone enregistrée', 'Golden Zone saved'), true);
       break;
     }
+    case 'gz-mode': { const m = el.dataset.val === 'fixed' ? 'fixed' : 'lt2'; if (m !== state.gzMode) { state.gzMode = m; render(); settingsSheet(); } break; }
     case 'export': exportCSV(); break;
     case 'rouvy': rouvySheet(id); break;
     case 'zwift': zwiftSheet(); break;
@@ -2620,12 +2662,18 @@ async function saveGzOn(v) {
   try { localStorage.setItem('globule:gzon', v ? '1' : '0'); } catch (e) { /* gardé en mémoire */ }
   if (!DEMO && state.user) { const { error } = await updMeta({ data: { gzOn: v } }); if (error) toast(T('Pas enregistré : ', 'Not saved: ') + error.message); }
 }
-function loadGz(u) { const g = u && u.user_metadata && u.user_metadata.gz3; state.gz = validGz(g) ? { lo: num(g.lo), hi: num(g.hi) } : { ...GZ_DEFAULT }; }
+function loadGz(u) {
+  const m = (u && u.user_metadata) || {}, g = m.gz3;
+  state.gz = validGz(g) ? { lo: num(g.lo), hi: num(g.hi) } : { ...GZ_DEFAULT };
+  state.gzMode = m.gzMode === 'fixed' ? 'fixed' : 'lt2';
+  const o = m.gzOff; state.gzOff = o && num(o.lo) < num(o.hi) && num(o.lo) >= 30 && num(o.hi) <= 100 ? { lo: num(o.lo), hi: num(o.hi) } : { ...GZ_OFF_DEFAULT };
+}
 async function boot() {
   if (DEMO) {
     seedDemo();
     state.name = localStorage.getItem('globule:name') || '';
     try { const g = JSON.parse(localStorage.getItem('globule:gz3') || 'null'); if (validGz(g)) state.gz = { lo: num(g.lo), hi: num(g.hi) }; } catch { /* plages par défaut */ }
+    try { const gm = JSON.parse(localStorage.getItem('globule:gzmode') || 'null'); if (gm) { state.gzMode = gm.mode === 'fixed' ? 'fixed' : 'lt2'; if (gm.off) state.gzOff = gm.off; } } catch { /* mode par défaut */ }
     try { const pr = JSON.parse(localStorage.getItem('globule:proto') || 'null'); if (validProto(pr, 'bike')) state.protos.bike = pr; } catch { /* protocole déduit */ }
     try { const pr = JSON.parse(localStorage.getItem('globule:proto-run') || 'null'); if (validProto(pr, 'run')) state.protos.run = pr; } catch { /* protocole déduit */ }
     try { loadSports({ sports: JSON.parse(localStorage.getItem('globule:sports') || 'null') }); } catch { loadSports(null); }
