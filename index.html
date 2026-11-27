@@ -636,8 +636,20 @@ function analyzeSteps(test) {
     status: manualW != null ? 'manual' : auto ? (auto.confirmed ? 'confirmed' : 'toconfirm') : 'none',
     lt2Auto, lt2Manual, lt2W, maxLa,
     lt2Hr: interpHr(steps, lt2W), lt2La: laAt(steps, lt2W),
-    lt2Status: lt2Manual != null ? 'manual' : lt2Auto == null ? 'none' : maxLa < 3.5 ? 'short' : 'auto'
+    lt2Past: lt2Past(steps, lt2W),
+    // Confirmé quand un palier au-dessus de LT2 monte d'au moins 0,8 mmol ET que le lactate a dépassé celui de LT1 de 1,5 mmol
+    // (repère du seuil individuel de Dickhuth). Sans LT1 connu, on garde l'ancien repère de 3,5 mmol.
+    lt2Status: lt2Manual != null ? 'manual' : lt2Auto == null ? 'none'
+      : lt2Past(steps, lt2Auto) && (ref ? maxLa >= ref.la + LT2_OVER_LT1 - 1e-9 : maxLa >= 3.5) ? 'auto' : 'short'
   };
+}
+// LT2 est « passé » quand un palier au-dessus de LT2 montre un lactate nettement plus haut qu'à LT2
+// (au moins LT2_MARGIN mmol, bien au-delà de l'erreur des lecteurs). Pas de seuil fixe à 4 mmol : chacun a sa courbe.
+const LT2_MARGIN = 0.8, LT2_OVER_LT1 = 1.5;
+function lt2Past(steps, w) {
+  if (w == null) return false;
+  const la = laAt(steps, w);
+  return la != null && steps.some(s => s.w > w && s.la >= la + LT2_MARGIN - 1e-9);
 }
 function interpHr(steps, w) {
   if (w == null) return null;
@@ -1013,7 +1025,7 @@ function zonesPanel(Z) {
     </div>
     ${Z.incoherent ? `<p class="warn">${T('LT1 est au-dessus de LT2 : regarde la courbe du test et corrige un des deux seuils.', "LT1 is above LT2: check the test curve and fix one of the two thresholds.")}</p>` : ''}
     ${Z.lt2 == null ? `<p class="warn">${T('Pas encore de LT2 : au prochain test, continue jusque vers 4 mmol, au moins 2 paliers après ton LT1.', "No LT2 yet: on your next test, keep going to about 4 mmol, at least 2 steps past your LT1.")}</p>`
-      : Z.s2 && Z.s2.lt2Status === 'short' ? `<p class="warn">${T(`LT2 à confirmer : ta courbe s'arrête à ${fmt(Z.s2.maxLa, 1)} mmol. Pousse un ou deux paliers de plus au prochain test.`, `LT2 to confirm: your curve stops at ${fmt(Z.s2.maxLa, 1)} mmol. Push one or two more steps on your next test.`)}</p>` : ''}
+      : Z.s2 && Z.s2.lt2Status === 'short' ? `<p class="warn">${T(`LT2 à confirmer : ta courbe ne monte pas encore assez au-dessus de LT2. Fais un palier de plus au prochain test.`, `LT2 to confirm: your curve doesn't climb far enough past LT2 yet. Do one more step on your next test.`)}</p>` : ''}
   </section>`;
 }
 // Largeurs fixes des 5 segments de la barre (schéma), et position des frontières
@@ -1150,7 +1162,7 @@ function viewGlobule() {
     </ol>
     <p class="say">${T('Comment je calcule', 'How I calculate')}</p>
     <p>${T('<b>LT1</b> = le palier juste avant le premier saut d\'au moins 0,4 mmol. Les lecteurs ont environ 0,2 à 0,3 mmol d\'erreur, donc je vérifie que ça reste haut au palier suivant.', '<b>LT1</b> = the step just before the first jump of at least 0.4 mmol. Meters have about 0.2 to 0.3 mmol of error, so I check that it stays high on the next step.')}</p>
-    <p>${T('<b>LT2</b> = méthode Dmax modifiée : je lisse ta courbe, je trace une droite de LT1 au dernier palier, et LT2 est le point de la courbe le plus éloigné de cette droite. Si ta courbe s\'arrête sous 3,5 mmol, j\'écris "à confirmer".', '<b>LT2</b> = modified Dmax method: I smooth your curve, draw a straight line from LT1 to the last step, and LT2 is the point on the curve farthest from that line. If your curve stops below 3.5 mmol, I write “to confirm”.')}</p>
+    <p>${T('<b>LT2</b> = méthode Dmax modifiée : je lisse ta courbe, je trace une droite de LT1 au dernier palier, et LT2 est le point de la courbe le plus éloigné de cette droite. Je le confirme quand un palier au-dessus de LT2 montre au moins 0,8 mmol de plus et que ton lactate a dépassé celui de LT1 de 1,5 mmol. Sinon j\'écris "à confirmer". Pas besoin d\'aller jusqu\'à 4 mmol : chacun a sa courbe. LT2 se précise d\'environ un demi-palier à chaque palier ajouté, c\'est normal avec cette méthode.', '<b>LT2</b> = modified Dmax method: I smooth your curve, draw a straight line from LT1 to the last step, and LT2 is the point on the curve farthest from that line. I confirm it once a step above LT2 shows at least 0.8 mmol more and your lactate is 1.5 mmol above your LT1 level. Until then I write “to confirm”. No need to go all the way to 4 mmol: everyone has their own curve. LT2 shifts by about half a step with each step you add, which is normal with this method.')}</p>
     <p>${T('Tu peux toujours déplacer LT1 ou LT2 à la main en touchant la courbe.', 'You can always move LT1 or LT2 by hand by tapping the curve.')}</p>
   </details>
   <details class="panel proto">
@@ -1325,7 +1337,8 @@ function stepForm(test) {
       const a = analyzeSteps({ data: { steps: readSteps(root) } });
       $('#preview', root).innerHTML = a.steps.length < 3 ? liveStepChart(a) + '<span class="hand">' + T('Remplis au moins 3 paliers et je cherche tes seuils.', "Fill in at least 3 steps and I'll find your thresholds.") + '</span>'
         : liveStepChart(a) + `<div class="kv"><div><b>${a.autoW != null ? fx(a.autoW) : '?'}</b><span>${T('LT1 auto', 'LT1 auto')} (${SP().u})</span></div><div><b>${a.lt2Auto != null ? fx(a.lt2Auto) : '?'}</b><span>${T('LT2 auto', 'LT2 auto')} (${SP().u})</span></div><div><b>${fmt(a.maxLa, 1)}</b><span>${T('mmol max', 'mmol max')}</span></div></div>
-          <p class="hand" style="margin:8px 0 0">${a.autoW == null ? T('Pas encore de saut de 0,4 mmol. Continue.', 'No 0.4 mmol jump yet. Keep going.') : a.lt2Auto == null ? T('LT1 trouvé. Encore 2 paliers pour LT2.', 'LT1 found. 2 more steps for LT2.') : a.maxLa < 3.5 ? T('Encore un palier ou deux : vise 4 mmol.', 'One or two more steps: aim for 4 mmol.') : T('Les deux seuils sont là. Tu peux arrêter.', 'Both thresholds are in. You can stop.')}</p>`;
+          <p class="hand" style="margin:8px 0 0">${a.autoW == null ? T('Pas encore de saut de 0,4 mmol. Continue.', 'No 0.4 mmol jump yet. Keep going.') : a.lt2Auto == null ? T('LT1 trouvé. Encore 2 paliers pour LT2.', 'LT1 found. 2 more steps for LT2.') : a.lt2Status === 'short' ? T(`LT2 se dessine vers ${fxu(a.lt2Auto)}. Encore un palier au-dessus pour le confirmer.`, `LT2 is taking shape around ${fxu(a.lt2Auto)}. One more step above it to confirm.`)
+            : T('Les deux seuils sont là. Tu peux arrêter le test.', 'Both thresholds are in. You can stop the test.') + (isRun() ? '' : `<br><b>${T(`Envie d'aller au bout ? Lance la rampe dès ${fxu(a.steps[a.steps.length - 1].w + proto().step)}.`, `Want to go all out? Start the ramp from ${fxu(a.steps[a.steps.length - 1].w + proto().step)}.`)}</b>`)}</p>`;
     };
     root.addEventListener('input', upd); upd();
     sheetRefresh = upd;
@@ -1401,7 +1414,7 @@ function stepDetail(id) {
   }[a.status];
   const m2 = {
     auto: T(`LT2 par Dmax modifiée : ${fxu(a.lt2W)}.`, `LT2 by modified Dmax: ${fxu(a.lt2W)}.`),
-    short: T(`LT2 à confirmer : la courbe s'arrête à ${fmt(a.maxLa, 1)} mmol. Vise 4 mmol au prochain test.`, `LT2 to confirm: the curve stops at ${fmt(a.maxLa, 1)} mmol. Aim for 4 mmol next test.`),
+    short: T(`LT2 à confirmer : la courbe ne monte pas encore assez au-dessus de LT2 (+0,8 mmol après LT2 et +1,5 mmol par rapport à LT1). Fais un palier de plus au prochain test.`, `LT2 to confirm: the curve doesn't climb far enough past LT2 yet (+0.8 mmol after LT2 and +1.5 mmol above LT1). Do one more step next test.`),
     manual: T(`LT2 choisi à la main. L'auto disait ${a.lt2Auto != null ? fxu(a.lt2Auto) : 'rien'}.`, `LT2 set by hand. Auto said ${a.lt2Auto != null ? fxu(a.lt2Auto) : 'nothing'}.`),
     none: T('LT2 : pas assez de paliers après LT1. Il en faut au moins 2 de plus, idéalement jusqu\'à 4 mmol.', 'LT2: not enough steps after LT1. You need at least 2 more, ideally up to 4 mmol.')
   }[a.lt2Status];
