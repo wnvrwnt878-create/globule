@@ -1052,7 +1052,7 @@ function setLang(l) {
   if (state.user || DEMO) { if (sheetEl) closeSheet(); render(); if (inSettings) settingsSheet(); } else renderLogin();
 }
 async function shareApp() {
-  const data = { title: 'Globule', text: T('Globule, le labo lactate : tests paliers, zones et Golden Zone.', 'Globule, the lactate lab: step tests, zones and Golden Zone.'), url: SITE_URL };
+  const data = { title: 'Globule', text: T('Globule, le labo lactate : tests paliers et zones d\'entraînement.', 'Globule, the lactate lab: step tests and training zones.'), url: SITE_URL };
   if (navigator.share) { try { await navigator.share(data); } catch (e) { /* partage annulé */ } return; }
   try { await navigator.clipboard.writeText(SITE_URL); toast(T('Lien copié, propage la science !', 'Link copied, spread the science!'), true); }
   catch (e) { prompt(T('Copie ce lien :', 'Copy this link:'), SITE_URL); }

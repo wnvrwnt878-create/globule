@@ -1,7 +1,7 @@
 {
   "name": "Globule, labo lactate",
   "short_name": "Globule",
-  "description": "Tests paliers et séances Golden Zone sous contrôle lactate.",
+  "description": "Tests paliers et séances sous contrôle lactate.",
   "lang": "fr",
   "start_url": "./",
   "scope": "./",
