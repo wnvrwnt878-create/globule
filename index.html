@@ -318,6 +318,35 @@ body.readonly [data-act="add-row"], body.readonly [data-act="add-iv"], body.read
 .consent a, .legal-link a{ color:var(--violet); font-weight:700; }
 .legal-link{ text-align:center; font-size:13px; margin:14px 0 0; }
 .sheet[data-consent] h3 .x{ display:none; }
+/* Mise en scène du test paliers */
+.intro{ position:fixed; inset:0; z-index:70; overflow-y:auto; overflow-x:hidden; background:radial-gradient(120% 80% at 50% 0%, #6A2BF0 0%, #3A1180 45%, #1A0633 100%); color:#fff;
+  padding:calc(18px + env(safe-area-inset-top,0px)) 16px calc(24px + env(safe-area-inset-bottom,0px)); }
+.intro-glow{ position:absolute; left:50%; top:38%; width:420px; height:420px; margin:-210px 0 0 -210px; border-radius:50%; background:radial-gradient(circle, rgba(255,45,142,.45), rgba(255,45,142,0) 65%); animation:glow 3.2s ease-in-out infinite; pointer-events:none; }
+@keyframes glow{ 0%,100%{ transform:scale(.9); opacity:.7; } 50%{ transform:scale(1.08); opacity:1; } }
+.intro-inner{ position:relative; max-width:440px; margin:0 auto; text-align:center; display:flex; flex-direction:column; align-items:center; gap:10px; min-height:100%; justify-content:center; }
+.intro-close{ position:absolute; top:calc(12px + env(safe-area-inset-top,0px)); right:14px; z-index:2; width:40px; height:40px; border-radius:50%; border:2px solid rgba(255,255,255,.5); background:rgba(255,255,255,.08); color:#fff; font-size:22px; cursor:pointer; }
+.intro-kicker{ margin:0; font-size:12px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; color:#FFC2E0; }
+.intro-title{ margin:0; font-family:var(--f-display); font-size:44px; line-height:1; color:#fff; -webkit-text-stroke:1.5px #1A0633; text-shadow:4px 4px 0 #FF2D8E; }
+.intro-mascot{ margin:4px 0 -6px; filter:drop-shadow(0 18px 24px rgba(0,0,0,.35)); }
+.intro-say{ margin:0; font-family:var(--f-hand); font-size:22px; line-height:1.2; color:#FFE45C; }
+.intro-chips{ display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:8px; width:100%; margin-top:6px; }
+.intro-chip{ background:rgba(255,255,255,.1); border:2px solid rgba(255,255,255,.35); border-radius:16px; padding:10px 8px; }
+.intro-chip b{ display:block; font-family:var(--f-display); font-size:20px; line-height:1.1; }
+.intro-chip span{ font-size:12px; color:#E7D8FF; }
+.intro-kit{ list-style:none; padding:0; margin:6px 0 0; width:100%; display:grid; gap:6px; text-align:left; }
+.intro-kit li{ display:flex; align-items:center; gap:10px; font-size:14px; background:rgba(0,0,0,.18); border-radius:12px; padding:8px 10px; }
+.intro-kit .tick{ display:grid; place-items:center; width:22px; height:22px; flex:none; border-radius:50%; background:var(--menthe); color:var(--ink); font-size:12px; font-weight:800; }
+.intro-hint{ margin:4px 0 0; font-size:13px; color:#E7D8FF; }
+.intro-go{ width:100%; font-size:18px; padding:15px 14px; margin-top:6px; box-shadow:4px 4px 0 #1A0633; border-color:#1A0633; }
+/* Mode focus : la saisie prend tout l'écran, la barre d'onglets s'efface */
+.tabbar{ transition:transform 260ms var(--ease-out); }
+body.focus .tabbar{ transform:translateY(110%); }
+.sheet.focus-sheet{ max-height:100%; height:100%; border-radius:0; border-left:0; border-right:0; padding-top:calc(10px + env(safe-area-inset-top,0px)); }
+.tprog{ position:sticky; top:-10px; z-index:3; margin:-4px -16px 12px; padding:10px 16px; background:var(--surface); border-bottom:2px dashed color-mix(in srgb, var(--line) 25%, transparent); display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:13px; font-weight:700; }
+.tprog-dots{ display:flex; gap:5px; flex-wrap:wrap; }
+.tprog-dots i{ width:12px; height:12px; border-radius:50%; border:2px solid var(--line); background:var(--surface-2); transition:background-color 240ms var(--ease-out), transform 240ms var(--ease-out); }
+.tprog-dots i.on{ background:var(--rose); }
+.tprog-dots i.cur{ transform:scale(1.3); background:var(--jaune); }
 /* ---------- Mouvement ---------- */
 :root{
   --ease-out:cubic-bezier(.23,1,.32,1);   /* entrées et déplacements */
@@ -1106,6 +1135,64 @@ async function deleteAccount() {
   renderLogin('signup', '', '');
   toast(T('Compte supprimé. Toutes tes données sont effacées.', 'Account deleted. All your data is erased.'), true);
 }
+
+/* ---------- Mise en scène du test paliers : intro plein écran, puis saisie en mode focus ---------- */
+function testIntro() {
+  if ($('.intro')) return;
+  const P = proto(), n = state.allTests.filter(t => t.kind === 'steps' && sportOf(t) === state.sport).length + 1;
+  const last = rnd(P.start + (P.n - 1) * P.step);
+  const kit = isRun()
+    ? [T('Tapis réglé à 1 % de pente', 'Treadmill set to 1% incline'), T('Lecteur de lactate et bandelettes', 'Lactate meter and strips'), T('Lancettes, coton, lingette sèche', 'Lancets, cotton, dry wipe'), T('Ceinture cardio', 'Heart rate strap')]
+    : [T('Home trainer en mode ERG', 'Trainer in ERG mode'), T('Lecteur de lactate et bandelettes', 'Lactate meter and strips'), T('Lancettes, coton, lingette sèche', 'Lancets, cotton, dry wipe'), T('Ceinture cardio', 'Heart rate strap')];
+  const chip = (b, l) => `<div class="intro-chip"><b>${b}</b><span>${l}</span></div>`;
+  const el = document.createElement('div');
+  el.className = 'intro'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); el.setAttribute('aria-label', T('Test paliers', 'Step test'));
+  el.innerHTML = `<div class="intro-glow" aria-hidden="true"></div>
+    <button type="button" class="intro-close" data-act="intro-close" aria-label="${T('Annuler', 'Cancel')}">×</button>
+    <div class="intro-inner">
+      <p class="intro-kicker">${T(`Expérience n° ${n}`, `Experiment #${n}`)} · ${SP().label}</p>
+      <h2 class="intro-title">${T('Test paliers', 'Step test')}</h2>
+      <div class="intro-mascot">${globuleSVG(150)}</div>
+      <p class="intro-say">${T('Silence au labo… enfile ta blouse, on mesure tes seuils.', 'Quiet in the lab… put your coat on, we are measuring your thresholds.')}</p>
+      <div class="intro-chips">${chip(fxu(P.start), T('départ', 'start'))}${chip('+' + fxu(P.step), T('par palier', 'per step'))}${chip(`${P.dur} min`, T('+ 30 s de pause', '+ 30 s pause'))}${chip(P.n, T(`paliers, jusqu'à ${fxu(last)}`, `steps, up to ${fxu(last)}`))}</div>
+      <ul class="intro-kit">${kit.map(k => `<li><span class="tick" aria-hidden="true">✓</span>${k}</li>`).join('')}</ul>
+      <p class="intro-hint">${T(bk('Objectif : dépasser 5 mmol. Je note, toi tu pédales.', 'Objectif : dépasser 5 mmol. Je note, toi tu cours.'), 'Goal: go past 5 mmol. I take notes, you do the work.')}</p>
+      <button type="button" class="btn rose intro-go" data-act="intro-go">${T('C\'est parti', "Let's go")}</button>
+    </div>`;
+  document.body.appendChild(el);
+  document.body.classList.add('focus');
+  document.body.style.overflow = 'hidden';
+  const svg = $('.intro-mascot .globule', el); if (svg) setMascot(svg, 'hello');
+  if (RM()) return;
+  // Chorégraphie : le titre tombe, la mascotte rebondit, puis les infos arrivent une par une (30 ms d'écart)
+  const seq = (sel, kf, opt) => $$(sel, el).forEach((x, i) => x.animate(kf, { fill: 'backwards', easing: EASE_OUT, ...opt, delay: (opt.delay || 0) + i * (opt.stagger || 0) }));
+  el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 220, easing: EASE_OUT });
+  seq('.intro-kicker', [{ opacity: 0, transform: 'translateY(-10px)', letterSpacing: '.4em' }, { opacity: 1, transform: 'none', letterSpacing: '.12em' }], { duration: 420, delay: 80 });
+  seq('.intro-title', [{ opacity: 0, transform: 'translateY(-24px) scale(1.12)', filter: 'blur(6px)' }, { opacity: 1, transform: 'none', filter: 'blur(0)' }], { duration: 480, delay: 140 });
+  seq('.intro-mascot', [{ opacity: 0, transform: 'translateY(60px) scale(.6)' }, { opacity: 1, transform: 'translateY(-8px) scale(1.05)', offset: .7 }, { opacity: 1, transform: 'none' }], { duration: 620, delay: 260, easing: 'cubic-bezier(.34,1.56,.64,1)' });
+  seq('.intro-say', [{ opacity: 0, transform: 'translateY(8px)' }, { opacity: 1, transform: 'none' }], { duration: 360, delay: 640 });
+  seq('.intro-chip', [{ opacity: 0, transform: 'translateY(14px) scale(.9)' }, { opacity: 1, transform: 'none' }], { duration: 380, delay: 760, stagger: 60 });
+  seq('.intro-kit li', [{ opacity: 0, transform: 'translateX(-12px)' }, { opacity: 1, transform: 'none' }], { duration: 320, delay: 1000, stagger: 70 });
+  seq('.intro-hint', [{ opacity: 0 }, { opacity: 1 }], { duration: 320, delay: 1320 });
+  seq('.intro-go', [{ opacity: 0, transform: 'scale(.8)' }, { opacity: 1, transform: 'scale(1.06)', offset: .7 }, { opacity: 1, transform: 'none' }], { duration: 420, delay: 1400, easing: 'cubic-bezier(.34,1.56,.64,1)' });
+}
+function closeIntro(then) {
+  const el = $('.intro'); if (!el) { if (then) then(); return; }
+  const done = () => { el.remove(); if (then) then(); else { document.body.classList.remove('focus'); document.body.style.overflow = ''; } };
+  if (RM()) return done();
+  el.animate([{ opacity: 1, transform: 'none', filter: 'blur(0)' }, { opacity: 0, transform: 'scale(1.04)', filter: 'blur(6px)' }], { duration: T_OUT, easing: EASE_OUT, fill: 'forwards' });
+  setTimeout(done, T_OUT);
+}
+// Progression du test en mode focus : un point par palier, rempli quand le lactate est noté
+function testProgress(root) {
+  const bar = $('#tprog', root); if (!bar) return;
+  const rows = $$('.step-row', root);
+  const done = rows.map(r => num($('[data-k="la"]', r).value) != null);
+  const cur = done.indexOf(false);
+  const a = analyzeSteps({ data: { steps: readSteps(root) } });
+  bar.innerHTML = `<div class="tprog-dots">${rows.map((r, i) => `<i class="${done[i] ? 'on' : ''}${i === cur ? ' cur' : ''}" title="${T('Palier', 'Step')} ${i + 1}"></i>`).join('')}</div>
+    <span>${cur < 0 ? T('Tous les paliers notés', 'All steps logged') : T(`Palier ${cur + 1} sur ${rows.length}`, `Step ${cur + 1} of ${rows.length}`)}${a.maxLa != null ? ` · ${fmt(a.maxLa, 1)} mmol max` : ''}</span>`;
+}
 function hero(text, size = 140) {
   return `<div class="hero">${globuleSVG(size)}<p class="bubble">${text}</p></div>`;
 }
@@ -1462,6 +1549,7 @@ function closeSheet() {
   if (!sheetEl) return;
   const bd = sheetEl;
   sheetEl = null; sheetRefresh = null; document.body.style.overflow = '';
+  document.body.classList.remove('focus');
   $$('.sheet', bd).forEach(sheetOut);
   bd.classList.add('leaving');
   later(() => bd.remove(), T_OUT + 40);
@@ -1525,11 +1613,12 @@ function readSteps(root) {
   return $$('.step-row', root).map(r => ({ w: num($('[data-k="w"]', r).value), hr: num($('[data-k="hr"]', r).value), la: num($('[data-k="la"]', r).value), rpe: num($('[data-k="rpe"]', r).value) }))
     .filter(s => s.la != null || s.hr != null || s.rpe != null);
 }
-function stepForm(test) {
+function stepForm(test, focus) {
   const t = test || { date: todayISO(), source: lastSource(), data: { baseline: null, steps: [] }, note: '', lt1_manual: null };
   const P = proto();
   const rows = (t.data.steps && t.data.steps.length) ? t.data.steps : Array.from({ length: P.n }, (_, i) => ({ w: rnd(P.start + i * P.step) }));
   openSheet(test ? T('Modifier le test paliers', 'Edit step test') : T('Nouveau test paliers', 'New step test'), `
+    ${focus ? '<div class="tprog" id="tprog" aria-live="polite"></div>' : ''}
     <div class="grid2"><label class="field"><span>${T('Date', 'Date')}</span><input class="inp" type="date" id="f-date" value="${t.date}"></label>
     <label class="field"><span>${T('Lactate de repos', 'Resting lactate')}</span><input class="inp" id="f-base" inputmode="decimal" placeholder="${T('optionnel', 'optional')}" value="${inVal(t.data.baseline)}"></label></div>
     <div class="field"><span class="muted" style="font-size:13px;font-weight:600">${SP().measured}</span>${segHTML('src', t.source)}</div>
@@ -1555,6 +1644,12 @@ function stepForm(test) {
     sheetRefresh = upd;
     root.dataset.id = test ? test.id : '';
     updRamp(root);
+    if (focus) {
+      root.classList.add('focus-sheet');
+      document.body.classList.add('focus');
+      const tp = () => testProgress(root);
+      root.addEventListener('input', tp); root.addEventListener('click', () => setTimeout(tp, 0)); tp();
+    }
   });
 }
 function saveSteps(root) {
@@ -2410,7 +2505,9 @@ document.addEventListener('click', async e => {
     case 'save-iv': saveIntervals(root); break;
     case 'save-session': saveSession(root); break;
     case 'del-session': destroy('sessions', id, T('cette séance', 'this session')); break;
-    case 'new-steps': stepForm(); break;
+    case 'new-steps': testIntro(); break;
+    case 'intro-go': closeIntro(() => stepForm(null, true)); break;
+    case 'intro-close': closeIntro(); break;
     case 'open-steps': state.pick = 'lt1'; stepDetail(id); break;
     case 'edit-steps': stepForm(state.tests.find(t => t.id === id)); break;
     case 'save-steps': saveSteps(root); break;
