@@ -271,6 +271,14 @@ input.inp[type="date"]::-webkit-date-and-time-value{ text-align:left; }
 .tuto-dots i{ width:8px; height:8px; border-radius:50%; background:var(--line); opacity:.25; transition:opacity 240ms var(--ease-out), scale 240ms var(--ease-out); }
 .tuto-dots i.on{ opacity:1; scale:1.3; background:var(--rose); }
 .tpl-steps{ display:flex; flex-wrap:wrap; gap:6px; }
+.ramp-row{ display:grid; grid-template-columns:1fr auto auto; gap:8px; align-items:center; padding:10px 12px; border-bottom:2px dashed color-mix(in srgb, var(--line) 25%, transparent); }
+.ramp-row:last-child{ border-bottom:0; }
+.ramp-row .main strong{ display:block; font-size:15px; } .ramp-row .main span{ display:block; font-size:13px; color:var(--muted); }
+.ramp-row .btn{ padding:7px 10px; font-size:13px; box-shadow:2px 2px 0 var(--shadow); }
+.ramp-box{ border:2.5px dashed var(--line); border-radius:16px; padding:10px 12px; margin:0 0 12px; background:var(--surface-2); }
+.ramp-box summary{ cursor:pointer; font-weight:700; }
+.ramp-box[open] summary{ margin-bottom:10px; }
+.ramp-result{ background:#FFE3D2; border-color:#FC6719; }
 /* ---------- Mouvement ---------- */
 :root{
   --ease-out:cubic-bezier(.23,1,.32,1);   /* entrées et déplacements */
@@ -1093,13 +1101,14 @@ function viewJournal() {
   let trend = '';
   const l1 = steps.map(t => ({ act: 'open-steps', id: t.id, label: T(`Test du ${fdate(t.date)}`, `Test of ${fdate(t.date)}`), x: Date.parse(t.date), y: analyzeSteps(t).lt1W })).filter(p => p.y != null).sort((a, b) => a.x - b.x);
   const l2 = steps.map(t => ({ act: 'open-steps', id: t.id, label: T(`Test du ${fdate(t.date)}`, `Test of ${fdate(t.date)}`), x: Date.parse(t.date), y: analyzeSteps(t).lt2W })).filter(p => p.y != null).sort((a, b) => a.x - b.x);
+  const l3 = steps.map(t => ({ act: 'open-steps', id: t.id, label: T(`Rampe du ${fdate(t.date)}`, `Ramp of ${fdate(t.date)}`), x: Date.parse(t.date), y: rampMax(t.data && t.data.ramp) })).filter(p => p.y != null).sort((a, b) => a.x - b.x);
   if (l1.length + l2.length >= 2) {
-    const all = [...l1, ...l2], xs = all.map(p => p.x), ys = all.map(p => p.y);
+    const all = [...l1, ...l2, ...l3], xs = all.map(p => p.x), ys = all.map(p => p.y);
     let x0 = Math.min(...xs), x1 = Math.max(...xs); if (x0 === x1) { x0 -= 7 * 864e5; x1 += 7 * 864e5; }
     trend = `<section class="panel" style="margin-top:14px"><h3 class="hand" style="margin:0 0 6px">${T('Tes seuils dans le temps', 'Your thresholds over time')}</h3><p class="tap-hint" style="margin:0 0 4px">${T('Touche un point pour ouvrir le test.', 'Tap a dot to open the test.')}</p>
       ${chartSVG({ timeX: true, xRange: [x0, x1], yRange: [Math.min(...ys) - 10, Math.max(...ys) + 10], xFmt: v => fdateShort(new Date(v).toISOString()), yFmt: v => fx(v), yTitle: SP().u, h: 170,
-        series: [{ pts: l1, color: '#13B98A', r: 5.5 }, { pts: l2, color: '#FF2D8E', r: 5.5 }] })}
-      <div class="legend"><span><i style="background:#13B98A"></i>LT1</span><span><i style="background:#FF2D8E"></i>LT2</span></div></section>`;
+        series: [{ pts: l1, color: '#13B98A', r: 5.5 }, { pts: l2, color: '#FF2D8E', r: 5.5 }, ...(l3.length ? [{ pts: l3, color: '#FC6719', r: 5.5 }] : [])] })}
+      <div class="legend"><span><i style="background:#13B98A"></i>LT1</span><span><i style="background:#FF2D8E"></i>LT2</span>${l3.length ? `<span><i style="background:#FC6719"></i>${T('Max rampe', 'Ramp max')}</span>` : ''}</div></section>`;
   }
   const items = [...state.sessions.map(s => ({ ...s, _t: 's' })), ...steps.map(t => ({ ...t, _t: 't' }))].sort(byDateDesc);
   const groups = {};
@@ -1171,7 +1180,7 @@ function viewGlobule() {
     <label class="field"><span>${T(`+ par palier (${SP().u})`, `+ per step (${SP().u})`)}</span><input class="inp" id="set-p-step" inputmode="${SP().im}" value="${inVal(proto().step)}"></label>
     <label class="field"><span>${T('Paliers max', 'Max steps')}</span><input class="inp" id="set-p-n" inputmode="numeric" value="${proto().n}"></label></div>
     <button class="btn violet block" data-act="save-proto">${T('Enregistrer mon protocole', 'Save my protocol')}</button>
-    ${isRun() ? '' : rouvyPanel()}
+    ${isRun() ? '' : rouvyPanel() + rampPanel()}
     <div style="height:10px"></div>
     <button class="btn block" data-act="export">${T('Exporter toutes mes données (CSV)', 'Export all my data (CSV)')}</button>
     <div style="height:14px"></div>
@@ -1307,6 +1316,7 @@ function stepForm(test) {
     <div id="rows">${rows.map(stepRow).join('')}</div>
     <button class="btn block" type="button" data-act="add-row">${T('+ Ajouter un palier', '+ Add a step')}</button>
     <div class="result" id="preview"></div>
+    ${rampFields(t.data && t.data.ramp)}
     <label class="field"><span>${T('Note', 'Note')}</span><textarea class="inp" id="f-note" placeholder="${T('Forme du jour, conditions, capteur...', 'How you felt, conditions, sensor...')}">${esc(t.note)}</textarea></label>
     <p class="err" role="alert"></p>
     <button class="btn rose block" data-act="save-steps">${T('Enregistrer le test', 'Save test')}</button>`, root => {
@@ -1320,18 +1330,21 @@ function stepForm(test) {
     root.addEventListener('input', upd); upd();
     sheetRefresh = upd;
     root.dataset.id = test ? test.id : '';
+    updRamp(root);
   });
 }
 function saveSteps(root) {
   const steps = readSteps(root);
   const valid = steps.filter(s => s.w != null && s.la != null);
   if (valid.length < 3) { $('.err', root).textContent = T(`Il faut au moins 3 paliers avec ${SP().name} et lactate.`, `You need at least 3 steps with ${SP().name} and lactate.`); return; }
+  const rp = readRamp(root);
+  if (rp && (rp.last == null || (rp.start != null && rp.last < rp.start) || (rp.sec != null && (rp.sec < 0 || rp.sec >= 120)))) { $('.err', root).textContent = T('Rampe : indique le dernier palier tenu (au moins le départ) et 0 à 119 secondes sur le suivant.', 'Ramp: enter the last full step (at least the start) and 0 to 119 seconds on the next one.'); return; }
   if (steps.some(s => s.la != null && (s.la < 0.3 || s.la > 25))) { $('.err', root).textContent = T('Un lactate semble faux (entre 0,3 et 25 mmol attendu). Vérifie la virgule.', 'A lactate value looks wrong (expected between 0.3 and 25 mmol). Check the decimal point.'); return; }
   const id = root.dataset.id || null;
   const old = id ? state.tests.find(t => t.id === id) : null;
   persist('tests', id, {
     date: $('#f-date', root).value || todayISO(), kind: 'steps', source: segVal(root, 'src'),
-    data: { baseline: num($('#f-base', root).value), steps }, note: $('#f-note', root).value.trim() || null,
+    data: { baseline: num($('#f-base', root).value), steps, ramp: readRamp(root) }, note: $('#f-note', root).value.trim() || null,
     lt1_manual: old && old.lt1_manual != null && valid.some(s => s.w === num(old.lt1_manual)) ? old.lt1_manual : null,
     lt2_manual: old && old.lt2_manual != null ? old.lt2_manual : null
   }, T('Test enregistré', 'Test saved'), before => { const now = bestMarks(); return beats(now.lt1, before.lt1) || beats(now.lt2, before.lt2) ? 'record' : null; },
@@ -1401,6 +1414,7 @@ function stepDetail(id) {
     <div class="kv">${box(a.lt1W, a.lt1Hr, `LT1 (${SP().u})`)}${box(a.lt2W, a.lt2Hr, `LT2 (${SP().u})`)}<div><b>${a.maxLa != null ? fmt(a.maxLa, 1) : T('n.d.', 'n/a')}</b><span>${T('mmol max', 'mmol max')}</span></div></div>
     <div class="result"><span class="hand">${m1}<br>${m2}</span></div>
     ${(G => G ? `<div class="result gz-result" style="margin-top:0">★ ${T(`<b>Ta Golden Zone sur ce test : ${fx(G.wLo)} à ${fxu(G.wHi)}</b>${G.hrLo != null && G.hrHi != null ? `, FC ${fmt(G.hrLo)} à ${fmt(G.hrHi)}` : ''} (${fmt(state.gz.lo, 1)} à ${fmt(state.gz.hi, 1)} mmol).`, `<b>Your Golden Zone on this test: ${fx(G.wLo)} to ${fxu(G.wHi)}</b>${G.hrLo != null && G.hrHi != null ? `, HR ${fmt(G.hrLo)} to ${fmt(G.hrHi)}` : ''} (${fmt(state.gz.lo, 1)} to ${fmt(state.gz.hi, 1)} mmol).`)}</div>` : '')(testGZ(a))}
+    ${rampLine(t.data && t.data.ramp)}
     ${a.steps.length ? (matchesProto(a.steps, proto()) ? '<p class="chip" style="display:inline-block;margin:0 0 12px">' + T('Protocole standard', 'Standard protocol') + '</p>' : `<p class="warn" style="margin:0 0 12px">${T(`Hors protocole (départ ${fxu(a.steps[0].w)}) : à comparer avec prudence aux autres tests.`, `Off protocol (start at ${fxu(a.steps[0].w)}): compare with other tests carefully.`)}</p>`) : ''}
     ${a.manualW != null ? `<button class="btn block" data-act="reset-thr" data-field="lt1_manual" data-id="${t.id}">${T('LT1 automatique', 'Automatic LT1')}</button><div style="height:10px"></div>` : ''}
     ${a.lt2Manual != null ? `<button class="btn block" data-act="reset-thr" data-field="lt2_manual" data-id="${t.id}">${T('LT2 automatique', 'Automatic LT2')}</button><div style="height:10px"></div>` : ''}
@@ -1828,6 +1842,83 @@ function rouvySheet(id, fmtSel) {
   }
   openSheet(T('Exporter pour Rouvy', 'Export for Rouvy'), body, mount);
 }
+
+/* ---------- Rampe 2 min après le test : un fichier par point de départ ---------- */
+// Après le test lactate (paliers de 5 min), on quitte l'entraînement et on lance la rampe qui part du palier suivant :
+// paliers de 2 min, même incrément, jusqu'à ce qu'on lâche. Le test et la rampe sont ensuite saisis comme un seul test.
+const RAMP_S = 120;
+const rampStarts = () => { const P = proto(); return Array.from({ length: P.n }, (_, i) => P.start + (i + 1) * P.step); };
+function rampSteps(start) { const st = proto().step, out = []; for (let w = start; out.length < 25 && w <= 700; w += st) out.push(w); return out; }
+function ergRamp(start) {
+  const steps = rampSteps(start), segs = [], texts = []; let t = 0;
+  steps.forEach((w, i) => { texts.push({ at: t, msg: T(`Rampe ${i + 1} : ${w} W, tiens 2 min`, `Ramp ${i + 1}: ${w} W, hold 2 min`) }); segs.push({ dur: RAMP_S, from: w }); t += RAMP_S; });
+  segs.push({ dur: 300, from: Math.round(start * 0.4) });
+  const name = T(`Globule rampe 2 min des ${start} W`, `Globule 2 min ramp from ${start} W`);
+  const desc = T(`A lancer juste apres le test lactate. Paliers de 2 min, +${proto().step} W, depuis ${start} W jusqu'a ce que tu laches. Note le dernier palier tenu et les secondes sur le suivant.`,
+    `Start right after the lactate test. 2 min steps, +${proto().step} W, from ${start} W until you can't hold it. Note the last full step and the seconds on the next one.`);
+  return { file: `globule-rampe-2min-${start}w.erg`, text: ergFile(name, desc, segs, texts) };
+}
+function zwoRamp(start) {
+  const steps = rampSteps(start), ref = steps[steps.length - 1];
+  const blocks = steps.map((w, i) => `<SteadyState Duration="${RAMP_S}" Power="${frac(w, ref)}"><textevent timeoffset="0" message="${xmlEsc(T(`Rampe ${i + 1} : ${w} W`, `Ramp ${i + 1}: ${w} W`))}"/></SteadyState>`);
+  blocks.push(`<SteadyState Duration="300" Power="${frac(Math.round(start * 0.4), ref)}"/>`);
+  const name = T(`Globule rampe 2 min dès ${start} W`, `Globule 2 min ramp from ${start} W`);
+  const desc = T(`À lancer juste après le test lactate. Paliers de 2 min, +${proto().step} W, jusqu'à ce que tu lâches. Watts exacts, quelle que soit ta FTP.`,
+    `Start right after the lactate test. 2 min steps, +${proto().step} W, until you can't hold it. Exact watts, whatever your FTP.`);
+  return { file: `globule-rampe-2min-${start}w.zwo`, text: zwoFile(name, desc, blocks, ref) };
+}
+function rampPanel() {
+  const P = proto();
+  return `<div style="height:14px"></div>
+    <p class="hand" style="margin:0 0 6px">${T('Rampes 2 min, après le test', '2 min ramps, after the test')}</p>
+    <p class="muted" style="font-size:13px;margin:0 0 8px">${T(`Quand tu as passé ton 2e seuil, quitte le test et lance la rampe qui part du palier suivant : 2 min par palier, +${P.step} W, jusqu'à ce que tu lâches.`, `Once you are past your 2nd threshold, leave the test and start the ramp from the next step: 2 min per step, +${P.step} W, until you can't hold it.`)}</p>
+    <div class="list">${rampStarts().map((w, i) => `<div class="ramp-row"><span class="main"><strong>${T(`Dès ${w} W`, `From ${w} W`)}</strong><span>${T(`après le palier ${i + 1} (${w - P.step} W)`, `after step ${i + 1} (${w - P.step} W)`)}</span></span>
+      <button class="btn" data-act="ramp-dl" data-w="${w}" data-fmt="erg">.erg</button><button class="btn" data-act="ramp-dl" data-w="${w}" data-fmt="zwo">.zwo</button></div>`).join('')}</div>
+    ${isPhone() ? '' : `<button class="btn block" style="margin-top:10px" data-act="ramp-all">${T(`Tout télécharger (${rampStarts().length} fichiers .erg)`, `Download all (${rampStarts().length} .erg files)`)}</button>`}`;
+}
+function rampDownload(w, f) {
+  const r = f === 'zwo' ? zwoRamp(w) : ergRamp(w);
+  downloadFile(r.file, r.text, f === 'zwo' ? 'application/xml' : 'text/plain');
+}
+async function rampAll() {
+  for (const w of rampStarts()) { rampDownload(w, 'erg'); await new Promise(r => setTimeout(r, 450)); }
+  toast(T('Rampes prêtes pour Rouvy', 'Ramps ready for Rouvy'), true);
+}
+// Puissance max de la rampe : dernier palier tenu + la part tenue du suivant
+function rampMax(r) {
+  if (!r || num(r.last) == null) return null;
+  const st = num(r.step) || proto().step, sec = Math.max(0, Math.min(RAMP_S, num(r.sec) || 0));
+  return rnd(num(r.last) + st * sec / RAMP_S);
+}
+function readRamp(root) {
+  const v = id => num($(id, root) ? $(id, root).value : null);
+  const r = { start: v('#rp-start'), last: v('#rp-last'), sec: v('#rp-sec'), hr: v('#rp-hr'), la: v('#rp-la'), step: proto().step };
+  return [r.start, r.last, r.sec, r.hr, r.la].some(x => x != null) ? r : null;
+}
+function rampFields(r) {
+  r = r || {};
+  const u = SP().u;
+  return `<details class="ramp-box"${r.last != null ? ' open' : ''}><summary>${T('Rampe 2 min après le test (optionnel)', '2 min ramp after the test (optional)')}</summary>
+    <div class="grid3"><label class="field"><span>${T(`Départ (${u})`, `Start (${u})`)}</span><input class="inp" id="rp-start" inputmode="${SP().im}" value="${inVal(r.start)}"></label>
+    <label class="field"><span>${T(`Dernier palier tenu (${u})`, `Last full step (${u})`)}</span><input class="inp" id="rp-last" inputmode="${SP().im}" value="${inVal(r.last)}"></label>
+    <label class="field"><span>${T('Secondes sur le suivant', 'Seconds on the next')}</span><input class="inp" id="rp-sec" inputmode="numeric" placeholder="0 à 119" value="${inVal(r.sec)}"></label></div>
+    <div class="grid2"><label class="field"><span>${T('FC max', 'Max HR')}</span><input class="inp" id="rp-hr" inputmode="numeric" value="${inVal(r.hr)}"></label>
+    <label class="field"><span>${T('Lactate à la fin', 'Lactate at the end')}</span><input class="inp" id="rp-la" inputmode="decimal" placeholder="${T('optionnel', 'optional')}" value="${inVal(r.la)}"></label></div>
+    <p class="hand" id="rp-max" style="margin:0"></p></details>`;
+}
+function updRamp(root) {
+  const el = $('#rp-max', root); if (!el) return;
+  const r = readRamp(root), m = rampMax(r);
+  el.textContent = m != null ? T(`Puissance max de la rampe : ${fxu(m)}`, `Ramp max power: ${fxu(m)}`) : '';
+}
+document.addEventListener('input', e => { const b = e.target.closest && e.target.closest('.ramp-box'); if (b) updRamp(b); });
+function rampLine(r) {
+  const m = rampMax(r); if (m == null) return '';
+  const bits = [r.start != null ? T(`dès ${fxu(num(r.start))}`, `from ${fxu(num(r.start))}`) : '', T(`dernier palier ${fxu(num(r.last))}`, `last step ${fxu(num(r.last))}`) + (num(r.sec) ? ` + ${fmt(num(r.sec))} s` : ''),
+    num(r.hr) != null ? T(`FC ${fmt(num(r.hr))}`, `HR ${fmt(num(r.hr))}`) : '', num(r.la) != null ? `${fmt(num(r.la), 1)} mmol` : ''].filter(Boolean).join(', ');
+  return `<div class="result ramp-result" style="margin-top:0">⚡ ${T(`<b>Rampe 2 min : ${fxu(m)} max</b>`, `<b>2 min ramp: ${fxu(m)} max</b>`)} (${bits}).</div>`;
+}
+
 // Test paliers pour Zwift : on demande seulement les watts de départ. ftpOverride fixe une FTP de référence
 // égale au dernier palier, donc Zwift affiche les watts exacts quelle que soit la FTP du profil.
 function zwiftSheet() {
@@ -2062,6 +2153,8 @@ document.addEventListener('click', async e => {
     case 'export': exportCSV(); break;
     case 'rouvy': rouvySheet(id); break;
     case 'zwift': zwiftSheet(); break;
+    case 'ramp-dl': rampDownload(+el.dataset.w, el.dataset.fmt); break;
+    case 'ramp-all': rampAll(); break;
     case 'zwift-dl': zwiftDownload(root); break;
     case 'rouvy-dl': rouvyDownload(root, id, el.dataset.fmt); break;
     case 'rouvy-fmt': rouvySheet(id, el.dataset.val); break;
