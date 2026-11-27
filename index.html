@@ -305,6 +305,16 @@ input.inp[type="date"]::-webkit-date-and-time-value{ text-align:left; }
 .mini-seg button{ min-height:34px; padding:6px; font-size:13px; }
 .run-calc{ display:grid; grid-template-columns:1fr auto; gap:8px; align-items:end; }
 .run-calc .field{ margin-bottom:12px; } .run-calc .btn{ margin-bottom:12px; padding:11px 12px; }
+.coach-bar{ margin:0 0 10px; }
+.coach-bar .field{ margin:0; }
+.viewing{ margin:8px 0 0; padding:8px 12px; border:2.5px solid var(--line); border-radius:14px; background:var(--jaune); color:var(--ink); font-size:14px; }
+.link-row{ display:flex; align-items:center; gap:8px; padding:8px 10px; margin-bottom:8px; border:2px dashed var(--line); border-radius:14px; background:var(--surface-2); }
+.link-row span{ flex:1; min-width:0; } .link-row small{ display:block; font-size:12px; color:var(--muted); }
+.link-row .btn{ padding:7px 10px; font-size:13px; box-shadow:none; }
+.link-row .code{ font-family:var(--f-display); font-size:20px; letter-spacing:.12em; }
+body.readonly [data-act="new-session"], body.readonly [data-act="new-steps"], body.readonly [data-act="save-steps"], body.readonly [data-act="save-iv"],
+body.readonly [data-act="save-session"], body.readonly [data-act="del-session"], body.readonly [data-act="del-test"], body.readonly [data-act="edit-steps"],
+body.readonly [data-act="add-row"], body.readonly [data-act="add-iv"], body.readonly [data-act="del-row"], body.readonly [data-act="settings"], body.readonly [data-act="new-gz"]{ display:none !important; }
 /* ---------- Mouvement ---------- */
 :root{
   --ease-out:cubic-bezier(.23,1,.32,1);   /* entrées et déplacements */
@@ -402,7 +412,7 @@ const kindLabel = k => (state.lang === 'en' && k && KIND_EN[k] ? KIND_EN[k] : k)
 const TPL_EN = { '8 × 5 min': '8 × 5 min', 'Intervalles longs GZ': 'Long GZ intervals', 'Intervalles courts GZ': 'Short GZ intervals' };
 const tplLabel = name => (state.lang === 'en' && name && TPL_EN[name] ? TPL_EN[name] : name);
 const PREF = (k, d) => { try { const v = localStorage.getItem('globule:' + k); return v == null ? d : v; } catch (e) { return d; } };
-const state = { gzOn: true, zonesOpen: PREF('zones-open', '0') === '1', jRange: PREF('jrange', '8w'), lang: LANG0, allTests: [], allSessions: [], sport: 'bike', sports: null, protos: { bike: null, run: null }, tests: [], sessions: [], name: '', tab: 'home', user: null, mascotEvent: null, proto: null, templates: [], pick: 'lt1', gz: { lo: 2.3, hi: 3.0 } };
+const state = { links: [], viewAs: null, viewName: '', coachReady: null, gzOn: true, zonesOpen: PREF('zones-open', '0') === '1', jRange: PREF('jrange', '8w'), lang: LANG0, allTests: [], allSessions: [], sport: 'bike', sports: null, protos: { bike: null, run: null }, tests: [], sessions: [], name: '', tab: 'home', user: null, mascotEvent: null, proto: null, templates: [], pick: 'lt1', gz: { lo: 2.3, hi: 3.0 } };
 
 /* ---------- Outils ---------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -558,12 +568,86 @@ const Local = {
   async remove(t, id) { this.save(t, this.list(t).filter(r => r.id !== id)); }
 };
 const Remote = {
-  async all(t) { const { data, error } = await sb.from(t).select('*').order('date', { ascending: false }).order('created_at', { ascending: false }); if (error) throw error; return data || []; },
+  async all(t) { const { data, error } = await sb.from(t).select('*').eq('user_id', state.viewAs || state.user.id).order('date', { ascending: false }).order('created_at', { ascending: false }); if (error) throw error; return data || []; },
   async insert(t, row) { const { data, error } = await sb.from(t).insert(row).select().single(); if (error) throw error; return data; },
   async update(t, id, patch) { const { data, error } = await sb.from(t).update(patch).eq('id', id).select().single(); if (error) throw error; return data; },
   async remove(t, id) { const { error } = await sb.from(t).delete().eq('id', id); if (error) throw error; }
 };
 const Store = () => (DEMO ? Local : Remote);
+
+/* ---------- Mode entraîneur (lecture seule) ---------- */
+// Les réglages vivent dans le profil de connexion ; on en garde une copie dans la table profiles
+// pour que l'entraîneur puisse les lire (zones, Golden Zone, protocole, modèles).
+async function updMeta(arg) {
+  const r = await sb.auth.updateUser(arg);
+  if (!r.error && r.data && r.data.user) { state.user = r.data.user; syncProfile(); }
+  return r;
+}
+async function syncProfile() {
+  if (DEMO || !state.user || state.viewAs) return;
+  const m = state.user.user_metadata || {};
+  const { error } = await sb.from('profiles').upsert({ id: state.user.id, name: m.name || null, sports: m.sports || null, gz: m.gz3 || null,
+    gz_on: typeof m.gzOn === 'boolean' ? m.gzOn : null, protos: { bike: m.proto || null, run: m.protoRun || null }, templates: m.templates || null, updated_at: new Date().toISOString() });
+  if (error) console.warn('Profil non partagé :', error.message);
+}
+const uidMe = () => state.user && state.user.id;
+const myAthletes = () => state.links.filter(l => l.coach_id === uidMe() && l.status === 'active');
+const myCoaches = () => state.links.filter(l => l.athlete_id === uidMe() && l.status === 'active');
+const myCodes = () => state.links.filter(l => l.athlete_id === uidMe() && l.status === 'pending');
+async function loadLinks() {
+  if (DEMO || !state.user) { state.links = []; return; }
+  const { data, error } = await sb.from('coach_links').select('*').order('created_at');
+  state.coachReady = !error; state.links = error ? [] : (data || []);
+}
+function restoreOwn() {
+  const u = state.user;
+  state.name = (u.user_metadata && u.user_metadata.name) || '';
+  loadGz(u); loadGzOn(u.user_metadata); loadProto(u); loadSports(u.user_metadata); loadTemplates(u.user_metadata && u.user_metadata.templates);
+}
+async function viewAthlete(id) {
+  if (!id || id === uidMe()) { state.viewAs = null; state.viewName = ''; restoreOwn(); }
+  else {
+    const l = myAthletes().find(x => x.athlete_id === id); if (!l) return;
+    const { data: pr } = await sb.from('profiles').select('*').eq('id', id).maybeSingle();
+    const pf = pr || {};
+    const meta = { name: pf.name || l.athlete_name || '', gz3: pf.gz, gzOn: pf.gz_on, proto: pf.protos && pf.protos.bike, protoRun: pf.protos && pf.protos.run, sports: pf.sports, templates: pf.templates };
+    state.viewAs = id; state.viewName = meta.name || T('ton athlète', 'your athlete');
+    state.name = meta.name;
+    loadGz({ user_metadata: meta }); loadGzOn(meta); loadProto({ user_metadata: meta }); loadSports(meta); loadTemplates(meta.templates);
+    if (!state.sports) state.sports = ['bike', 'run'];
+  }
+  document.body.classList.toggle('readonly', !!state.viewAs);
+  closeSheet();
+  try { await loadAll(); } catch (e) { toast(T('Lecture impossible : ', 'Could not load: ') + (e.message || '')); }
+  render(); window.scrollTo(0, 0);
+}
+function coachBar() {
+  if (DEMO || !myAthletes().length) return '';
+  const opt = (v, l) => `<option value="${esc(v)}"${(state.viewAs || uidMe()) === v ? ' selected' : ''}>${esc(l)}</option>`;
+  return `<div class="coach-bar"><label class="field"><span>${T('Profil affiché', 'Profile shown')}</span><select class="inp athlete-pick" aria-label="${T('Profil affiché', 'Profile shown')}">
+    ${opt(uidMe(), T('Moi', 'Me'))}${myAthletes().map(l => opt(l.athlete_id, l.athlete_name || T('Athlète', 'Athlete'))).join('')}</select></label>
+    ${state.viewAs ? `<p class="viewing">${T(`Lecture seule : tu regardes le labo de <b>${esc(state.viewName)}</b>.`, `Read only: you are looking at <b>${esc(state.viewName)}</b>'s lab.`)}</p>` : ''}</div>`;
+}
+const genCode = () => Array.from(crypto.getRandomValues(new Uint8Array(6)), b => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[b % 32]).join('');
+function coachSection() {
+  if (DEMO) return `<p class="hand" style="margin:0 0 6px">${T('Entraîneur', 'Coach')}</p><p class="muted" style="font-size:13px;margin:0 0 14px">${T('Le mode entraîneur marche avec un vrai compte, pas en démo.', 'Coach mode works with a real account, not in the demo.')}</p>`;
+  if (state.coachReady === false) return `<p class="hand" style="margin:0 0 6px">${T('Entraîneur', 'Coach')}</p><p class="muted" style="font-size:13px;margin:0 0 14px">${T('Le mode entraîneur n\'est pas encore activé sur le serveur.', 'Coach mode is not enabled on the server yet.')}</p>`;
+  const row = (l, who, label) => `<div class="link-row"><span><b>${esc(who || label)}</b><small>${label}</small></span><button type="button" class="btn ghost" data-act="unlink" data-id="${esc(l.id)}">${T('Retirer', 'Remove')}</button></div>`;
+  return `<p class="hand" style="margin:0 0 6px">${T('Mon entraîneur', 'My coach')}</p>
+    <p class="muted" style="font-size:13px;margin:0 0 8px">${T('Ton entraîneur pourra lire tes tests, tes séances et tes zones, sans rien modifier. Tu peux retirer l\'accès quand tu veux.', 'Your coach can read your tests, sessions and zones, without changing anything. You can remove access any time.')}</p>
+    ${myCoaches().map(l => row(l, l.coach_name, T('lit ton labo', 'reads your lab'))).join('')}
+    ${myCodes().map(l => `<div class="link-row"><span><b class="code">${esc(l.code)}</b><small>${T('code à donner à ton entraîneur, valable 7 jours', 'code for your coach, valid 7 days')}</small></span><button type="button" class="btn" data-act="share-code" data-code="${esc(l.code)}">${T('Envoyer', 'Send')}</button><button type="button" class="btn ghost" data-act="unlink" data-id="${esc(l.id)}">×</button></div>`).join('')}
+    <button class="btn block" data-act="invite-coach">${T('Inviter mon entraîneur', 'Invite my coach')}</button>
+    <div style="height:14px"></div>
+    <p class="hand" style="margin:0 0 6px">${T('Je suis entraîneur', "I'm a coach")}</p>
+    ${myAthletes().map(l => row(l, l.athlete_name, T('athlète que tu suis', 'athlete you follow'))).join('')}
+    <div class="run-calc"><label class="field"><span>${T('Code reçu de ton athlète', 'Code from your athlete')}</span><input class="inp" id="coach-code" autocapitalize="characters" placeholder="ABC123"></label>
+      <button type="button" class="btn violet" data-act="claim-code">${T('Ajouter', 'Add')}</button></div>
+    <div style="height:4px"></div>`;
+}
+const WRITE_ACTS = new Set(['new-session', 'new-steps', 'save-steps', 'save-iv', 'save-session', 'save-tpl', 'new-tpl', 'del-tpl', 'use-tpl', 'del-session', 'del-test', 'set-thr', 'reset-thr', 'edit-steps',
+  'add-row', 'del-row', 'add-iv', 'save-name', 'save-gz', 'save-proto', 'set-gzon', 'edit-sports', 'save-sports', 'toggle-sport', 'calc-start', 'settings', 'export', 'new-gz', 'pick',
+  'invite-coach', 'claim-code', 'unlink', 'share-code']);
 
 async function loadAll() {
   const [tests, sessions] = await Promise.all([Store().all('tests'), Store().all('sessions')]);
@@ -590,7 +674,7 @@ function loadSports(meta) {
 async function saveSports(list) {
   state.sports = list;
   if (DEMO) localStorage.setItem('globule:sports', JSON.stringify(list));
-  else { const { error } = await sb.auth.updateUser({ data: { sports: list } }); if (error) { toast(T('Pas enregistré : ', 'Not saved: ') + error.message); return false; } }
+  else { const { error } = await updMeta({ data: { sports: list } }); if (error) { toast(T('Pas enregistré : ', 'Not saved: ') + error.message); return false; } }
   applySport(); return true;
 }
 const sportToggles = sel => `<div class="sport-pick" role="group" aria-label="${T('Mes sports', 'My sports')}">${Object.values(SPORTS).map(S =>
@@ -916,7 +1000,7 @@ const TEST_COLORS = ['#FF2D8E', '#6A2BF0', '#13B98A', '#F2A100', '#3AA0FF', '#B0
 /* ---------- Rendu ---------- */
 const app = () => $('#app');
 function header() {
-  return `<header class="top"><h1 class="wordmark">Globule<small>${state.name ? T(`le labo lactate de ${esc(state.name)}`, `${esc(state.name)}'s lactate lab`) : T('le labo lactate', 'the lactate lab')}</small></h1>${DEMO ? `<span class="demo-badge">${T('mode démo', 'demo mode')}</span>` : ''}</header>${sportSwitch()}`;
+  return `<header class="top"><h1 class="wordmark">Globule<small>${state.name ? T(`le labo lactate de ${esc(state.name)}`, `${esc(state.name)}'s lactate lab`) : T('le labo lactate', 'the lactate lab')}</small></h1>${DEMO ? `<span class="demo-badge">${T('mode démo', 'demo mode')}</span>` : ''}</header>${coachBar()}${sportSwitch()}`;
 }
 
 /* ---------- Langue, partage, tuto écran d'accueil ---------- */
@@ -1288,6 +1372,7 @@ function settingsSheet() {
       <p class="muted" style="font-size:13px;margin:-4px 0 10px">${T('Départ conseillé : 70 % de ta vitesse moyenne de course (10 km au marathon), arrondi à 0,5 km/h.', 'Suggested start: 70% of your average race speed (10 km to marathon), rounded to 0.5 km/h.')}</p>` : ''}
     <button class="btn violet block" data-act="save-proto">${T('Enregistrer mon protocole', 'Save my protocol')}</button>
     <div style="height:10px"></div>
+    ${coachSection()}
     <button class="btn block" data-act="export">${T('Exporter toutes mes données (CSV)', 'Export all my data (CSV)')}</button>
     <div style="height:14px"></div>
     <p class="hand" style="margin:0 0 6px">${T('Langue', 'Language')}</p>
@@ -1629,7 +1714,7 @@ const validTpl = t => !!t && String(t.name || '').trim().length > 0 && num(t.rep
 function loadTemplates(raw) { state.templates = Array.isArray(raw) ? raw.filter(validTpl) : []; }
 async function saveTemplates(list) {
   if (DEMO) { try { localStorage.setItem('globule:templates', JSON.stringify(list)); } catch { /* stockage bloqué */ } }
-  else { const { error } = await sb.auth.updateUser({ data: { templates: list } }); if (error) throw error; }
+  else { const { error } = await updMeta({ data: { templates: list } }); if (error) throw error; }
   state.templates = list;
 }
 
@@ -1807,7 +1892,7 @@ function exportCSV() {
 const loadFtp = () => { const m = state.user && state.user.user_metadata; const v = num(m && m.ftp); if (v) return v; try { return num(localStorage.getItem('globule:ftp')); } catch (e) { return null; } };
 async function saveFtp(v) {
   try { localStorage.setItem('globule:ftp', String(v)); } catch (e) { /* gardée en mémoire seulement */ }
-  if (!DEMO && state.user) { const { data, error } = await sb.auth.updateUser({ data: { ftp: v } }); if (!error && data && data.user) state.user = data.user; }
+  if (!DEMO && state.user) { const { data, error } = await updMeta({ data: { ftp: v } }); if (!error && data && data.user) state.user = data.user; }
 }
 function rouvyPanel() {
   return `<p class="hand" style="margin:0 0 6px">${T('Test paliers pour Zwift', 'Step test for Zwift')}</p>
@@ -2179,7 +2264,7 @@ async function forgotPass() {
 async function resetPass() {
   const { pass } = readAuth();
   if (pass.length < 8) return showErr(T('Le mot de passe fait au moins 8 caractères.', 'The password needs at least 8 characters.'));
-  const { data, error } = await sb.auth.updateUser({ password: pass });
+  const { data, error } = await updMeta({ password: pass });
   if (error) return showErr(authErr(error));
   toast(T('Mot de passe changé', 'Password changed'));
   enter(data.user);
@@ -2189,17 +2274,47 @@ function enter(user) {
   if (location.hash) history.replaceState(null, '', SITE_URL);
   state.user = user; state.name = (user.user_metadata && user.user_metadata.name) || '';
   loadGz(user); loadGzOn(user.user_metadata); loadProto(user); loadSports(user.user_metadata); loadTemplates(user.user_metadata && user.user_metadata.templates);
+  state.viewAs = null; document.body.classList.remove('readonly');
+  syncProfile();
   start();
 }
 
 /* ---------- Événements ---------- */
+document.addEventListener('change', e => { if (e.target.matches && e.target.matches('.athlete-pick')) viewAthlete(e.target.value); });
 document.addEventListener('click', async e => {
   const tab = e.target.closest('[data-tab]');
   if (tab) { switchTab(tab.dataset.tab); return; }
   const el = e.target.closest('[data-act]'); if (!el) return;
   const act = el.dataset.act, id = el.dataset.id, root = $('.sheet:not(.leaving)');
+  if (state.viewAs && WRITE_ACTS.has(act)) { toast(T('Lecture seule : c\'est le labo de ton athlète. Reviens sur « Moi » pour tes réglages.', "Read only: this is your athlete's lab. Switch back to “Me” for your settings.")); return; }
   switch (act) {
     case 'close': closeSheet(); break;
+    case 'invite-coach': {
+      const { error } = await sb.from('coach_links').insert({ code: genCode(), athlete_name: state.name || null });
+      if (error) { toast(T('Invitation impossible : ', 'Could not invite: ') + error.message); break; }
+      await loadLinks(); settingsSheet(); toast(T('Code créé : envoie-le à ton entraîneur', 'Code created: send it to your coach'), true); break;
+    }
+    case 'share-code': {
+      const c = el.dataset.code, text = T(`Mon code entraîneur Globule : ${c}. Ouvre ${SITE_URL}, réglages ⚙, « Je suis entraîneur ».`, `My Globule coach code: ${c}. Open ${SITE_URL}, settings ⚙, “I'm a coach”.`);
+      if (navigator.share) { try { await navigator.share({ title: 'Globule', text }); } catch (e) { /* annulé */ } }
+      else { try { await navigator.clipboard.writeText(text); toast(T('Message copié', 'Message copied'), true); } catch (e) { prompt(T('Copie ce message :', 'Copy this message:'), text); } }
+      break;
+    }
+    case 'claim-code': {
+      const c = String($('#coach-code') ? $('#coach-code').value : '').trim().toUpperCase();
+      if (c.length < 4) { toast(T('Entre le code reçu de ton athlète', 'Enter the code from your athlete')); break; }
+      const { data, error } = await sb.rpc('claim_coach_code', { p_code: c, p_coach_name: state.name || T('Entraîneur', 'Coach') });
+      if (error) { toast(error.message); break; }
+      await loadLinks(); render(); settingsSheet(); toast(T(`Tu suis maintenant ${data || 'ton athlète'}. Choisis son profil en haut de l'écran.`, `You now follow ${data || 'your athlete'}. Pick their profile at the top of the screen.`), true); break;
+    }
+    case 'unlink': {
+      const l = state.links.find(x => x.id === id); if (!l) break;
+      const msg = l.status === 'pending' ? T('Annuler ce code ?', 'Cancel this code?') : l.athlete_id === uidMe() ? T(`Retirer l'accès de ${l.coach_name || 'ton entraîneur'} à ton labo ?`, `Remove ${l.coach_name || 'your coach'}'s access to your lab?`) : T(`Arrêter de suivre ${l.athlete_name || 'cet athlète'} ?`, `Stop following ${l.athlete_name || 'this athlete'}?`);
+      if (!confirm(msg)) break;
+      const { error } = await sb.from('coach_links').delete().eq('id', id);
+      if (error) { toast(T('Pas fait : ', 'Not done: ') + error.message); break; }
+      await loadLinks(); render(); settingsSheet(); toast(T('C\'est fait', 'Done'), true); break;
+    }
     case 'settings': settingsSheet(); break;
     case 'set-gzon': { const v = el.dataset.val === '1'; if (v !== GZ_ON()) { await saveGzOn(v); render(); settingsSheet(); toast(v ? T('Golden Zone activée', 'Golden Zone on') : T('Golden Zone masquée', 'Golden Zone hidden'), true); } break; }
     case 'zones-toggle': state.zonesOpen = !state.zonesOpen; try { localStorage.setItem('globule:zones-open', state.zonesOpen ? '1' : '0'); } catch (e) {} render(); break;
@@ -2272,7 +2387,7 @@ document.addEventListener('click', async e => {
       const name = $('#set-name').value.trim().slice(0, 40);
       state.name = name;
       if (DEMO) localStorage.setItem('globule:name', name);
-      else { const { error } = await sb.auth.updateUser({ data: { name } }); if (error) { toast(T('Pas enregistré : ', 'Not saved: ') + error.message); break; } }
+      else { const { error } = await updMeta({ data: { name } }); if (error) { toast(T('Pas enregistré : ', 'Not saved: ') + error.message); break; } }
       render(); toast(name ? T(`Salut ${name} !`, `Hi ${name}!`) : T('Prénom effacé', 'First name cleared'));
       break;
     }
@@ -2284,7 +2399,7 @@ document.addEventListener('click', async e => {
       state.protos[state.sport] = P;
       const key = isRun() ? 'protoRun' : 'proto';
       if (DEMO) localStorage.setItem(isRun() ? 'globule:proto-run' : 'globule:proto', JSON.stringify(P));
-      else { const { error } = await sb.auth.updateUser({ data: { [key]: P } }); if (error) { toast(T('Pas enregistré : ', 'Not saved: ') + error.message); break; } }
+      else { const { error } = await updMeta({ data: { [key]: P } }); if (error) { toast(T('Pas enregistré : ', 'Not saved: ') + error.message); break; } }
       render(); toast(T(`Protocole : ${fxu(P.start)}, +${fxu(P.step)}, ${P.n} paliers`, `Protocol: ${fxu(P.start)}, +${fxu(P.step)}, ${P.n} steps`));
       break;
     }
@@ -2294,7 +2409,7 @@ document.addEventListener('click', async e => {
       if (!validGz(gz)) { toast(T('Plage invalide : "de" plus petit que "à", entre 0,5 et 10 mmol', 'Invalid range: "from" lower than "to", between 0.5 and 10 mmol')); break; }
       state.gz = gz;
       if (DEMO) localStorage.setItem('globule:gz3', JSON.stringify(gz));
-      else { const { error } = await sb.auth.updateUser({ data: { gz3: gz } }); if (error) { toast(T('Pas enregistré : ', 'Not saved: ') + error.message); break; } }
+      else { const { error } = await updMeta({ data: { gz3: gz } }); if (error) { toast(T('Pas enregistré : ', 'Not saved: ') + error.message); break; } }
       render(); toast(T('Golden Zone enregistrée', 'Golden Zone saved'));
       break;
     }
@@ -2309,7 +2424,7 @@ document.addEventListener('click', async e => {
     case 'reset-demo':
       if (confirm(T('Vider toutes les données de démo de cet appareil ?', 'Clear all demo data from this device?'))) { ['tests', 'sessions'].forEach(t => localStorage.removeItem('globule:' + t)); state.tests = []; state.sessions = []; render(); }
       break;
-    case 'logout': await sb.auth.signOut(); state.user = null; state.tests = []; state.sessions = []; renderLogin('login'); break;
+    case 'logout': await sb.auth.signOut(); state.user = null; state.viewAs = null; state.links = []; document.body.classList.remove('readonly'); state.tests = []; state.sessions = []; renderLogin('login'); break;
     case 'auth-mode': renderLogin(el.dataset.mode, el.dataset.email || readAuth().email); break;
     case 'signup': el.disabled = true; await signUp(); break;
     case 'login': el.disabled = true; await logIn(); break;
@@ -2327,7 +2442,7 @@ document.addEventListener('keydown', e => {
 async function start() {
   $('#tabbar').hidden = false;
   app().innerHTML = header() + hero(T('Je sors tes éprouvettes du frigo...', 'Getting your test tubes out of the fridge...'), 124);
-  try { await loadAll(); render(); if (!state.sports) profileSheet(true); else maybeA2hs(); }
+  try { await loadLinks(); await loadAll(); render(); if (!state.sports) profileSheet(true); else maybeA2hs(); }
   catch (e) {
     app().innerHTML = header() + hero(T('Petit couac au labo : impossible de récupérer tes données. Vérifie ta connexion.', "Small hiccup in the lab: couldn't load your data. Check your connection."), 124) + `<button class="btn rose block" onclick="start()">${T('Réessayer', 'Try again')}</button><p class="err">${esc(e.message || '')}</p>`;
   }
@@ -2346,7 +2461,7 @@ function loadGzOn(meta) {
 async function saveGzOn(v) {
   state.gzOn = v;
   try { localStorage.setItem('globule:gzon', v ? '1' : '0'); } catch (e) { /* gardé en mémoire */ }
-  if (!DEMO && state.user) { const { error } = await sb.auth.updateUser({ data: { gzOn: v } }); if (error) toast(T('Pas enregistré : ', 'Not saved: ') + error.message); }
+  if (!DEMO && state.user) { const { error } = await updMeta({ data: { gzOn: v } }); if (error) toast(T('Pas enregistré : ', 'Not saved: ') + error.message); }
 }
 function loadGz(u) { const g = u && u.user_metadata && u.user_metadata.gz3; state.gz = validGz(g) ? { lo: num(g.lo), hi: num(g.hi) } : { ...GZ_DEFAULT }; }
 async function boot() {
