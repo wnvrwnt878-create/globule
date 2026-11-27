@@ -303,6 +303,8 @@ input.inp[type="date"]::-webkit-date-and-time-value{ text-align:left; }
 .info[aria-expanded="true"]{ background:var(--violet); color:#fff; }
 .info-text{ font-size:13px; background:var(--surface-2); border:2px dashed var(--line); border-radius:12px; padding:8px 10px; margin:6px 0 8px; }
 .mini-seg button{ min-height:34px; padding:6px; font-size:13px; }
+.run-calc{ display:grid; grid-template-columns:1fr auto; gap:8px; align-items:end; }
+.run-calc .field{ margin-bottom:12px; } .run-calc .btn{ margin-bottom:12px; padding:11px 12px; }
 /* ---------- Mouvement ---------- */
 :root{
   --ease-out:cubic-bezier(.23,1,.32,1);   /* entrées et déplacements */
@@ -427,9 +429,9 @@ const byDateDesc = (a, b) => (b.date || '').localeCompare(a.date || '') || (b.cr
 // Deux profils : vélo (watts) et course (km/h). Le sport d'un test ou d'une séance se lit sur sa source.
 const SPORTS = {
   bike: { key: 'bike', get label() { return T('Vélo', 'Bike'); }, u: 'W', d: 0, im: 'numeric', get name() { return T('watts', 'watts'); }, get Name() { return T('Watts', 'Watts'); }, col: 'Watts', get les() { return T('les watts', 'your watts'); }, get measured() { return T('Watts mesurés avec', 'Watts measured with'); },
-    sources: { get trainer() { return T('Home trainer', 'Indoor trainer'); }, get route() { return T('Route', 'Road'); } }, proto: { start: 140, step: 25, n: 7 }, lim: { start: [50, 500], step: [5, 100] } },
+    sources: { get trainer() { return T('Home trainer', 'Indoor trainer'); }, get route() { return T('Route', 'Road'); } }, proto: { start: 140, step: 25, n: 7, dur: 5 }, lim: { start: [50, 500], step: [5, 100] } },
   run: { key: 'run', get label() { return T('Course à pied', 'Running'); }, u: 'km/h', d: 1, im: 'decimal', get name() { return T('vitesse', 'speed'); }, get Name() { return T('Vitesse', 'Speed'); }, col: 'km/h', get les() { return T('la vitesse', 'your speed'); }, get measured() { return T('Vitesse mesurée avec', 'Speed measured with'); },
-    sources: { get tapis() { return T('Tapis', 'Treadmill'); }, get piste() { return T('Extérieur', 'Outdoors'); } }, proto: { start: 10, step: 1, n: 7 }, lim: { start: [4, 25], step: [0.2, 3] } }
+    sources: { get tapis() { return T('Tapis', 'Treadmill'); }, get piste() { return T('Extérieur', 'Outdoors'); } }, proto: { start: 10, step: 1, n: 6, dur: 4 }, lim: { start: [4, 25], step: [0.2, 3] } }
 };
 // Getters : le libellé suit la langue choisie (un spread figerait la langue du chargement)
 const SOURCES = { get trainer() { return SPORTS.bike.sources.trainer; }, get route() { return SPORTS.bike.sources.route; }, get tapis() { return SPORTS.run.sources.tapis; }, get piste() { return SPORTS.run.sources.piste; } };
@@ -1211,12 +1213,13 @@ function viewGlobule() {
     <p>${T(`${bk('Tes watts sont lus', 'Ta vitesse est lue')} sur ta dernière courbe de lactate, là où elle traverse chaque plage, et plafonnée à ton LT2.`, `${bk('Your watts are read', 'Your speed is read')} from your latest lactate curve, where it crosses each range, and capped at your LT2.`)}</p>
   </details>` : ''}
   <details class="panel proto">
-    <summary><span><span class="t">${T('Test paliers 5 min + 30 s', 'Step test 5 min + 30 s')}</span><span class="s">${T('Le seul test : il donne LT1 et LT2', 'The only test: it gives LT1 and LT2')}</span></span><span class="plus">+</span></summary>
+    <summary><span><span class="t">${T(`Test paliers ${proto().dur} min + 30 s`, `Step test ${proto().dur} min + 30 s`)}</span><span class="s">${T('Le seul test : il donne LT1 et LT2', 'The only test: it gives LT1 and LT2')}</span></span><span class="plus">+</span></summary>
     <p class="say">${T('Le protocole de base du labo : un test, deux seuils, cinq zones.', "The lab's core protocol: one test, two thresholds, five zones.")}</p>
     <ol>
       <li>${T('Mêmes conditions à chaque test : même heure, même repas, rien d\'intense la veille. Glycogène bas = courbe faussement flatteuse.', 'Same conditions every test: same time, same meal, nothing hard the day before. Low glycogen = a falsely flattering curve.')}</li>
       <li>${T('Échauffement 10 à 15 min très facile. Lactate de repos si tu veux une référence.', 'Warm up 10 to 15 min very easy. Take a resting lactate if you want a baseline.')}</li>
-      <li>${T(`Ton protocole fixe : départ ${fxu(proto().start)}, +${fxu(proto().step)} par palier de 5 min, ${bk('cadence stable', 'tapis à 1 % de pente')}. Toujours le même, pour que les courbes se comparent. Réglable en bas de page.`, `Your fixed protocol: start at ${fxu(proto().start)}, +${fxu(proto().step)} per 5 min step, ${bk('steady cadence', 'treadmill at 1% incline')}. Always the same, so your curves can be compared. You can change it at the bottom of the page.`)}</li>
+      ${isRun() ? `<li>${T('<b>Course à pied : vise 5 à 6 paliers, pas plus.</b> Le test devient long quand on part trop lentement. Pars à environ 70 % de ta vitesse moyenne sur 10 km (calcul dans les réglages) : le 2e palier tombe vers ton footing, et LT2 arrive vers le 4e ou 5e. Paliers de 4 min sur tapis à 1 %, +1 km/h, environ 35 min échauffement compris.', '<b>Running: aim for 5 to 6 steps, no more.</b> The test gets long when you start too slow. Start at about 70% of your average 10 km speed (calculator in settings): step 2 lands near your easy pace, and LT2 comes around step 4 or 5. 4 min steps on a treadmill at 1%, +1 km/h, about 35 min including the warm-up.')}</li>` : ''}
+      <li>${T(`Ton protocole fixe : départ ${fxu(proto().start)}, +${fxu(proto().step)} par palier de ${proto().dur} min, ${bk('cadence stable', 'tapis à 1 % de pente')}. Toujours le même, pour que les courbes se comparent. Réglable en bas de page.`, `Your fixed protocol: start at ${fxu(proto().start)}, +${fxu(proto().step)} per ${proto().dur} min step, ${bk('steady cadence', 'treadmill at 1% incline')}. Always the same, so your curves can be compared. You can change it at the bottom of the page.`)}</li>
       <li>${T('Entre chaque palier, <b>30 s de pause</b> pour prélever le lactate (protocole recommandé par Marius Bakken), puis repars sur le palier suivant. Doigt sec, première goutte essuyée : la sueur contient du lactate.', 'Between steps, take a <b>30 s break</b> to sample lactate (the protocol Marius Bakken recommends), then start the next step. Dry finger, wipe the first drop: sweat contains lactate.')}</li>
       <li>${T('Note FC de fin de palier, lactate et RPE.', 'Log end-of-step HR, lactate and RPE.')} ${bk(T('Les watts sont déjà remplis.', 'Watts are already filled in.'), T('Les vitesses sont déjà remplies.', 'Speeds are already filled in.'))}</li>
       <li>${T('<b>Va jusqu\'à 5 mmol</b>, au moins 2 paliers après le premier saut. Sans ça, pas de LT2 fiable.', '<b>Go up to 5 mmol</b>, at least 2 steps past the first jump. Without that, no reliable LT2.')}</li>
@@ -1225,6 +1228,7 @@ function viewGlobule() {
     <p>${T('<b>LT1</b> = le palier juste avant le premier saut d\'au moins 0,4 mmol. Les lecteurs ont environ 0,2 à 0,3 mmol d\'erreur, donc je vérifie que ça reste haut au palier suivant.', '<b>LT1</b> = the step just before the first jump of at least 0.4 mmol. Meters have about 0.2 to 0.3 mmol of error, so I check that it stays high on the next step.')}</p>
     <p>${T('<b>LT2</b> = méthode Dmax modifiée : je lisse ta courbe, je trace une droite de LT1 au dernier palier, et LT2 est le point de la courbe le plus éloigné de cette droite. Je le confirme quand ton lactate dépasse 5 mmol : la méthode a besoin de points bien au-delà du seuil pour trouver le coude, même si ton seuil est plus bas. Avant, j\'écris "à confirmer". LT2 se précise d\'environ un demi-palier à chaque palier ajouté, c\'est normal avec cette méthode.', '<b>LT2</b> = modified Dmax method: I smooth your curve, draw a straight line from LT1 to the last step, and LT2 is the point on the curve farthest from that line. I confirm it once your lactate goes past 5 mmol: the method needs points well beyond the threshold to find the bend, even if your threshold is lower. Until then I write “to confirm”. LT2 shifts by about half a step with each step you add, which is normal with this method.')}</p>
     <p>${T('Tu peux toujours déplacer LT1 ou LT2 à la main en touchant la courbe.', 'You can always move LT1 or LT2 by hand by tapping the curve.')}</p>
+    ${isRun() ? `<p class="muted" style="font-size:13px">${T('Sources du protocole course : Olympiatoppen (4 à 5 paliers de 5 min, +1 km/h, 30 s de pause), Jamnick et al. 2018 (avec des paliers de 4 min, la méthode Dmax modifiée est la plus proche de l\'état stable du lactate), étude sur la vitesse de départ (70 % de la vitesse de course). Garde toujours la même durée de palier : les seuils changent avec elle.', 'Running protocol sources: Olympiatoppen (4 to 5 steps of 5 min, +1 km/h, 30 s pause), Jamnick et al. 2018 (with 4 min steps, the modified Dmax method lands closest to maximal lactate steady state), a study on start speed (70% of race speed). Always keep the same step length: thresholds shift with it.')}</p>` : ''}
   </details>
   ${isRun() ? '' : `<details class="panel proto">
     <summary><span><span class="t">${T('Rampe 2 min', '2 min ramp')}</span><span class="s">${T('Le bonus : on cherche ta limite', 'The bonus: finding your limit')}</span></span><span class="plus">+</span></summary>
@@ -1274,10 +1278,14 @@ function settingsSheet() {
     <p class="muted" style="font-size:13px;margin:-4px 0 10px">${T('Par défaut 2,3 à 3,0 mmol (Marius Bakken).', 'Default 2.3 to 3.0 mmol (Marius Bakken).')}</p>
     <button class="btn block" style="background:#FFC21A;color:#2A0A4A" data-act="save-gz">${T('Enregistrer ma Golden Zone', 'Save my Golden Zone')}</button>` : ''}
     <div style="height:14px"></div>
-    <p class="hand" style="margin:0 0 6px">${T(`Mon protocole paliers ${SP().label.toLowerCase()} (5 min + 30 s de pause)`, `My ${SP().label.toLowerCase()} step test protocol (5 min + 30 s rest)`)}</p>
+    <p class="hand" style="margin:0 0 6px">${T(`Mon protocole paliers ${SP().label.toLowerCase()} (${proto().dur} min + 30 s de pause)`, `My ${SP().label.toLowerCase()} step test protocol (${proto().dur} min + 30 s rest)`)}</p>
     <div class="grid3"><label class="field"><span>${T(`Départ (${SP().u})`, `Start (${SP().u})`)}</span><input class="inp" id="set-p-start" inputmode="${SP().im}" value="${inVal(proto().start)}"></label>
     <label class="field"><span>${T(`+ par palier (${SP().u})`, `+ per step (${SP().u})`)}</span><input class="inp" id="set-p-step" inputmode="${SP().im}" value="${inVal(proto().step)}"></label>
     <label class="field"><span>${T('Paliers max', 'Max steps')}</span><input class="inp" id="set-p-n" inputmode="numeric" value="${proto().n}"></label></div>
+    <label class="field"><span>${T('Durée d\'un palier (min)', 'Step length (min)')}</span><input class="inp" id="set-p-dur" inputmode="numeric" value="${proto().dur}"></label>
+    ${isRun() ? `<div class="run-calc"><label class="field"><span>${T('Ton dernier 10 km (mm:ss ou h:mm:ss)', 'Your latest 10 km (mm:ss or h:mm:ss)')}</span><input class="inp" id="set-10k" placeholder="${T('ex. 48:30', 'e.g. 48:30')}"></label>
+      <button type="button" class="btn" data-act="calc-start">${T('Calculer le départ', 'Work out the start')}</button></div>
+      <p class="muted" style="font-size:13px;margin:-4px 0 10px">${T('Départ conseillé : 70 % de ta vitesse moyenne de course (10 km au marathon), arrondi à 0,5 km/h.', 'Suggested start: 70% of your average race speed (10 km to marathon), rounded to 0.5 km/h.')}</p>` : ''}
     <button class="btn violet block" data-act="save-proto">${T('Enregistrer mon protocole', 'Save my protocol')}</button>
     <div style="height:10px"></div>
     <button class="btn block" data-act="export">${T('Exporter toutes mes données (CSV)', 'Export all my data (CSV)')}</button>
@@ -1376,7 +1384,8 @@ function stepRow(s, i) {
 }
 function validProto(p, k) {
   const L = SP(k).lim;
-  return !!p && num(p.start) >= L.start[0] && num(p.start) <= L.start[1] && num(p.step) >= L.step[0] && num(p.step) <= L.step[1] && num(p.n) >= 3 && num(p.n) <= 15;
+  return !!p && num(p.start) >= L.start[0] && num(p.start) <= L.start[1] && num(p.step) >= L.step[0] && num(p.step) <= L.step[1] && num(p.n) >= 3 && num(p.n) <= 15
+    && (p.dur == null || (num(p.dur) >= 2 && num(p.dur) <= 8));
 }
 function derivedProto() {
   const last = state.tests.filter(t => t.kind === 'steps').sort(byDateDesc)[0];
@@ -1386,7 +1395,7 @@ function derivedProto() {
   const p = { start: st[0].w, step: diffs[Math.floor(diffs.length / 2)], n: st.length };
   return validProto(p) ? p : null;
 }
-const proto = () => state.protos[state.sport] || derivedProto() || SP().proto;
+const proto = () => ({ dur: SP().proto.dur, ...(state.protos[state.sport] || derivedProto() || SP().proto) });
 function matchesProto(steps, p) {
   const eq = (a, b) => Math.abs(a - b) < 1e-6;
   return steps.length > 0 && eq(steps[0].w, p.start) && steps.every((s, i) => i === 0 || eq(s.w - steps[i - 1].w, p.step));
@@ -1403,7 +1412,7 @@ function stepForm(test) {
     <div class="grid2"><label class="field"><span>${T('Date', 'Date')}</span><input class="inp" type="date" id="f-date" value="${t.date}"></label>
     <label class="field"><span>${T('Lactate de repos', 'Resting lactate')}</span><input class="inp" id="f-base" inputmode="decimal" placeholder="${T('optionnel', 'optional')}" value="${inVal(t.data.baseline)}"></label></div>
     <div class="field"><span class="muted" style="font-size:13px;font-weight:600">${SP().measured}</span>${segHTML('src', t.source)}</div>
-    ${test ? '' : `<p class="proto-line">${T(`Ton protocole : départ <b>${fxu(P.start)}</b>, <b>+${fxu(P.step)}</b>, paliers de 5 min${bk('', ' (tapis à 1 % de pente)')} avec <b>30 s de pause</b> entre chaque pour prélever le lactate, ${P.n} paliers. Remplis FC, lactate et RPE au fil du test ; les paliers vides ne sont pas enregistrés.`, `Your protocol: start at <b>${fxu(P.start)}</b>, <b>+${fxu(P.step)}</b> per step, 5 min steps${bk('', ' (treadmill at 1% incline)')} with a <b>30 s break</b> between each to take your lactate, ${P.n} steps. Fill in HR, lactate and RPE as you go; empty steps aren't saved.`)}</p>`}
+    ${test ? '' : `<p class="proto-line">${T(`Ton protocole : départ <b>${fxu(P.start)}</b>, <b>+${fxu(P.step)}</b>, paliers de ${P.dur} min${bk('', ' (tapis à 1 % de pente)')} avec <b>30 s de pause</b> entre chaque pour prélever le lactate, ${P.n} paliers. Remplis FC, lactate et RPE au fil du test ; les paliers vides ne sont pas enregistrés.`, `Your protocol: start at <b>${fxu(P.start)}</b>, <b>+${fxu(P.step)}</b> per step, ${P.dur} min steps${bk('', ' (treadmill at 1% incline)')} with a <b>30 s break</b> between each to take your lactate, ${P.n} steps. Fill in HR, lactate and RPE as you go; empty steps aren't saved.`)}</p>`}
     ${test || isRun() ? '' : `<button class="btn block" style="background:#FC6719;color:#fff;margin-bottom:12px" data-act="zwift">${T('Faire ce test sur Zwift (.zwo)', 'Ride this test on Zwift (.zwo)')}</button>`}
     <div class="steps-head"><span></span><span>${SP().col}</span><span>${T('FC', 'HR')}</span><span>${T('Lactate', 'Lactate')}</span><span>RPE</span><span></span></div>
     <div id="rows">${rows.map(stepRow).join('')}</div>
@@ -1839,7 +1848,7 @@ function zwoSteps(ftp, start, override) {
   const msg = T('Pause : prélève le lactate', 'Pause: take your lactate sample');
   const blocks = [`<Warmup Duration="600" PowerLow="0.400" PowerHigh="${frac(Math.min(P.start, ftp * 0.6), ftp)}"/>`];
   steps.forEach((w, i) => {
-    blocks.push(`<SteadyState Duration="300" Power="${frac(w, ftp)}"><textevent timeoffset="0" message="${xmlEsc(T(`Palier ${i + 1} : ${w} W`, `Step ${i + 1}: ${w} W`))}"/></SteadyState>`);
+    blocks.push(`<SteadyState Duration="${P.dur * 60}" Power="${frac(w, ftp)}"><textevent timeoffset="0" message="${xmlEsc(T(`Palier ${i + 1} : ${w} W`, `Step ${i + 1}: ${w} W`))}"/></SteadyState>`);
     if (i < steps.length - 1) blocks.push(`<SteadyState Duration="30" Power="0.300"><textevent timeoffset="0" message="${xmlEsc(msg)}"/></SteadyState>`);
   });
   blocks.push(`<Cooldown Duration="600" PowerLow="0.500" PowerHigh="0.300"/>`);
@@ -1888,7 +1897,7 @@ function ergSteps(start) {
   let t = 600;
   steps.forEach((w, i) => {
     texts.push({ at: t, msg: T(`Palier ${i + 1} : ${w} W`, `Step ${i + 1}: ${w} W`) });
-    segs.push({ dur: 300, from: w }); t += 300;
+    segs.push({ dur: P.dur * 60, from: w }); t += P.dur * 60;
     if (i < steps.length - 1) { texts.push({ at: t, msg: T('Pause : prélève le lactate', 'Pause: take your lactate sample'), dur: 30 }); segs.push({ dur: 30, from: Math.round(start * 0.5) }); t += 30; }
   });
   segs.push({ dur: 600, from: Math.round(start * 0.8), to: Math.round(start * 0.5) });
@@ -2196,6 +2205,15 @@ document.addEventListener('click', async e => {
     case 'zones-toggle': state.zonesOpen = !state.zonesOpen; try { localStorage.setItem('globule:zones-open', state.zonesOpen ? '1' : '0'); } catch (e) {} render(); break;
     case 'j-range': if (J_RANGES.hasOwnProperty(el.dataset.val)) { state.jRange = el.dataset.val; try { localStorage.setItem('globule:jrange', state.jRange); } catch (e) {} render(); } break;
     case 'info': { const t = document.getElementById(el.dataset.for); if (t) { t.hidden = !t.hidden; el.setAttribute('aria-expanded', String(!t.hidden)); } break; }
+    case 'calc-start': {
+      const v = String($('#set-10k').value || '').trim(), m = /^(?:(\d+):)?(\d{1,2}):(\d{2})$/.exec(v);
+      if (!m) { toast(T('Temps attendu au format mm:ss ou h:mm:ss', 'Expected time as mm:ss or h:mm:ss')); break; }
+      const sec = (+(m[1] || 0)) * 3600 + (+m[2]) * 60 + (+m[3]), kmh = 10 / (sec / 3600);
+      const st = Math.round(kmh * 0.7 * 2) / 2;
+      $('#set-p-start').value = inVal(st);
+      toast(T(`10 km à ${fmt(kmh, 1)} km/h : départ ${fmt(st, 1)} km/h. Enregistre ton protocole.`, `10 km at ${fmt(kmh, 1)} km/h: start ${fmt(st, 1)} km/h. Save your protocol.`), true);
+      break;
+    }
     case 'ramp-pick': { const sel = $('#ramp-start'); if (sel) rampDownload(+sel.value, el.dataset.fmt); break; }
     case 'set-lang': setLang(el.dataset.val); break;
     case 'share-app': shareApp(); break;
@@ -2260,9 +2278,9 @@ document.addEventListener('click', async e => {
     }
     case 'new-gz': pickSession(); break;
     case 'save-proto': {
-      const P = { start: rnd(num($('#set-p-start').value)), step: rnd(num($('#set-p-step').value)), n: Math.round(num($('#set-p-n').value)) };
+      const P = { start: rnd(num($('#set-p-start').value)), step: rnd(num($('#set-p-step').value)), n: Math.round(num($('#set-p-n').value)), dur: Math.round(num($('#set-p-dur').value) || SP().proto.dur) };
       const L = SP().lim;
-      if (!validProto(P)) { toast(T(`Protocole invalide : départ ${fx(L.start[0])} à ${fxu(L.start[1])}, +${fx(L.step[0])} à ${fxu(L.step[1])}, 3 à 15 paliers`, `Invalid protocol: start ${fx(L.start[0])} to ${fxu(L.start[1])}, +${fx(L.step[0])} to ${fxu(L.step[1])}, 3 to 15 steps`)); break; }
+      if (!validProto(P)) { toast(T(`Protocole invalide : départ ${fx(L.start[0])} à ${fxu(L.start[1])}, +${fx(L.step[0])} à ${fxu(L.step[1])}, 3 à 15 paliers de 2 à 8 min`, `Invalid protocol: start ${fx(L.start[0])} to ${fxu(L.start[1])}, +${fx(L.step[0])} to ${fxu(L.step[1])}, 3 to 15 steps`)); break; }
       state.protos[state.sport] = P;
       const key = isRun() ? 'protoRun' : 'proto';
       if (DEMO) localStorage.setItem(isRun() ? 'globule:proto-run' : 'globule:proto', JSON.stringify(P));
@@ -2317,7 +2335,7 @@ async function start() {
 function validGz(g) { return !!g && num(g.lo) >= 0.5 && num(g.hi) > num(g.lo) && num(g.hi) <= 10; }
 function loadProto(u) {
   const m = (u && u.user_metadata) || {};
-  const pick = (p, k) => (validProto(p, k) ? { start: num(p.start), step: num(p.step), n: num(p.n) } : null);
+  const pick = (p, k) => (validProto(p, k) ? { start: num(p.start), step: num(p.step), n: num(p.n), ...(p.dur != null ? { dur: num(p.dur) } : {}) } : null);
   state.protos = { bike: pick(m.proto, 'bike'), run: pick(m.protoRun, 'run') };
 }
 function loadGzOn(meta) {
