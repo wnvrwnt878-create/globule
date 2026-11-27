@@ -45,6 +45,8 @@
 }
 :root{ box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); }
 *,*::before,*::after{ box-sizing:inherit; }
+/* Les <details> ne transmettent pas toujours l'héritage : on fixe la règle sur ce qui s'y trouve */
+details *, input, select, textarea, button{ box-sizing:border-box; }
 html{ scroll-padding-top:env(safe-area-inset-top,0px); -webkit-text-size-adjust:100%; }
 html,body{ margin:0; }
 body{
@@ -173,7 +175,7 @@ h2.title{ font-family:var(--f-display); font-size:22px; margin:22px 0 10px; line
 /* Formulaires */
 .field{ display:block; margin-bottom:12px; }
 .field > span{ display:block; font-size:13px; font-weight:600; color:var(--muted); margin-bottom:4px; }
-.inp{ width:100%; border:2.5px solid var(--line); border-radius:14px; padding:10px 12px; background:var(--surface-2); font-size:16px; min-height:46px; }
+.inp{ box-sizing:border-box; width:100%; border:2.5px solid var(--line); border-radius:14px; padding:10px 12px; background:var(--surface-2); font-size:16px; min-height:46px; }
 textarea.inp{ min-height:70px; resize:vertical; }
 .grid2{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:10px; }
 .grid2 > *, .grid3 > *{ min-width:0; }
@@ -276,6 +278,8 @@ input.inp[type="date"]::-webkit-date-and-time-value{ text-align:left; }
 .ramp-box{ border:2.5px dashed var(--line); border-radius:16px; padding:10px 12px; margin:0 0 12px; background:var(--surface-2); }
 .ramp-box summary{ cursor:pointer; font-weight:700; }
 .ramp-box[open] summary{ margin-bottom:10px; }
+.ramp-box .grid3{ grid-template-columns:repeat(3, minmax(0,1fr)); align-items:end; }
+.ramp-box .field > span{ font-size:12px; line-height:1.2; }
 .ramp-result{ background:#FFE3D2; border-color:#FC6719; }
 .page-head{ display:flex; align-items:center; justify-content:space-between; margin:4px 0 2px; }
 .page-head .title{ margin:0; }
