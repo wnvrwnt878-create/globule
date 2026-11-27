@@ -365,7 +365,8 @@ body.readonly [data-act="add-row"], body.readonly [data-act="add-iv"], body.read
 .proto[open]:not(.closing) summary .plus::after{ opacity:1; scale:1; filter:blur(0); }
 
 /* Toast : arrive en courbe, petite pulsation quand c'est réussi */
-.toast{ display:flex; align-items:center; gap:8px; white-space:nowrap; animation:toast-in var(--t-in) var(--ease-out) both; }
+.toast{ display:flex; align-items:center; gap:8px; white-space:normal; width:max-content; max-width:calc(100vw - 32px); border-radius:20px; line-height:1.3; animation:toast-in var(--t-in) var(--ease-out) both; }
+.toast .tick{ flex:none; }
 .toast.ok{ animation:toast-in var(--t-in) var(--ease-out) both, pulse 380ms var(--ease-out) var(--t-in); }
 .toast.leaving{ animation:toast-out var(--t-out) var(--ease-out) forwards; }
 .toast .tick{ display:grid; place-items:center; width:22px; height:22px; border-radius:50%; background:var(--menthe); color:var(--ink); font-size:13px; animation:icon-in 320ms var(--ease-out) 120ms both; }
