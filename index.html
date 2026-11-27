@@ -270,6 +270,7 @@ input.inp[type="date"]::-webkit-date-and-time-value{ text-align:left; }
 .tuto-dots{ display:flex; justify-content:center; gap:6px; margin:18px 0 4px; }
 .tuto-dots i{ width:8px; height:8px; border-radius:50%; background:var(--line); opacity:.25; transition:opacity 240ms var(--ease-out), scale 240ms var(--ease-out); }
 .tuto-dots i.on{ opacity:1; scale:1.3; background:var(--rose); }
+.tpl-steps{ display:flex; flex-wrap:wrap; gap:6px; }
 /* ---------- Mouvement ---------- */
 :root{
   --ease-out:cubic-bezier(.23,1,.32,1);   /* entrées et déplacements */
@@ -1301,6 +1302,7 @@ function stepForm(test) {
     <label class="field"><span>${T('Lactate de repos', 'Resting lactate')}</span><input class="inp" id="f-base" inputmode="decimal" placeholder="${T('optionnel', 'optional')}" value="${inVal(t.data.baseline)}"></label></div>
     <div class="field"><span class="muted" style="font-size:13px;font-weight:600">${SP().measured}</span>${segHTML('src', t.source)}</div>
     ${test ? '' : `<p class="proto-line">${T(`Ton protocole : départ <b>${fxu(P.start)}</b>, <b>+${fxu(P.step)}</b>, paliers de 5 min${bk('', ' (tapis à 1 % de pente)')} avec <b>30 s de pause</b> entre chaque pour prélever le lactate, ${P.n} paliers. Remplis FC, lactate et RPE au fil du test ; les paliers vides ne sont pas enregistrés.`, `Your protocol: start at <b>${fxu(P.start)}</b>, <b>+${fxu(P.step)}</b> per step, 5 min steps${bk('', ' (treadmill at 1% incline)')} with a <b>30 s break</b> between each to take your lactate, ${P.n} steps. Fill in HR, lactate and RPE as you go; empty steps aren't saved.`)}</p>`}
+    ${test || isRun() ? '' : `<button class="btn block" style="background:#FC6719;color:#fff;margin-bottom:12px" data-act="zwift">${T('Faire ce test sur Zwift (.zwo)', 'Ride this test on Zwift (.zwo)')}</button>`}
     <div class="steps-head"><span></span><span>${SP().col}</span><span>${T('FC', 'HR')}</span><span>${T('Lactate', 'Lactate')}</span><span>RPE</span><span></span></div>
     <div id="rows">${rows.map(stepRow).join('')}</div>
     <button class="btn block" type="button" data-act="add-row">${T('+ Ajouter un palier', '+ Add a step')}</button>
@@ -1666,6 +1668,9 @@ async function saveFtp(v) {
 }
 function rouvyPanel() {
   return `<div style="height:14px"></div>
+    <p class="hand" style="margin:0 0 6px">${T('Test paliers pour Zwift', 'Step test for Zwift')}</p>
+    <button class="btn block" style="background:#FC6719;color:#fff" data-act="zwift">${T('Exporter le test vers Zwift', 'Export the test to Zwift')}</button>
+    <div style="height:14px"></div>
     <p class="hand" style="margin:0 0 6px">${T('Séances pour Rouvy', 'Workouts for Rouvy')}</p>
     <p class="muted" style="font-size:13px;margin:0 0 8px">${T('Un fichier .zwo à importer dans Rouvy : ton home trainer en mode ERG tient les watts tout seul.', 'A .zwo file to import into Rouvy: your trainer in ERG mode holds the watts for you.')}</p>
     <div class="list">
@@ -1682,10 +1687,10 @@ function targetWatts(t, ftp) {
   if (Z.lt2 != null) return { w: Math.round(Z.lt2 * (t.target === 'Golden Zone' ? 0.97 : 1)), from: 'lt2' };
   return { w: Math.round(ftp * 0.9), from: 'ftp' };
 }
-function zwoFile(name, desc, blocks) {
+function zwoFile(name, desc, blocks, ftpOverride) {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <workout_file>
-  <author>Globule</author>
+  <author>Globule</author>${ftpOverride ? `\n  <ftpOverride>${ftpOverride}</ftpOverride>` : ''}
   <name>${xmlEsc(name)}</name>
   <description>${xmlEsc(desc)}</description>
   <sportType>bike</sportType>
@@ -1696,8 +1701,8 @@ ${blocks.map(b => '    ' + b).join('\n')}
 </workout_file>
 `;
 }
-function zwoSteps(ftp) {
-  const P = proto(), steps = Array.from({ length: P.n }, (_, i) => P.start + i * P.step);
+function zwoSteps(ftp, start, override) {
+  const P = { ...proto(), ...(start ? { start } : {}) }, steps = Array.from({ length: P.n }, (_, i) => P.start + i * P.step);
   const msg = T('Pause : prélève le lactate', 'Pause: take your lactate sample');
   const blocks = [`<Warmup Duration="600" PowerLow="0.400" PowerHigh="${frac(Math.min(P.start, ftp * 0.6), ftp)}"/>`];
   steps.forEach((w, i) => {
@@ -1706,9 +1711,9 @@ function zwoSteps(ftp) {
   });
   blocks.push(`<Cooldown Duration="600" PowerLow="0.500" PowerHigh="0.300"/>`);
   const name = T(`Globule test paliers ${P.start} W +${P.step}`, `Globule step test ${P.start} W +${P.step}`);
-  const desc = T(`Protocole Globule (Marius Bakken) : paliers de 5 min de ${P.start} à ${steps[steps.length - 1]} W, 30 s de pause entre chaque pour prélever le lactate. Arrête-toi quand tu dépasses environ 4 mmol. FTP utilisée : ${ftp} W.`,
-    `Globule protocol (Marius Bakken): 5 min steps from ${P.start} to ${steps[steps.length - 1]} W, with a 30 s pause between steps to take a lactate sample. Stop once you pass about 4 mmol. FTP used: ${ftp} W.`);
-  return { name, desc, xml: zwoFile(name, desc, blocks), file: `globule-test-paliers-${P.start}w.zwo` };
+  const desc = T(`Protocole Globule (Marius Bakken) : paliers de 5 min de ${P.start} à ${steps[steps.length - 1]} W, 30 s de pause entre chaque pour prélever le lactate. Arrête-toi quand tu dépasses environ 4 mmol. ${override ? 'Watts exacts, quelle que soit ta FTP Zwift.' : `FTP utilisée : ${ftp} W.`}`,
+    `Globule protocol (Marius Bakken): 5 min steps from ${P.start} to ${steps[steps.length - 1]} W, with a 30 s pause between steps to take a lactate sample. Stop once you pass about 4 mmol. ${override ? 'Exact watts, whatever your Zwift FTP.' : `FTP used: ${ftp} W.`}`);
+  return { name, desc, steps, xml: zwoFile(name, desc, blocks, override ? ftp : null), file: `globule-test-paliers-${P.start}w${override ? '-zwift' : ''}.zwo` };
 }
 function zwoTemplate(t, ftp) {
   const tw = targetWatts(t, ftp), G = goldenZone(currentZones());
@@ -1752,6 +1757,36 @@ function rouvySheet(id) {
     };
     root.addEventListener('input', upd); upd();
   });
+}
+
+// Test paliers pour Zwift : on demande seulement les watts de départ. ftpOverride fixe une FTP de référence
+// égale au dernier palier, donc Zwift affiche les watts exacts quelle que soit la FTP du profil.
+function zwiftSheet() {
+  const P = proto();
+  openSheet(T('Test paliers pour Zwift', 'Step test for Zwift'), `
+    <p class="hand" style="margin:0 0 10px">${T('À combien de watts tu veux commencer ?', 'How many watts do you want to start at?')}</p>
+    <label class="field"><span>${T('Premier palier (W)', 'First step (W)')}</span><input class="inp" id="z-start" inputmode="numeric" value="${P.start}"></label>
+    <div class="result" id="z-preview"></div>
+    <p class="err" role="alert"></p>
+    <button class="btn rose block" data-act="zwift-dl">${T('Télécharger pour Zwift (.zwo)', 'Download for Zwift (.zwo)')}</button>
+    <p class="muted" style="font-size:13px;margin:12px 0 0">${T(`Paliers de 5 min, +${P.step} W, ${P.n} paliers, 30 s de pause pour le lactate. Sur ordinateur, copie le fichier dans Documents/Zwift/Workouts/ puis ton numéro Zwift ; il apparaît dans Entraînements, catégorie Custom Workouts.`,
+      `5 min steps, +${P.step} W, ${P.n} steps, 30 s lactate pause. On a computer, copy the file into Documents/Zwift/Workouts/ then your Zwift ID folder; it shows up under Workouts, in Custom Workouts.`)}</p>`, root => {
+    const upd = () => {
+      const st = num($('#z-start', root).value), pv = $('#z-preview', root);
+      if (!st || st < 50 || st > 500) { pv.innerHTML = `<span class="hand">${T('Entre un départ entre 50 et 500 W.', 'Enter a start between 50 and 500 W.')}</span>`; return; }
+      const z = zwoSteps(1, Math.round(st), false);
+      pv.innerHTML = `<div class="tpl-steps">${z.steps.map((w, i) => `<span class="chip">${i + 1}. <b>${w} W</b></span>`).join('')}</div>`;
+    };
+    root.addEventListener('input', upd); upd();
+  });
+}
+function zwiftDownload(root) {
+  const st = num($('#z-start', root).value);
+  if (!st || st < 50 || st > 500) { $('.err', root).textContent = T('Départ entre 50 et 500 W attendu.', 'Start between 50 and 500 W expected.'); return; }
+  const start = Math.round(st), P = proto(), ref = start + (P.n - 1) * P.step;
+  const z = zwoSteps(ref, start, true);
+  downloadFile(z.file, z.xml, 'application/xml');
+  toast(T('Fichier prêt pour Zwift', 'File ready for Zwift'), true);
 }
 async function rouvyDownload(root, id) {
   const f = num($('#r-ftp', root).value);
@@ -1943,6 +1978,8 @@ document.addEventListener('click', async e => {
     }
     case 'export': exportCSV(); break;
     case 'rouvy': rouvySheet(id); break;
+    case 'zwift': zwiftSheet(); break;
+    case 'zwift-dl': zwiftDownload(root); break;
     case 'rouvy-dl': rouvyDownload(root, id); break;
     case 'reset-demo':
       if (confirm(T('Vider toutes les données de démo de cet appareil ?', 'Clear all demo data from this device?'))) { ['tests', 'sessions'].forEach(t => localStorage.removeItem('globule:' + t)); state.tests = []; state.sessions = []; render(); }
