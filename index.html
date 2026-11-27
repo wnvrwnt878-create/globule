@@ -1672,10 +1672,10 @@ function rouvyPanel() {
     <button class="btn block" style="background:#FC6719;color:#fff" data-act="zwift">${T('Exporter le test vers Zwift', 'Export the test to Zwift')}</button>
     <div style="height:14px"></div>
     <p class="hand" style="margin:0 0 6px">${T('Séances pour Rouvy', 'Workouts for Rouvy')}</p>
-    <p class="muted" style="font-size:13px;margin:0 0 8px">${T('Un fichier .zwo à importer dans Rouvy : ton home trainer en mode ERG tient les watts tout seul.', 'A .zwo file to import into Rouvy: your trainer in ERG mode holds the watts for you.')}</p>
+    <p class="muted" style="font-size:13px;margin:0 0 8px">${T('Un fichier .erg en watts exacts (ou .zwo) à importer dans Rouvy : ton home trainer en mode ERG tient les watts tout seul.', 'An .erg file in exact watts (or .zwo) to import into Rouvy: your trainer in ERG mode holds the watts for you.')}</p>
     <div class="list">
-      <button class="item" data-act="rouvy" data-id="steps"><span class="badge" style="background:var(--violet);color:#fff">5'</span><span class="main"><strong>${T('Test paliers', 'Step test')}</strong><span>${esc(T(`Départ ${fxu(proto().start)}, +${fxu(proto().step)}, ${proto().n} paliers`, `Start ${fxu(proto().start)}, +${fxu(proto().step)}, ${proto().n} steps`))}</span></span><span class="num">.zwo</span></button>
-      ${templates().map(t => `<button class="item" data-act="rouvy" data-id="${esc(t.id)}"><span class="badge" style="background:${t.target === 'Golden Zone' ? GZ_COLOR : 'var(--z2)'}">${t.reps}×</span><span class="main"><strong>${esc(tplLabel(t.name))}</strong><span>${esc(tplLine(t))}</span></span><span class="num">.zwo</span></button>`).join('')}
+      <button class="item" data-act="rouvy" data-id="steps"><span class="badge" style="background:var(--violet);color:#fff">5'</span><span class="main"><strong>${T('Test paliers', 'Step test')}</strong><span>${esc(T(`Départ ${fxu(proto().start)}, +${fxu(proto().step)}, ${proto().n} paliers`, `Start ${fxu(proto().start)}, +${fxu(proto().step)}, ${proto().n} steps`))}</span></span><span class="num">.erg</span></button>
+      ${templates().map(t => `<button class="item" data-act="rouvy" data-id="${esc(t.id)}"><span class="badge" style="background:${t.target === 'Golden Zone' ? GZ_COLOR : 'var(--z2)'}">${t.reps}×</span><span class="main"><strong>${esc(tplLabel(t.name))}</strong><span>${esc(tplLine(t))}</span></span><span class="num">.erg</span></button>`).join('')}
     </div>`;
 }
 const xmlEsc = v => String(v).replace(/[<>&"']/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&apos;' }[c]));
@@ -1735,30 +1735,99 @@ function downloadFile(name, text, type) {
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 4000);
 }
-function rouvySheet(id) {
+// Fichier .erg : minutes et watts absolus, aucune FTP nécessaire. Les points se suivent en ligne droite,
+// donc un palier s'écrit avec deux points à la même minute (fin du précédent, début du suivant).
+function ergFile(name, desc, segs, texts) {
+  const pts = []; let t = 0;
+  segs.forEach(g => { pts.push([t, g.from]); t += g.dur; pts.push([t, g.to == null ? g.from : g.to]); });
+  const line = ([m, w]) => `${(m / 60).toFixed(2)}\t${Math.round(w)}`;
+  // Format ancien : texte en ASCII seulement, sans accents ni guillemets typographiques
+  const ascii = v => String(v).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[“”«»]/g, '"').replace(/[’]/g, "'").replace(/[^\x20-\x7E]/g, '');
+  name = ascii(name); desc = ascii(desc); texts = (texts || []).map(x => ({ ...x, msg: ascii(x.msg) }));
+  return ['[COURSE HEADER]', 'VERSION = 2', 'UNITS = ENGLISH', `DESCRIPTION = ${desc.replace(/\s+/g, ' ')}`, `FILE NAME = ${name}`, 'MINUTES WATTS', '[END COURSE HEADER]',
+    '[COURSE DATA]', ...pts.map(line), '[END COURSE DATA]',
+    ...(texts && texts.length ? ['[COURSE TEXT]', ...texts.map(x => `${Math.round(x.at)}\t${x.msg}\t${x.dur || 10}`), '[END COURSE TEXT]'] : []), ''].join('\r\n');
+}
+function ergSteps(start) {
+  const P = proto(), steps = Array.from({ length: P.n }, (_, i) => start + i * P.step);
+  const segs = [{ dur: 600, from: Math.round(start * 0.6), to: start }], texts = [];
+  let t = 600;
+  steps.forEach((w, i) => {
+    texts.push({ at: t, msg: T(`Palier ${i + 1} : ${w} W`, `Step ${i + 1}: ${w} W`) });
+    segs.push({ dur: 300, from: w }); t += 300;
+    if (i < steps.length - 1) { texts.push({ at: t, msg: T('Pause : prélève le lactate', 'Pause: take your lactate sample'), dur: 30 }); segs.push({ dur: 30, from: Math.round(start * 0.5) }); t += 30; }
+  });
+  segs.push({ dur: 600, from: Math.round(start * 0.8), to: Math.round(start * 0.5) });
+  const name = T(`Globule test paliers ${start} W +${P.step}`, `Globule step test ${start} W +${P.step}`);
+  const desc = T(`Paliers de 5 min de ${start} à ${steps[steps.length - 1]} W, 30 s de pause pour le lactate. Arrête-toi vers 4 mmol.`, `5 min steps from ${start} to ${steps[steps.length - 1]} W, 30 s lactate pause. Stop around 4 mmol.`);
+  return { steps, file: `globule-test-paliers-${start}w.erg`, text: ergFile(name, desc, segs, texts) };
+}
+function ergTemplate(t, w) {
+  const segs = [{ dur: 900, from: Math.round(w * 0.5), to: Math.round(w * 0.75) }];
+  for (let i = 0; i < t.reps; i++) { segs.push({ dur: t.work, from: w }); if (i < t.reps - 1 && t.rest) segs.push({ dur: t.rest, from: Math.round(w * 0.55) }); }
+  segs.push({ dur: 600, from: Math.round(w * 0.6), to: Math.round(w * 0.4) });
+  const name = `Globule ${tplLabel(t.name)}`;
+  const slug = String(t.name).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'seance';
+  return { file: `globule-${slug}.erg`, text: ergFile(name, `${tplLine(t)}, ${w} W`, segs, []) };
+}
+function rouvySheet(id, fmtSel) {
   const t = id === 'steps' ? null : templates().find(x => x.id === id);
   if (id !== 'steps' && !t) return;
-  const ftp = loadFtp();
-  openSheet(T('Exporter pour Rouvy', 'Export for Rouvy'), `
+  const f = fmtSel || 'erg', ftp = loadFtp(), tw = t ? targetWatts(t, ftp || 250) : null;
+  const field = f === 'zwo'
+    ? `<label class="field"><span>${T('Ta FTP dans Rouvy (W)', 'Your FTP in Rouvy (W)')}</span><input class="inp" id="r-ftp" inputmode="numeric" value="${ftp != null ? ftp : ''}" placeholder="${T('ex. 250', 'e.g. 250')}"></label>
+       <p class="muted" style="font-size:13px;margin:-4px 0 10px">${T('Le .zwo donne la puissance en % de FTP. Mets la même FTP que dans ton profil Rouvy.', 'A .zwo sets power as a % of FTP. Use the same FTP as in your Rouvy profile.')}</p>`
+    : t ? `<label class="field"><span>${T('Watts des intervalles', 'Interval watts')}</span><input class="inp" id="r-w" inputmode="numeric" value="${tw && tw.from !== 'ftp' ? tw.w : ''}" placeholder="${T('ex. 240', 'e.g. 240')}"></label>
+       <p class="muted" style="font-size:13px;margin:-4px 0 10px">${tw && tw.from === 'gz' ? T('Milieu de ta Golden Zone, en watts exacts : aucune FTP nécessaire.', 'Middle of your Golden Zone, in exact watts: no FTP needed.') : T('Watts exacts : aucune FTP nécessaire.', 'Exact watts: no FTP needed.')}</p>`
+    : `<label class="field"><span>${T('Premier palier (W)', 'First step (W)')}</span><input class="inp" id="r-start" inputmode="numeric" value="${proto().start}"></label>
+       <p class="muted" style="font-size:13px;margin:-4px 0 10px">${T(`Watts exacts, +${proto().step} W par palier : aucune FTP nécessaire.`, `Exact watts, +${proto().step} W per step: no FTP needed.`)}</p>`;
+  const body = `
     <p class="hand" style="margin:0 0 10px">${t ? esc(tplLabel(t.name)) : T('Test paliers', 'Step test')}</p>
-    <label class="field"><span>${T('Ta FTP dans Rouvy (W)', 'Your FTP in Rouvy (W)')}</span><input class="inp" id="r-ftp" inputmode="numeric" value="${ftp != null ? ftp : ''}" placeholder="${T('ex. 250', 'e.g. 250')}"></label>
-    <p class="muted" style="font-size:13px;margin:-4px 0 10px">${T('Le fichier donne la puissance en % de FTP. Mets la même FTP que dans ton profil Rouvy pour retrouver exactement ces watts.', 'The file sets power as a % of FTP. Use the same FTP as in your Rouvy profile to get exactly these watts.')}</p>
+    <div class="seg" data-layout-id="rouvy-fmt" role="group" aria-label="${T('Format', 'Format')}" style="margin-bottom:12px">
+      <button type="button" data-act="rouvy-fmt" data-id="${esc(id)}" data-val="erg" aria-pressed="${f === 'erg'}">.erg ${T('(watts)', '(watts)')}</button>
+      <button type="button" data-act="rouvy-fmt" data-id="${esc(id)}" data-val="zwo" aria-pressed="${f === 'zwo'}">.zwo ${T('(% FTP)', '(% FTP)')}</button></div>
+    ${field}
     <div class="result" id="r-preview"></div>
     <p class="err" role="alert"></p>
-    <button class="btn rose block" data-act="rouvy-dl" data-id="${esc(id)}">${T('Télécharger le fichier .zwo', 'Download the .zwo file')}</button>
-    <p class="muted" style="font-size:13px;margin:12px 0 0">${T('Dans Rouvy : Entraînements, puis Importer, et choisis le fichier. Le home trainer en mode ERG suit les watts.', 'In Rouvy: Workouts, then Import, and pick the file. Your trainer in ERG mode follows the watts.')}</p>`, root => {
+    <button class="btn rose block" data-act="rouvy-dl" data-id="${esc(id)}" data-fmt="${f}">${T(`Télécharger le fichier .${f}`, `Download the .${f} file`)}</button>
+    <p class="muted" style="font-size:13px;margin:12px 0 0">${T('Dans Rouvy, importe le fichier depuis tes entraînements. Le home trainer en mode ERG suit les watts.', 'In Rouvy, import the file from your workouts. Your trainer in ERG mode follows the watts.')}</p>`;
+  const mount = root => {
+    root.dataset.rouvy = '1';
     const upd = () => {
-      const f = num($('#r-ftp', root).value);
       const pv = $('#r-preview', root);
-      if (!f || f < 80 || f > 600) { pv.innerHTML = `<span class="hand">${T('Entre ta FTP Rouvy pour voir les watts.', 'Enter your Rouvy FTP to see the watts.')}</span>`; return; }
-      if (!t) { const P = proto(); pv.innerHTML = `<div class="kv"><div><b>${P.n}</b><span>${T('paliers de 5 min', '5 min steps')}</span></div><div><b>${fmt(P.start)} → ${fmt(P.start + (P.n - 1) * P.step)}</b><span>W</span></div><div><b>30 s</b><span>${T('pause lactate', 'lactate pause')}</span></div></div>`; return; }
-      const z = zwoTemplate(t, f);
-      pv.innerHTML = `<div class="kv"><div><b>${t.reps} × ${fmtDur(t.work)}</b><span>${T('intervalles', 'intervals')}</span></div><div><b>${z.target}</b><span>W (${Math.round(z.target / f * 100)} % FTP)</span></div><div><b>${fmtDur(t.rest)}</b><span>${T('récup', 'recovery')}</span></div></div>`;
+      if (f === 'zwo') {
+        const v = num($('#r-ftp', root).value);
+        if (!v || v < 80 || v > 600) { pv.innerHTML = `<span class="hand">${T('Entre ta FTP Rouvy pour voir les watts.', 'Enter your Rouvy FTP to see the watts.')}</span>`; return; }
+        if (!t) { const P = proto(); pv.innerHTML = `<div class="kv"><div><b>${P.n}</b><span>${T('paliers de 5 min', '5 min steps')}</span></div><div><b>${fmt(P.start)} → ${fmt(P.start + (P.n - 1) * P.step)}</b><span>W</span></div><div><b>30 s</b><span>${T('pause lactate', 'lactate pause')}</span></div></div>`; return; }
+        const z = zwoTemplate(t, v);
+        pv.innerHTML = `<div class="kv"><div><b>${t.reps} × ${fmtDur(t.work)}</b><span>${T('intervalles', 'intervals')}</span></div><div><b>${z.target}</b><span>W (${Math.round(z.target / v * 100)} % FTP)</span></div><div><b>${fmtDur(t.rest)}</b><span>${T('récup', 'recovery')}</span></div></div>`;
+        return;
+      }
+      if (!t) {
+        const st = num($('#r-start', root).value);
+        if (!st || st < 50 || st > 500) { pv.innerHTML = `<span class="hand">${T('Entre un départ entre 50 et 500 W.', 'Enter a start between 50 and 500 W.')}</span>`; return; }
+        pv.innerHTML = `<div class="tpl-steps">${ergSteps(Math.round(st)).steps.map((w, i) => `<span class="chip">${i + 1}. <b>${w} W</b></span>`).join('')}</div>`;
+        return;
+      }
+      const w = num($('#r-w', root).value);
+      if (!w || w < 50 || w > 600) { pv.innerHTML = `<span class="hand">${T('Entre les watts des intervalles.', 'Enter the interval watts.')}</span>`; return; }
+      pv.innerHTML = `<div class="kv"><div><b>${t.reps} × ${fmtDur(t.work)}</b><span>${T('intervalles', 'intervals')}</span></div><div><b>${Math.round(w)}</b><span>W</span></div><div><b>${fmtDur(t.rest)}</b><span>${T('récup', 'recovery')}</span></div></div>`;
     };
     root.addEventListener('input', upd); upd();
-  });
+  };
+  const open = $('.sheet:not(.leaving)');
+  if (open && open.dataset.rouvy) {
+    // Même feuille : seul le contenu change quand on passe de .erg à .zwo
+    const nb = open.cloneNode(false); // remplace l'élément pour retirer l'ancien écouteur
+    nb.innerHTML = open.innerHTML; open.replaceWith(nb);
+    $('.sheet-body', nb).innerHTML = body;
+    $$('.seg', nb).forEach(g => syncPill(g, true));
+    reveal([...$('.sheet-body', nb).children].slice(2, 5));
+    mount(nb);
+    return;
+  }
+  openSheet(T('Exporter pour Rouvy', 'Export for Rouvy'), body, mount);
 }
-
 // Test paliers pour Zwift : on demande seulement les watts de départ. ftpOverride fixe une FTP de référence
 // égale au dernier palier, donc Zwift affiche les watts exacts quelle que soit la FTP du profil.
 function zwiftSheet() {
@@ -1788,13 +1857,27 @@ function zwiftDownload(root) {
   downloadFile(z.file, z.xml, 'application/xml');
   toast(T('Fichier prêt pour Zwift', 'File ready for Zwift'), true);
 }
-async function rouvyDownload(root, id) {
-  const f = num($('#r-ftp', root).value);
-  if (!f || f < 80 || f > 600) { $('.err', root).textContent = T('FTP entre 80 et 600 W attendue.', 'FTP between 80 and 600 W expected.'); return; }
-  const ftp = Math.round(f);
-  await saveFtp(ftp);
-  const z = id === 'steps' ? zwoSteps(ftp) : zwoTemplate(templates().find(x => x.id === id), ftp);
-  downloadFile(z.file, z.xml, 'application/xml');
+async function rouvyDownload(root, id, f) {
+  const err = m => { $('.err', root).textContent = m; };
+  const t = id === 'steps' ? null : templates().find(x => x.id === id);
+  if (f === 'zwo') {
+    const v = num($('#r-ftp', root).value);
+    if (!v || v < 80 || v > 600) return err(T('FTP entre 80 et 600 W attendue.', 'FTP between 80 and 600 W expected.'));
+    const ftp = Math.round(v);
+    await saveFtp(ftp);
+    const z = t ? zwoTemplate(t, ftp) : zwoSteps(ftp);
+    downloadFile(z.file, z.xml, 'application/xml');
+  } else if (!t) {
+    const st = num($('#r-start', root).value);
+    if (!st || st < 50 || st > 500) return err(T('Départ entre 50 et 500 W attendu.', 'Start between 50 and 500 W expected.'));
+    const e = ergSteps(Math.round(st));
+    downloadFile(e.file, e.text, 'text/plain');
+  } else {
+    const w = num($('#r-w', root).value);
+    if (!w || w < 50 || w > 600) return err(T('Watts entre 50 et 600 attendus.', 'Watts between 50 and 600 expected.'));
+    const e = ergTemplate(t, Math.round(w));
+    downloadFile(e.file, e.text, 'text/plain');
+  }
   toast(T('Fichier prêt pour Rouvy', 'File ready for Rouvy'), true);
 }
 
@@ -1980,7 +2063,8 @@ document.addEventListener('click', async e => {
     case 'rouvy': rouvySheet(id); break;
     case 'zwift': zwiftSheet(); break;
     case 'zwift-dl': zwiftDownload(root); break;
-    case 'rouvy-dl': rouvyDownload(root, id); break;
+    case 'rouvy-dl': rouvyDownload(root, id, el.dataset.fmt); break;
+    case 'rouvy-fmt': rouvySheet(id, el.dataset.val); break;
     case 'reset-demo':
       if (confirm(T('Vider toutes les données de démo de cet appareil ?', 'Clear all demo data from this device?'))) { ['tests', 'sessions'].forEach(t => localStorage.removeItem('globule:' + t)); state.tests = []; state.sessions = []; render(); }
       break;
