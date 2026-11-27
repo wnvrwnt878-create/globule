@@ -15,9 +15,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bowlby+One&family=Caveat+Brush&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="fonts/fonts.css">
 <style>
 :root{
   --rose:#FF2D8E; --violet:#6A2BF0; --menthe:#3FE8B9; --jaune:#FFE45C; --sang:#E8173F;
@@ -315,6 +313,11 @@ input.inp[type="date"]::-webkit-date-and-time-value{ text-align:left; }
 body.readonly [data-act="new-session"], body.readonly [data-act="new-steps"], body.readonly [data-act="save-steps"], body.readonly [data-act="save-iv"],
 body.readonly [data-act="save-session"], body.readonly [data-act="del-session"], body.readonly [data-act="del-test"], body.readonly [data-act="edit-steps"],
 body.readonly [data-act="add-row"], body.readonly [data-act="add-iv"], body.readonly [data-act="del-row"], body.readonly [data-act="settings"], body.readonly [data-act="new-gz"]{ display:none !important; }
+.consent{ display:flex; gap:10px; align-items:flex-start; font-size:13px; line-height:1.35; margin:4px 0 14px; cursor:pointer; }
+.consent input{ width:22px; height:22px; flex:none; margin:1px 0 0; accent-color:var(--violet); }
+.consent a, .legal-link a{ color:var(--violet); font-weight:700; }
+.legal-link{ text-align:center; font-size:13px; margin:14px 0 0; }
+.sheet[data-consent] h3 .x{ display:none; }
 /* ---------- Mouvement ---------- */
 :root{
   --ease-out:cubic-bezier(.23,1,.32,1);   /* entrées et déplacements */
@@ -389,7 +392,7 @@ body.readonly [data-act="add-row"], body.readonly [data-act="add-iv"], body.read
     <button class="tab" data-tab="globule"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 10.5Q12 7 21.5 10.5L20.5 14Q17 17 13 14.5Q12 14 11 14.5Q7 17 3.5 14Z"/></svg>Globule</button>
   </div>
 </nav>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/dist/umd/supabase.min.js"></script>
+<script src="vendor/supabase-2.57.4.min.js"></script>
 <script>window.GLOBULE_CONFIG = { supabaseUrl: "https://keiynzgyjizxdpfsvaxz.supabase.co", supabaseAnonKey: "sb_publishable_m8JGtZqfNLHDppaWvdv-rw_YSDqn3nN" };</script>
 <script>
 // Globule animée (source : mascotte/globule-anime.svg). Généré, ne pas éditer à la main.
@@ -646,7 +649,7 @@ function coachSection() {
       <button type="button" class="btn violet" data-act="claim-code">${T('Ajouter', 'Add')}</button></div>
     <div style="height:4px"></div>`;
 }
-const WRITE_ACTS = new Set(['new-session', 'new-steps', 'save-steps', 'save-iv', 'save-session', 'save-tpl', 'new-tpl', 'del-tpl', 'use-tpl', 'del-session', 'del-test', 'set-thr', 'reset-thr', 'edit-steps',
+const WRITE_ACTS = new Set(['delete-account', 'give-consent', 'new-session', 'new-steps', 'save-steps', 'save-iv', 'save-session', 'save-tpl', 'new-tpl', 'del-tpl', 'use-tpl', 'del-session', 'del-test', 'set-thr', 'reset-thr', 'edit-steps',
   'add-row', 'del-row', 'add-iv', 'save-name', 'save-gz', 'save-proto', 'set-gzon', 'edit-sports', 'save-sports', 'toggle-sport', 'calc-start', 'settings', 'export', 'new-gz', 'pick',
   'invite-coach', 'claim-code', 'unlink', 'share-code']);
 
@@ -1074,6 +1077,35 @@ function maybeA2hs() {
   try { if (localStorage.getItem('globule:a2hs-seen')) return; localStorage.setItem('globule:a2hs-seen', '1'); } catch (e) { return; }
   setTimeout(() => { if (!sheetEl) a2hsTuto(); }, 900);
 }
+
+/* ---------- Confidentialité : consentement et suppression du compte ---------- */
+const CONSENT_V = '2026-11-27';
+const privacyUrl = () => `privacy.html${state.lang === 'en' ? '#en' : ''}`;
+const consentText = () => T(`J'accepte la <a href="${privacyUrl()}" target="_blank" rel="noopener">politique de confidentialité</a> et que Globule garde mes données d'entraînement, dont des données de santé (lactate, fréquence cardiaque), pour calculer mes seuils et mes zones.`,
+  `I accept the <a href="${privacyUrl()}" target="_blank" rel="noopener">privacy policy</a> and agree that Globule keeps my training data, including health data (lactate, heart rate), to compute my thresholds and zones.`);
+const hasConsent = () => { const c = state.user && state.user.user_metadata && state.user.user_metadata.consent; return !!(c && c.v); };
+// Comptes créés avant la politique : on demande l'accord une fois, à la connexion
+function consentSheet() {
+  openSheet(T('Ta vie privée au labo', 'Your privacy in the lab'), `
+    <p class="hand" style="margin:0 0 10px">${T('Avant de continuer, une formalité importante : tes valeurs de lactate et de FC sont des données de santé. J\'ai besoin de ton accord explicite pour les garder.', 'Before we go on, one important formality: your lactate and HR values are health data. I need your explicit consent to keep them.')}</p>
+    <label class="consent"><input type="checkbox" id="c-consent"><span>${consentText()}</span></label>
+    <p class="err" role="alert"></p>
+    <button class="btn rose block" data-act="give-consent">${T('J\'accepte', 'I agree')}</button>
+    <div style="height:10px"></div>
+    <button class="btn danger block" data-act="delete-account">${T('Je refuse : supprimer mon compte', 'I decline: delete my account')}</button>`, root => { root.dataset.consent = '1'; });
+}
+async function deleteAccount() {
+  if (!confirm(T('Supprimer ton compte ? Tous tes tests, tes séances, tes réglages et tes liens entraîneur seront effacés. C\'est définitif.', 'Delete your account? All your tests, sessions, settings and coach links will be erased. This cannot be undone.'))) return;
+  if (!confirm(T('Dernière confirmation : tout effacer maintenant ?', 'Last check: erase everything now?'))) return;
+  const { error } = await sb.rpc('delete_my_account');
+  if (error) { toast(T('Suppression impossible : ', 'Could not delete: ') + error.message); return; }
+  try { ['has-account', 'templates', 'ftp', 'gzon', 'sport', 'sports', 'proto', 'proto-run', 'gz3'].forEach(k => localStorage.removeItem('globule:' + k)); } catch (e) { /* rien à nettoyer */ }
+  await sb.auth.signOut();
+  state.user = null; state.viewAs = null; state.links = []; state.tests = []; state.sessions = []; state.allTests = []; state.allSessions = [];
+  document.body.classList.remove('readonly'); closeSheet();
+  renderLogin('signup', '', '');
+  toast(T('Compte supprimé. Toutes tes données sont effacées.', 'Account deleted. All your data is erased.'), true);
+}
 function hero(text, size = 140) {
   return `<div class="hero">${globuleSVG(size)}<p class="bubble">${text}</p></div>`;
 }
@@ -1375,12 +1407,15 @@ function settingsSheet() {
     <div style="height:10px"></div>
     ${coachSection()}
     <button class="btn block" data-act="export">${T('Exporter toutes mes données (CSV)', 'Export all my data (CSV)')}</button>
+    <div style="height:10px"></div>
+    <a class="btn ghost block" style="text-align:center;text-decoration:none" href="${privacyUrl()}" target="_blank" rel="noopener">${T('Politique de confidentialité', 'Privacy policy')}</a>
     <div style="height:14px"></div>
     <p class="hand" style="margin:0 0 6px">${T('Langue', 'Language')}</p>
     ${langSwitch()}
     ${DEMO ? `<p class="muted" style="font-size:14px;margin:12px 0 0">${T('Mode démo : les données restent sur cet appareil, avec des exemples pour jouer. Ajoute les clés Supabase dans config.js pour la synchro iPhone et ordi.', 'Demo mode: data stays on this device, with examples to play with. Add the Supabase keys in config.js to sync between iPhone and computer.')}</p>
       <div style="height:10px"></div><button class="btn danger block" data-act="reset-demo">${T('Vider la démo', 'Clear the demo')}</button>`
-      : `<div style="height:10px"></div><button class="btn ghost block" data-act="logout">${T('Me déconnecter', 'Log out')}${state.user && state.user.email ? ' (' + esc(state.user.email) + ')' : ''}</button>`}
+      : `<div style="height:10px"></div><button class="btn danger block" data-act="delete-account">${T('Supprimer mon compte et mes données', 'Delete my account and data')}</button>
+      <div style="height:10px"></div><button class="btn ghost block" data-act="logout">${T('Me déconnecter', 'Log out')}${state.user && state.user.email ? ' (' + esc(state.user.email) + ')' : ''}</button>`}
 `, root => { root.dataset.settings = '1'; $$('.seg', root).forEach(g => syncPill(g, false)); });
 }
 
@@ -1393,7 +1428,7 @@ function openSheet(title, body, mount) {
     sheetEl = document.createElement('div');
     sheetEl.className = 'backdrop';
     const bd = sheetEl;
-    bd.addEventListener('click', e => { if (e.target === bd) closeSheet(); });
+    bd.addEventListener('click', e => { if (e.target === bd && !$('.sheet:not(.leaving)[data-consent]', bd)) closeSheet(); });
     document.body.appendChild(bd);
     document.body.style.overflow = 'hidden';
   }
@@ -2205,6 +2240,7 @@ function renderLogin(mode, email = '', info = '') {
   if (mode === 'signup') body = `<p class="hand" style="margin-top:0">${T('Bienvenue au labo ! Crée ton compte : tes tests et tes séances restent à toi.', 'Welcome to the lab! Create your account: your tests and sessions stay yours.')}</p>
       <label class="field"><span>${T('Prénom', 'First name')}</span><input class="inp" id="l-name" autocomplete="given-name"></label>${emailF}
       <label class="field"><span>${T('Mot de passe (8 caractères minimum)', 'Password (8 characters minimum)')}</span><input class="inp" id="l-pass" type="password" autocomplete="new-password"></label>
+      <label class="consent"><input type="checkbox" id="l-consent"><span>${consentText()}</span></label>
       <button class="btn rose block" data-act="signup" data-main>${T('Créer mon compte', 'Create my account')}</button>`;
   else if (mode === 'login') body = `<p class="hand" style="margin-top:0">${T('Re-salut, mon cobaye préféré ! Connecte-toi pour retrouver tes gouttes.', 'Hi again, my favorite lab partner! Log in to get your drops back.')}</p>${emailF}
       <label class="field"><span>${T('Mot de passe', 'Password')}</span><input class="inp" id="l-pass" type="password" autocomplete="current-password"></label>
@@ -2219,7 +2255,8 @@ function renderLogin(mode, email = '', info = '') {
   else if (mode === 'check') body = `<p class="hand" style="margin-top:0">${esc(info)}</p>
       <button class="btn rose block" data-act="auth-mode" data-mode="login" data-email="${esc(email)}">${T('Aller à la connexion', 'Go to log in')}</button>`;
   app().innerHTML = `<div class="login"><div class="login-lang">${langSwitch()}</div>${globuleSVG(200)}<h1 class="wordmark" style="font-size:40px;margin-top:10px">Globule</h1>
-    <section class="panel">${tabs}${body}<p class="err" role="alert"></p></section></div>`;
+    <section class="panel">${tabs}${body}<p class="err" role="alert"></p></section>
+    <p class="legal-link"><a href="${privacyUrl()}" target="_blank" rel="noopener">${T('Politique de confidentialité', 'Privacy policy')}</a></p></div>`;
   setMascot($('#app .globule'), 'hello');
   $$('.login .seg').forEach(g => syncPill(g, true));
   reveal($$('.login .panel > :not(.seg)'));
@@ -2241,7 +2278,8 @@ async function signUp() {
   if (!name) return showErr(T('Ton prénom ?', 'Your first name?'));
   if (!EMAIL_RE.test(email)) return showErr(T('Cet email ne ressemble pas à un email.', "That email doesn't look like an email."));
   if (pass.length < 8) return showErr(T('Le mot de passe fait au moins 8 caractères.', 'The password needs at least 8 characters.'));
-  const { data, error } = await sb.auth.signUp({ email, password: pass, options: { data: { name }, emailRedirectTo: SITE_URL } });
+  if (!($('#l-consent') && $('#l-consent').checked)) return showErr(T('Coche la case : sans ton accord, je ne peux pas garder tes données de lactate.', 'Tick the box: without your consent, I can\'t keep your lactate data.'));
+  const { data, error } = await sb.auth.signUp({ email, password: pass, options: { data: { name, consent: { v: CONSENT_V, at: new Date().toISOString() } }, emailRedirectTo: SITE_URL } });
   if (error) return showErr(authErr(error));
   if (data.session) return enter(data.session.user);
   if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) { renderLogin('login', email); return showErr(T('Ce compte existe déjà : connecte-toi.', 'This account already exists: log in.')); }
@@ -2289,7 +2327,16 @@ document.addEventListener('click', async e => {
   const act = el.dataset.act, id = el.dataset.id, root = $('.sheet:not(.leaving)');
   if (state.viewAs && WRITE_ACTS.has(act)) { toast(T('Lecture seule : c\'est le labo de ton athlète. Reviens sur « Moi » pour tes réglages.', "Read only: this is your athlete's lab. Switch back to “Me” for your settings.")); return; }
   switch (act) {
-    case 'close': closeSheet(); break;
+    case 'close': if (root && root.dataset.consent) break; closeSheet(); break;
+    case 'give-consent': {
+      if (!($('#c-consent') && $('#c-consent').checked)) { $('.err', root).textContent = T('Coche la case pour continuer.', 'Tick the box to continue.'); break; }
+      const { error } = await updMeta({ data: { consent: { v: CONSENT_V, at: new Date().toISOString() } } });
+      if (error) { $('.err', root).textContent = T('Pas enregistré : ', 'Not saved: ') + error.message; break; }
+      closeSheet(); toast(T('Merci ! Le labo reste ouvert.', 'Thanks! The lab stays open.'), true);
+      if (!state.sports) profileSheet(true);
+      break;
+    }
+    case 'delete-account': deleteAccount(); break;
     case 'invite-coach': {
       const { error } = await sb.from('coach_links').insert({ code: genCode(), athlete_name: state.name || null });
       if (error) { toast(T('Invitation impossible : ', 'Could not invite: ') + error.message); break; }
@@ -2443,7 +2490,7 @@ document.addEventListener('keydown', e => {
 async function start() {
   $('#tabbar').hidden = false;
   app().innerHTML = header() + hero(T('Je sors tes éprouvettes du frigo...', 'Getting your test tubes out of the fridge...'), 124);
-  try { await loadLinks(); await loadAll(); render(); if (!state.sports) profileSheet(true); else maybeA2hs(); }
+  try { await loadLinks(); await loadAll(); render(); if (!DEMO && !hasConsent()) consentSheet(); else if (!state.sports) profileSheet(true); else maybeA2hs(); }
   catch (e) {
     app().innerHTML = header() + hero(T('Petit couac au labo : impossible de récupérer tes données. Vérifie ta connexion.', "Small hiccup in the lab: couldn't load your data. Check your connection."), 124) + `<button class="btn rose block" onclick="start()">${T('Réessayer', 'Try again')}</button><p class="err">${esc(e.message || '')}</p>`;
   }

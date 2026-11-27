@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Globule, politique de confidentialité</title>
+<link rel="icon" href="favicon.ico" sizes="48x48">
+<link rel="stylesheet" href="fonts/fonts.css">
+<style>
+:root{ --bg:#F3E3FF; --surface:#FFFFFF; --line:#2A0A4A; --text:#2A0A4A; --muted:#6B5A86; --violet:#6A2BF0; --rose:#FF2D8E; --jaune:#FFE45C; }
+*{ box-sizing:border-box; }
+body{ margin:0; background:var(--bg); color:var(--text); font:16px/1.55 Outfit, system-ui, sans-serif; }
+.wrap{ max-width:760px; margin:0 auto; padding:24px 16px 64px; }
+h1{ font-family:'Bowlby One', system-ui, sans-serif; font-size:30px; line-height:1.1; margin:8px 0 4px; }
+h2{ font-family:'Bowlby One', system-ui, sans-serif; font-size:19px; margin:30px 0 8px; }
+.sub{ color:var(--muted); margin:0 0 18px; }
+.card{ background:var(--surface); border:2.5px solid var(--line); border-radius:22px; padding:18px 20px; box-shadow:4px 4px 0 var(--line); }
+.lang{ display:flex; gap:8px; margin:0 0 16px; }
+.lang a{ border:2.5px solid var(--line); border-radius:999px; padding:6px 14px; font-weight:700; color:var(--text); text-decoration:none; background:var(--surface); }
+.lang a.on{ background:var(--violet); color:#fff; }
+table{ width:100%; border-collapse:collapse; font-size:15px; margin:8px 0; }
+th, td{ text-align:left; vertical-align:top; padding:8px 8px; border-bottom:2px dashed rgba(42,10,74,.2); }
+th{ font-weight:700; }
+.todo{ background:var(--jaune); border:2px solid var(--line); border-radius:6px; padding:0 4px; font-weight:700; }
+a{ color:var(--violet); font-weight:600; }
+.back{ display:inline-block; margin:0 0 12px; }
+section[lang]{ display:none; } section[lang].show{ display:block; }
+ul{ padding-left:20px; } li{ margin-bottom:6px; }
+.muted{ color:var(--muted); font-size:14px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="./">← Globule</a>
+  <nav class="lang" aria-label="Langue / Language"><a href="#fr" data-l="fr">Français</a><a href="#en" data-l="en">English</a></nav>
+
+  <!-- ===================== FRANÇAIS ===================== -->
+  <section lang="fr" id="fr" class="card">
+    <h1>Politique de confidentialité</h1>
+    <p class="sub">Globule, le labo lactate · globule.vortexrace.ch · version du 27/11/2026</p>
+
+    <p>Globule est une application web qui t'aide à enregistrer tes tests de lactate par paliers et tes séances, puis à en tirer tes seuils et tes zones d'entraînement. Cette page explique quelles données sont traitées, pourquoi, avec qui elles sont partagées et quels sont tes droits. Elle suit la loi fédérale suisse sur la protection des données (nLPD) et, pour les personnes dans l'Union européenne, le règlement général sur la protection des données (RGPD).</p>
+
+    <h2>1. Responsable du traitement</h2>
+    <p><span class="todo">[Prénom Nom]</span>, à titre privé<br><span class="todo">[Adresse postale, NPA Localité, Suisse]</span><br>Contact pour toute question sur tes données : <span class="todo">[adresse e-mail de la boîte Globule]</span></p>
+
+    <h2>2. Données traitées</h2>
+    <table>
+      <tr><th>Catégorie</th><th>Exemples</th></tr>
+      <tr><td>Compte</td><td>Adresse e-mail, mot de passe (stocké chiffré par Supabase, jamais lisible), prénom, date de ton accord à cette politique.</td></tr>
+      <tr><td>Réglages</td><td>Sports pratiqués, Golden Zone, protocole de test, modèles de séances, FTP saisie pour Rouvy, langue.</td></tr>
+      <tr><td><b>Données de santé</b></td><td>Valeurs de lactate, fréquence cardiaque, puissance ou vitesse, effort perçu (RPE), durées, notes libres. Ce sont des <b>données sensibles</b> au sens de la nLPD (art. 5 let. c) et du RGPD (art. 9).</td></tr>
+      <tr><td>Lien entraîneur</td><td>Si tu invites un entraîneur : le code d'invitation, son prénom et le tien, et le lien entre vos deux comptes.</td></tr>
+      <tr><td>Données techniques</td><td>Adresse IP et journaux de connexion conservés par nos hébergeurs pour la sécurité ; jeton de connexion et préférences d'affichage stockés dans ton navigateur (stockage local).</td></tr>
+    </table>
+    <p>Globule n'utilise <b>aucun traceur publicitaire, aucun outil de mesure d'audience</b> et aucun cookie tiers. Les polices et la bibliothèque Supabase sont servies par le site lui-même.</p>
+
+    <h2>3. Pourquoi et sur quelle base</h2>
+    <ul>
+      <li><b>Fournir le service</b> : enregistrer tes tests et séances, calculer LT1, LT2, tes zones et ta Golden Zone, afficher ton journal, produire tes exports (CSV, fichiers Rouvy et Zwift). Base : exécution du contrat d'utilisation (RGPD art. 6 al. 1 let. b).</li>
+      <li><b>Traiter tes données de santé</b> : uniquement avec ton <b>consentement explicite</b>, donné en cochant la case à l'inscription (nLPD art. 6 al. 7 ; RGPD art. 9 al. 2 let. a). Tu peux le retirer à tout moment en supprimant ton compte.</li>
+      <li><b>Partager ton labo avec ton entraîneur</b> : seulement si tu lui envoies un code d'invitation. Base : ton consentement, que tu retires avec le bouton « Retirer ».</li>
+      <li><b>Envoyer les e-mails de compte</b> (confirmation, mot de passe oublié). Base : exécution du contrat.</li>
+      <li><b>Sécurité du service</b> (journaux techniques, protection contre les abus). Base : intérêt légitime (RGPD art. 6 al. 1 let. f).</li>
+    </ul>
+    <p>Tes données ne sont <b>ni vendues, ni louées, ni utilisées pour de la publicité</b>.</p>
+
+    <h2>4. Qui y a accès</h2>
+    <table>
+      <tr><th>Destinataire</th><th>Rôle</th><th>Lieu</th></tr>
+      <tr><td>Supabase Inc.</td><td>Base de données et comptes (sous-traitant)</td><td>Serveurs dans l'Union européenne (Paris, France, région eu-west-3)</td></tr>
+      <tr><td>GitHub Inc. (GitHub Pages)</td><td>Hébergement des pages du site ; voit l'adresse IP des visiteurs</td><td>États-Unis</td></tr>
+      <tr><td>Infomaniak Network SA</td><td>Envoi des e-mails de compte</td><td>Suisse</td></tr>
+      <tr><td>Ton entraîneur, si tu l'as invité</td><td>Lecture seule de tes tests, séances et réglages</td><td>Selon l'entraîneur</td></tr>
+    </table>
+    <p>Pour les transferts vers les États-Unis (GitHub, et Supabase Inc. en tant que société américaine), le prestataire s'appuie sur les garanties prévues par la loi, comme le cadre de protection des données Suisse–États-Unis et UE–États-Unis ou des clauses contractuelles types. <span class="todo">[À vérifier avant publication : certification actuelle de chaque prestataire]</span></p>
+
+    <h2>5. Durée de conservation</h2>
+    <p>Tes données sont gardées tant que ton compte existe. Quand tu supprimes ton compte (Réglages ⚙, « Supprimer mon compte et mes données »), tes tests, séances, réglages, liens entraîneur et ton compte sont effacés immédiatement de la base. Des copies de sauvegarde techniques chez Supabase peuvent subsister quelques jours avant d'être écrasées. Les journaux techniques des hébergeurs suivent leurs propres durées.</p>
+
+    <h2>6. Sécurité</h2>
+    <p>Connexion chiffrée (HTTPS), mot de passe jamais stocké en clair, et règles d'accès dans la base qui limitent chaque personne à ses propres données (et à celles des athlètes qui l'ont invitée, en lecture seule).</p>
+
+    <h2>7. Tes droits</h2>
+    <ul>
+      <li><b>Accès et portabilité</b> : Réglages ⚙, « Exporter toutes mes données (CSV) ».</li>
+      <li><b>Rectification</b> : modifie ou supprime n'importe quel test ou séance dans l'app.</li>
+      <li><b>Effacement et retrait du consentement</b> : Réglages ⚙, « Supprimer mon compte et mes données ».</li>
+      <li><b>Retirer l'accès d'un entraîneur</b> : Réglages ⚙, « Mon entraîneur », « Retirer ».</li>
+      <li><b>Toute autre demande</b> (opposition, limitation, question) : écris à <span class="todo">[adresse e-mail de la boîte Globule]</span>. Réponse sous 30 jours.</li>
+      <li><b>Réclamation</b> : en Suisse, auprès du Préposé fédéral à la protection des données et à la transparence (PFPDT, edoeb.admin.ch) ; dans l'Union européenne, auprès de l'autorité de protection des données de ton pays.</li>
+    </ul>
+
+    <h2>8. Âge minimum</h2>
+    <p>Globule s'adresse aux personnes de 16 ans et plus. En dessous, l'accord d'un parent est nécessaire.</p>
+
+    <h2>9. Globule n'est pas un dispositif médical</h2>
+    <p>Les seuils et zones sont des estimations d'entraînement calculées à partir de tes mesures. Ils ne remplacent pas un avis médical. Si tu as un problème de santé, demande conseil à un professionnel avant de faire un test d'effort.</p>
+
+    <h2>10. Modifications</h2>
+    <p>Si cette politique change de façon importante, Globule te le signalera dans l'app et te redemandera ton accord si nécessaire. La date de version est indiquée en haut de cette page.</p>
+  </section>
+
+  <!-- ===================== ENGLISH ===================== -->
+  <section lang="en" id="en" class="card">
+    <h1>Privacy policy</h1>
+    <p class="sub">Globule, the lactate lab · globule.vortexrace.ch · version of 27/11/2026</p>
+
+    <p>Globule is a web app that helps you log your lactate step tests and training sessions, then derives your thresholds and training zones. This page explains what data is processed, why, who it is shared with and what your rights are. It follows the Swiss Federal Act on Data Protection (FADP) and, for people in the European Union, the General Data Protection Regulation (GDPR).</p>
+
+    <h2>1. Controller</h2>
+    <p><span class="todo">[First and last name]</span>, as a private individual<br><span class="todo">[Postal address, postcode, town, Switzerland]</span><br>Contact for any question about your data: <span class="todo">[Globule mailbox e-mail address]</span></p>
+
+    <h2>2. Data processed</h2>
+    <table>
+      <tr><th>Category</th><th>Examples</th></tr>
+      <tr><td>Account</td><td>E-mail address, password (stored hashed by Supabase, never readable), first name, date you accepted this policy.</td></tr>
+      <tr><td>Settings</td><td>Sports, Golden Zone, test protocol, session templates, FTP entered for Rouvy, language.</td></tr>
+      <tr><td><b>Health data</b></td><td>Lactate values, heart rate, power or speed, perceived effort (RPE), durations, free notes. These are <b>sensitive data</b> under the FADP (art. 5 let. c) and the GDPR (art. 9).</td></tr>
+      <tr><td>Coach link</td><td>If you invite a coach: the invitation code, their first name and yours, and the link between your two accounts.</td></tr>
+      <tr><td>Technical data</td><td>IP address and access logs kept by our hosting providers for security; login token and display preferences stored in your browser (local storage).</td></tr>
+    </table>
+    <p>Globule uses <b>no advertising trackers, no analytics</b> and no third-party cookies. Fonts and the Supabase library are served by the site itself.</p>
+
+    <h2>3. Why, and on what legal basis</h2>
+    <ul>
+      <li><b>Providing the service</b>: storing your tests and sessions, computing LT1, LT2, your zones and Golden Zone, showing your log, producing your exports (CSV, Rouvy and Zwift files). Basis: performance of the user agreement (GDPR art. 6(1)(b)).</li>
+      <li><b>Processing your health data</b>: only with your <b>explicit consent</b>, given by ticking the box when you sign up (FADP art. 6(7); GDPR art. 9(2)(a)). You can withdraw it at any time by deleting your account.</li>
+      <li><b>Sharing your lab with your coach</b>: only if you send them an invitation code. Basis: your consent, which you withdraw with the “Remove” button.</li>
+      <li><b>Sending account e-mails</b> (confirmation, forgotten password). Basis: performance of the agreement.</li>
+      <li><b>Keeping the service secure</b> (technical logs, abuse protection). Basis: legitimate interest (GDPR art. 6(1)(f)).</li>
+    </ul>
+    <p>Your data is <b>never sold, rented or used for advertising</b>.</p>
+
+    <h2>4. Who has access</h2>
+    <table>
+      <tr><th>Recipient</th><th>Role</th><th>Location</th></tr>
+      <tr><td>Supabase Inc.</td><td>Database and accounts (processor)</td><td>Servers in the European Union (Paris, France, region eu-west-3)</td></tr>
+      <tr><td>GitHub Inc. (GitHub Pages)</td><td>Hosts the site's pages; sees visitors' IP addresses</td><td>United States</td></tr>
+      <tr><td>Infomaniak Network SA</td><td>Sends account e-mails</td><td>Switzerland</td></tr>
+      <tr><td>Your coach, if you invited them</td><td>Read-only access to your tests, sessions and settings</td><td>Depends on the coach</td></tr>
+    </table>
+    <p>For transfers to the United States (GitHub, and Supabase Inc. as a US company), the provider relies on legal safeguards such as the Swiss–US and EU–US Data Privacy Frameworks or standard contractual clauses. <span class="todo">[To check before publishing: each provider's current certification]</span></p>
+
+    <h2>5. Retention</h2>
+    <p>Your data is kept as long as your account exists. When you delete your account (Settings ⚙, “Delete my account and data”), your tests, sessions, settings, coach links and account are erased from the database immediately. Technical backups at Supabase may remain for a few days before being overwritten. Hosting providers' technical logs follow their own retention periods.</p>
+
+    <h2>6. Security</h2>
+    <p>Encrypted connection (HTTPS), passwords never stored in plain text, and database access rules that limit each person to their own data (and, read-only, to the athletes who invited them).</p>
+
+    <h2>7. Your rights</h2>
+    <ul>
+      <li><b>Access and portability</b>: Settings ⚙, “Export all my data (CSV)”.</li>
+      <li><b>Rectification</b>: edit or delete any test or session in the app.</li>
+      <li><b>Erasure and withdrawal of consent</b>: Settings ⚙, “Delete my account and data”.</li>
+      <li><b>Removing a coach's access</b>: Settings ⚙, “My coach”, “Remove”.</li>
+      <li><b>Any other request</b> (objection, restriction, questions): write to <span class="todo">[Globule mailbox e-mail address]</span>. Answer within 30 days.</li>
+      <li><b>Complaints</b>: in Switzerland, to the Federal Data Protection and Information Commissioner (FDPIC, edoeb.admin.ch); in the European Union, to your country's data protection authority.</li>
+    </ul>
+
+    <h2>8. Minimum age</h2>
+    <p>Globule is meant for people aged 16 and over. Below that age, a parent's consent is required.</p>
+
+    <h2>9. Globule is not a medical device</h2>
+    <p>Thresholds and zones are training estimates computed from your measurements. They do not replace medical advice. If you have a health condition, ask a professional before doing an exercise test.</p>
+
+    <h2>10. Changes</h2>
+    <p>If this policy changes significantly, Globule will tell you in the app and ask for your consent again if needed. The version date is shown at the top of this page.</p>
+  </section>
+
+  <p class="muted" style="margin-top:18px">© Globule · <a href="./">globule.vortexrace.ch</a></p>
+</div>
+<script>
+// Langue : #en ou #fr dans l'adresse, sinon celle choisie dans l'app, sinon celle du navigateur
+(function () {
+  function pick() {
+    var h = (location.hash || '').replace('#', '');
+    var l = h === 'en' || h === 'fr' ? h : null;
+    if (!l) { try { l = localStorage.getItem('globule:lang'); } catch (e) { l = null; } }
+    if (l !== 'fr' && l !== 'en') l = /^fr/i.test(navigator.language || 'fr') ? 'fr' : 'en';
+    document.documentElement.lang = l;
+    document.querySelectorAll('section[lang]').forEach(function (s) { s.classList.toggle('show', s.getAttribute('lang') === l); });
+    document.querySelectorAll('.lang a').forEach(function (a) { a.classList.toggle('on', a.dataset.l === l); });
+    document.title = l === 'en' ? 'Globule, privacy policy' : 'Globule, politique de confidentialité';
+  }
+  window.addEventListener('hashchange', pick); pick();
+})();
+</script>
+</body>
+</html>
