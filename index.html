@@ -279,6 +279,30 @@ input.inp[type="date"]::-webkit-date-and-time-value{ text-align:left; }
 .ramp-box summary{ cursor:pointer; font-weight:700; }
 .ramp-box[open] summary{ margin-bottom:10px; }
 .ramp-result{ background:#FFE3D2; border-color:#FC6719; }
+.page-head{ display:flex; align-items:center; justify-content:space-between; margin:4px 0 2px; }
+.page-head .title{ margin:0; }
+.icon-btn{ width:46px; height:46px; border-radius:14px; border:2.5px solid var(--line); background:var(--surface); color:var(--text); display:grid; place-items:center; box-shadow:3px 3px 0 var(--shadow); cursor:pointer; transition:transform 140ms var(--ease-out), box-shadow 140ms var(--ease-out); }
+.icon-btn:active{ transform:translate(3px,3px) scale(.97); box-shadow:0 0 0 var(--shadow); }
+.section-label{ font-family:var(--f-display); font-size:15px; letter-spacing:.02em; text-transform:uppercase; color:var(--muted); margin:22px 2px 0; }
+.section-label + .proto, .section-label + .panel{ margin-top:8px; }
+.export-panel .list{ box-shadow:none; }
+.ramp-pick{ display:grid; grid-template-columns:1fr auto auto; gap:8px; align-items:end; margin-top:10px; }
+.ramp-pick .field{ margin:0; }
+.ramp-pick .btn{ padding:10px 12px; }
+.thermo-btn{ appearance:none; display:block; width:100%; background:none; border:0; padding:0; text-align:left; cursor:pointer; color:inherit; font:inherit; }
+.thermo-btn:active .thermo{ transform:scale(.99); }
+.zvals{ display:flex; margin-top:6px; font-size:12px; font-weight:700; font-variant-numeric:tabular-nums; }
+.zvals span{ text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding:0 1px; }
+.zvals.hr{ margin-top:2px; font-weight:500; color:var(--muted); font-size:11px; }
+.zunit{ display:flex; justify-content:space-between; gap:8px; font-size:12px; color:var(--muted); margin-top:4px; }
+.zmore{ font-weight:700; color:var(--violet); }
+.zone-detail{ margin-top:6px; }
+.step-row.set-start{ margin-top:14px; padding-top:10px; border-top:2px dashed color-mix(in srgb, var(--line) 30%, transparent); }
+.lbl-info{ display:flex; align-items:center; gap:6px; }
+.info{ width:20px; height:20px; border-radius:50%; border:2px solid var(--line); background:var(--surface); color:var(--text); font:700 12px/1 var(--f-body); font-style:italic; display:inline-grid; place-items:center; cursor:pointer; padding:0; }
+.info[aria-expanded="true"]{ background:var(--violet); color:#fff; }
+.info-text{ font-size:13px; background:var(--surface-2); border:2px dashed var(--line); border-radius:12px; padding:8px 10px; margin:6px 0 8px; }
+.mini-seg button{ min-height:34px; padding:6px; font-size:13px; }
 /* ---------- Mouvement ---------- */
 :root{
   --ease-out:cubic-bezier(.23,1,.32,1);   /* entrées et déplacements */
@@ -375,7 +399,8 @@ const KIND_EN = { 'Golden Zone': 'Golden Zone', 'Golden Zone basse': 'Golden Zon
 const kindLabel = k => (state.lang === 'en' && k && KIND_EN[k] ? KIND_EN[k] : k);
 const TPL_EN = { '8 × 5 min': '8 × 5 min', 'Intervalles longs GZ': 'Long GZ intervals', 'Intervalles courts GZ': 'Short GZ intervals' };
 const tplLabel = name => (state.lang === 'en' && name && TPL_EN[name] ? TPL_EN[name] : name);
-const state = { lang: LANG0, allTests: [], allSessions: [], sport: 'bike', sports: null, protos: { bike: null, run: null }, tests: [], sessions: [], name: '', tab: 'home', user: null, mascotEvent: null, proto: null, templates: [], pick: 'lt1', gz: { lo: 2.3, hi: 3.0 } };
+const PREF = (k, d) => { try { const v = localStorage.getItem('globule:' + k); return v == null ? d : v; } catch (e) { return d; } };
+const state = { gzOn: true, zonesOpen: PREF('zones-open', '0') === '1', jRange: PREF('jrange', '8w'), lang: LANG0, allTests: [], allSessions: [], sport: 'bike', sports: null, protos: { bike: null, run: null }, tests: [], sessions: [], name: '', tab: 'home', user: null, mascotEvent: null, proto: null, templates: [], pick: 'lt1', gz: { lo: 2.3, hi: 3.0 } };
 
 /* ---------- Outils ---------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -403,7 +428,7 @@ const byDateDesc = (a, b) => (b.date || '').localeCompare(a.date || '') || (b.cr
 const SPORTS = {
   bike: { key: 'bike', get label() { return T('Vélo', 'Bike'); }, u: 'W', d: 0, im: 'numeric', get name() { return T('watts', 'watts'); }, get Name() { return T('Watts', 'Watts'); }, col: 'Watts', get les() { return T('les watts', 'your watts'); }, get measured() { return T('Watts mesurés avec', 'Watts measured with'); },
     sources: { get trainer() { return T('Home trainer', 'Indoor trainer'); }, get route() { return T('Route', 'Road'); } }, proto: { start: 140, step: 25, n: 7 }, lim: { start: [50, 500], step: [5, 100] } },
-  run: { key: 'run', get label() { return T('Course', 'Run'); }, u: 'km/h', d: 1, im: 'decimal', get name() { return T('vitesse', 'speed'); }, get Name() { return T('Vitesse', 'Speed'); }, col: 'km/h', get les() { return T('la vitesse', 'your speed'); }, get measured() { return T('Vitesse mesurée avec', 'Speed measured with'); },
+  run: { key: 'run', get label() { return T('Course à pied', 'Running'); }, u: 'km/h', d: 1, im: 'decimal', get name() { return T('vitesse', 'speed'); }, get Name() { return T('Vitesse', 'Speed'); }, col: 'km/h', get les() { return T('la vitesse', 'your speed'); }, get measured() { return T('Vitesse mesurée avec', 'Speed measured with'); },
     sources: { get tapis() { return T('Tapis', 'Treadmill'); }, get piste() { return T('Extérieur', 'Outdoors'); } }, proto: { start: 10, step: 1, n: 7 }, lim: { start: [4, 25], step: [0.2, 3] } }
 };
 // Getters : le libellé suit la langue choisie (un spread figerait la langue du chargement)
@@ -713,6 +738,7 @@ function crossW(steps, la) {
 function bandWatts(Z) {
   const { lo, hi } = state.gz;
   const B = { lo, hi, wLo: null, wHi: null, hrLo: null, hrHi: null, capped: false, above: false };
+  if (!GZ_ON()) return B; // Golden Zone désactivée dans les réglages
   const curve = Z.s2 || Z.s;
   if (curve) {
     B.wLo = crossW(curve.steps, lo); B.wHi = crossW(curve.steps, hi);
@@ -741,15 +767,16 @@ function gzWeek() {
   const list = state.sessions.filter(s => (s.date || '') >= m && gzStatus(s));
   return { n: list.length, min: list.reduce((a, s) => a + (num(s.duration_min) || 0), 0), high: list.filter(s => gzStatus(s).st === 'high').length };
 }
-const gzBands = () => [{ y0: state.gz.lo, y1: state.gz.hi, color: GZ_COLOR, op: .45, label: 'Golden Zone' }];
+const GZ_ON = () => state.gzOn !== false;
+const gzBands = () => (GZ_ON() ? [{ y0: state.gz.lo, y1: state.gz.hi, color: GZ_COLOR, op: .45, label: 'Golden Zone' }] : []);
 const gzTop = () => state.gz.hi;
 
 // 5 zones Olympiatoppen (I1 à I5), calées sur ton test :
 // I1 < LT1 < I2 < bas de la Golden Zone < I3 < LT2 < I4 < 6 mmol < I5
 const ZONES = [
   { n: 1, get name() { return T('Endurance facile', 'Easy endurance'); }, get what() { return T('Sous LT1, lactate proche du repos. Le gros du volume.', 'Below LT1, lactate close to resting. The bulk of your volume.'); }, get ref() { return T('0,7 à 1,5 mmol', '0.7 to 1.5 mmol'); } },
-  { n: 2, get name() { return T('Endurance moyenne', 'Moderate endurance'); }, get what() { return T('De LT1 jusqu\'au bas de la Golden Zone.', 'From LT1 up to the bottom of the Golden Zone.'); }, get ref() { return T('1,5 à 2,5 mmol', '1.5 to 2.5 mmol'); } },
-  { n: 3, get name() { return T('Seuil, Golden Zone', 'Threshold, Golden Zone'); }, get what() { return T('Juste sous LT2 : les intervalles Bakken.', 'Just below LT2: the Bakken intervals.'); }, get ref() { return T('2,5 à 4 mmol', '2.5 to 4 mmol'); } },
+  { n: 2, get name() { return T('Endurance moyenne', 'Moderate endurance'); }, get what() { return GZ_ON() ? T('De LT1 jusqu\'au bas de la Golden Zone.', 'From LT1 up to the bottom of the Golden Zone.') : T('De LT1 jusqu\'à 2,5 mmol sur ta courbe.', 'From LT1 up to 2.5 mmol on your curve.'); }, get ref() { return T('1,5 à 2,5 mmol', '1.5 to 2.5 mmol'); } },
+  { n: 3, get name() { return GZ_ON() ? T('Seuil, Golden Zone', 'Threshold, Golden Zone') : T('Seuil', 'Threshold'); }, get what() { return GZ_ON() ? T('Juste sous LT2 : les intervalles Bakken.', 'Just below LT2: the Bakken intervals.') : T('Juste sous LT2 : le travail au seuil.', 'Just below LT2: threshold work.'); }, get ref() { return T('2,5 à 4 mmol', '2.5 to 4 mmol'); } },
   { n: 4, get name() { return T('Au-dessus du seuil', 'Above threshold'); }, get what() { return T('Au-delà de LT2, le lactate grimpe sans plateau.', 'Past LT2, lactate keeps climbing with no plateau.'); }, get ref() { return T('4 à 6 mmol', '4 to 6 mmol'); } },
   { n: 5, get name() { return T('VO2max', 'VO2max'); }, get what() { return T('Efforts courts et très durs.', 'Short, very hard efforts.'); }, get ref() { return T('6 à 10 mmol', '6 to 10 mmol'); } }
 ];
@@ -898,7 +925,8 @@ function setLang(l) {
   if (l !== 'fr' && l !== 'en' || l === state.lang) return;
   state.lang = l; document.documentElement.lang = l;
   try { localStorage.setItem('globule:lang', l); } catch (e) { /* préférence non gardée */ }
-  if (state.user || DEMO) { if (sheetEl) closeSheet(); render(); } else renderLogin();
+  const inSettings = !!($('.sheet:not(.leaving)') && $('.sheet:not(.leaving)').dataset.settings);
+  if (state.user || DEMO) { if (sheetEl) closeSheet(); render(); if (inSettings) settingsSheet(); } else renderLogin();
 }
 async function shareApp() {
   const data = { title: 'Globule', text: T('Globule, le labo lactate : tests paliers, zones et Golden Zone.', 'Globule, the lactate lab: step tests, zones and Golden Zone.'), url: SITE_URL };
@@ -984,6 +1012,22 @@ function zonesPanel(Z) {
   const { b, hr, G } = zoneBounds(Z);
   const W = v => fxu(v);
   const HR = v => (v != null ? fmt(v) : null);
+  // Valeur courte sous chaque zone : watts en vélo, allure en course à pied
+  const short = i => {
+    const lo = i > 0 ? b[i - 1] : null, hi = i < 4 ? b[i] : null;
+    const v = x => (isRun() ? paceRaw(x) : fx(x));
+    if (i === 0) return hi != null ? (isRun() ? `&gt; ${v(hi)}` : `&lt; ${v(hi)}`) : '?';
+    if (lo == null) return '?';
+    if (hi == null) return isRun() ? `&lt; ${v(lo)}` : `&gt; ${v(lo)}`;
+    return `${v(lo)}–${v(hi)}`;
+  };
+  const shortHr = i => {
+    const lo = i > 0 ? hr[i - 1] : null, hi = i < 4 ? hr[i] : null;
+    if (i === 0) return HR(hi) ? `&lt; ${HR(hi)}` : '';
+    if (lo == null) return '';
+    if (hi == null || !HR(hi)) return HR(lo) ? `&gt; ${HR(lo)}` : '';
+    return `${HR(lo)}–${HR(hi)}`;
+  };
   const range = i => {
     const lo = i > 0 ? b[i - 1] : null, hi = i < 4 ? b[i] : null;
     const pc = (a, b) => (isRun() ? (a != null && b != null ? paceRange(a, b) : a != null ? `${paceRaw(a)} /km` : '') : '');
@@ -1000,17 +1044,26 @@ function zonesPanel(Z) {
   const gzLeg = G.wLo != null && G.wHi != null ? `<div class="gz-legend">
       <span class="what"><i class="sw solid"></i>${T(`Golden Zone ${fx(G.wLo)} à ${fxu(G.wHi)}`, `Golden Zone ${fx(G.wLo)} to ${fxu(G.wHi)}`)}</span>
     </div>` : '';
+  const open = state.zonesOpen;
+  const unit = isRun() ? '/km' : SP().u;
   return `<section class="panel zones" aria-label="${T('Tes zones d\'entraînement', 'Your training zones')}">
     <h3>${T('Tes 5 zones', 'Your 5 zones')}</h3>
-    <div class="thermo" aria-hidden="true">${ZONES.map((z, i) => `<div class="zi" style="width:${ZW[i]}%;background:${ZCOL[z.n]}"><span>I${z.n}</span></div>`).join('')}${gzThermo(Z)}</div>
-    <div class="marks" aria-hidden="true">
-      ${['LT1', 'GZ', 'LT2', '6 mmol'].map((l, i) => `<div class="mark" style="left:${ZX[i]}%"><b>${b[i] != null ? fx(b[i]) : '?'}</b><span>${l}</span></div>`).join('')}
-    </div>
+    <button type="button" class="thermo-btn" data-act="zones-toggle" aria-expanded="${open}" aria-label="${T('Afficher le détail des zones', 'Show zone details')}">
+      <div class="thermo">${ZONES.map((z, i) => `<div class="zi" style="width:${ZW[i]}%;background:${ZCOL[z.n]}"><span>I${z.n}</span></div>`).join('')}${gzThermo(Z)}</div>
+      <div class="zvals">${ZONES.map((z, i) => `<span style="width:${ZW[i]}%">${short(i)}</span>`).join('')}</div>
+      <div class="zvals hr">${ZONES.map((z, i) => `<span style="width:${ZW[i]}%">${shortHr(i)}</span>`).join('')}</div>
+      <span class="zunit">${unit}${hr.some(v => v != null) ? T(' · FC en bpm', ' · HR in bpm') : ''}<span class="zmore">${open ? T('Masquer le détail', 'Hide details') : T('Toucher pour le détail', 'Tap for details')} ${open ? '▲' : '▼'}</span></span>
+    </button>
     ${gzLeg}
-    <div class="zone-rows">
-      ${ZONES.map((z, i) => { const r = range(i); return `<div class="zrow"><span class="zdot" style="background:${ZCOL[z.n]}">I${z.n}</span><span class="what"><strong>${z.name}</strong>${z.what}<span class="ref">${T('Repère : ', 'Reference: ')}${z.ref}</span></span><span class="val">${r.w}<small>${r.h}</small></span></div>`; }).join('')}
+    <div class="zone-detail"${open ? '' : ' hidden'}>
+      <div class="marks" aria-hidden="true">
+        ${['LT1', GZ_ON() ? 'GZ' : '2,5 mmol', 'LT2', '6 mmol'].map((l, i) => `<div class="mark" style="left:${ZX[i]}%"><b>${b[i] != null ? fx(b[i]) : '?'}</b><span>${l}</span></div>`).join('')}
+      </div>
+      <div class="zone-rows">
+        ${ZONES.map((z, i) => { const r = range(i); return `<div class="zrow"><span class="zdot" style="background:${ZCOL[z.n]}">I${z.n}</span><span class="what"><strong>${z.name}</strong>${z.what}<span class="ref">${T('Repère : ', 'Reference: ')}${z.ref}</span></span><span class="val">${r.w}<small>${r.h}</small></span></div>`; }).join('')}
+      </div>
+      <p class="zones-note">${T(`Échelle d'intensité Olympiatoppen. Les mmol sont des repères généraux, tes ${SP().name === 'watts' ? 'watts' : 'vitesses'} et FC viennent de ton test.`, `Olympiatoppen intensity scale. The mmol values are general references, your ${SP().name === 'watts' ? 'watts' : 'speeds'} and HR come from your test.`)}</p>
     </div>
-    <p class="zones-note">${T(`Échelle d'intensité Olympiatoppen. Les mmol sont des repères généraux, tes ${SP().name === 'watts' ? 'watts' : 'vitesses'} et FC viennent de ton test.`, `Olympiatoppen intensity scale. The mmol values are general references, your ${SP().name === 'watts' ? 'watts' : 'speeds'} and HR come from your test.`)}</p>
     <div class="extras">
       ${Z.sTest ? `<span class="chip">${T(`Test du ${fdate(Z.sTest.date)}`, `Test of ${fdate(Z.sTest.date)}`)}</span>` : ''}
       ${flags.map(f => `<span class="chip">${f}</span>`).join('')}
@@ -1074,12 +1127,13 @@ function testItem(t) {
 function viewHome() {
   const Z = currentZones();
   const hi = state.name ? T(`Salut ${esc(state.name)} !`, `Hi ${esc(state.name)}!`) : T('Salut !', 'Hi!');
-  const say = Z.lt1 != null && Z.lt2 != null ? T(`${hi} Résultats du labo : tes zones du moment, et ta Golden Zone, juste sous ton 2e seuil.`, `${hi} Lab results are in: your current zones, and your Golden Zone, just below your 2nd threshold.`)
+  const say = Z.lt1 != null && Z.lt2 != null && !GZ_ON() ? T(`${hi} Résultats du labo : tes cinq zones du moment, tirées de ton dernier test.`, `${hi} Lab results are in: your five current zones, from your latest test.`)
+    : Z.lt1 != null && Z.lt2 != null ? T(`${hi} Résultats du labo : tes zones du moment, et ta Golden Zone, juste sous ton 2e seuil.`, `${hi} Lab results are in: your current zones, and your Golden Zone, just below your 2nd threshold.`)
     : Z.lt1 == null && Z.lt2 == null ? T(`${hi} Moi c'est Globule, savant fou du lactate. Un test paliers jusqu'à 5 mmol et je te sors tes zones.`, `${hi} I'm Globule, mad lactate scientist. One step test up to 5 mmol and I'll give you your zones.`)
     : Z.lt2 == null ? T('Expérience inachevée : il me manque ton LT2. Au prochain test, monte jusqu\'à 5 mmol.', "Unfinished experiment: I'm missing your LT2. On your next test, go up to 5 mmol.")
     : T('Il manque une donnée à mes calculs : ton LT1. Regarde ta dernière courbe de lactate.', "My calculations are missing one piece: your LT1. Check your latest lactate curve.");
   const recent = [...state.sessions.map(s => ({ ...s, _t: 's' })), ...state.tests.filter(t => t.kind === 'steps').map(t => ({ ...t, _t: 't' }))].sort(byDateDesc).slice(0, 4);
-  return hero(say) + zonesPanel(Z) + (Z.lt1 != null || Z.lt2 != null ? goldenPanel(Z) : '') + `
+  return hero(say) + zonesPanel(Z) + (GZ_ON() && (Z.lt1 != null || Z.lt2 != null) ? goldenPanel(Z) : '') + `
     <div class="actions" style="grid-template-columns:1fr 1fr">
       <button class="btn big rose" data-act="new-session"><span class="ico">+</span>${T('Séance', 'Session')}</button>
       <button class="btn big violet" data-act="new-steps"><span class="ico">5'</span>${T('Test paliers', 'Step test')}</button>
@@ -1090,16 +1144,29 @@ function viewHome() {
     <button class="btn ghost block" style="margin-top:10px" data-tab="journal">${T('Tout le journal', 'Full log')}</button>`;
 }
 
+// Zone d'un prélèvement selon son lactate : frontières lues sur la courbe du dernier test
+// (lactate à LT1, bas de GZ ou 2,5 mmol, LT2, 6 mmol), sinon repères Olympiatoppen.
+function laZone(la, Z) {
+  if (la == null) return null;
+  const curve = Z && (Z.s2 || Z.s);
+  let lims = [1.5, 2.5, 4, 6];
+  if (curve) { const bb = zoneBounds(Z).b; lims = bb.map((w, i) => (w != null ? laAt(curve.steps, w) : null) ?? lims[i]); }
+  let z = 1; lims.forEach(l => { if (la > l + 1e-9) z++; }); return Math.min(5, z);
+}
+const J_RANGES = { '8w': 56, '6m': 183, all: null };
 function viewJournal() {
   const Z = currentZones();
-  const withLa = state.sessions.filter(s => num(s.lactate) != null).map(s => ({ id: s.id, label: `${(s.template && s.template.name ? tplLabel(s.template.name) : '') || (s.kind ? kindLabel(s.kind) : '') || T('Séance', 'Session')}, ${fdate(s.date)}, ${fmt(num(s.lactate), 1)} mmol`, x: Date.parse(s.date), y: num(s.lactate), z: zoneOf(num(s.watts), Z), gz: (gzStatus(s) || {}).st === 'in' })).sort((a, b) => a.x - b.x);
+  const days = J_RANGES[state.jRange], since = days ? Date.now() - days * 864e5 : -Infinity;
+  const withLa = state.sessions.filter(s => num(s.lactate) != null).map(s => ({ id: s.id, label: `${(s.template && s.template.name ? tplLabel(s.template.name) : '') || (s.kind ? kindLabel(s.kind) : '') || T('Séance', 'Session')}, ${fdate(s.date)}, ${fmt(num(s.lactate), 1)} mmol`, x: Date.parse(s.date), y: num(s.lactate), z: laZone(num(s.lactate), Z), gz: GZ_ON() && (gzStatus(s) || {}).st === 'in' })).filter(p => p.x >= since).sort((a, b) => a.x - b.x);
+  const rangeSeg = `<div class="seg mini-seg" data-layout-id="jrange" role="group" aria-label="${T('Période', 'Period')}">${[['8w', T('8 sem.', '8 wk')], ['6m', T('6 mois', '6 mo')], ['all', T('Tout', 'All')]].map(([k, l]) => `<button type="button" data-act="j-range" data-val="${k}" aria-pressed="${state.jRange === k}">${l}</button>`).join('')}</div>`;
   let chart = '';
-  if (withLa.length) {
-    let x0 = withLa[0].x, x1 = withLa[withLa.length - 1].x; if (x0 === x1) { x0 -= 3 * 864e5; x1 += 3 * 864e5; }
-    chart = `<section class="panel" style="margin-top:16px"><h3 class="hand" style="margin:0 0 6px">${T('Lactate à l\'entraînement', 'Lactate in training')}</h3><p class="tap-hint" style="margin:0 0 4px">${T('Touche un point pour ouvrir la séance.', 'Tap a dot to open the session.')}</p>
+  if (withLa.length || state.sessions.some(s => num(s.lactate) != null)) {
+    // L'axe va du début de la période choisie à aujourd'hui : il ne s'étire plus à l'infini
+    let x0 = days ? since : withLa.length ? withLa[0].x : Date.now() - 7 * 864e5, x1 = Date.now(); if (x1 - x0 < 6 * 864e5) x0 = x1 - 7 * 864e5;
+    chart = `<section class="panel" style="margin-top:16px"><h3 class="hand" style="margin:0 0 6px">${T('Lactate à l\'entraînement', 'Lactate in training')}</h3>${rangeSeg}<p class="tap-hint" style="margin:6px 0 4px">${withLa.length ? T('Touche un point pour ouvrir la séance. Couleur : la zone de ton lactate, d\'après ton dernier test.', 'Tap a dot to open the session. Color: the zone of your lactate, from your latest test.') : T('Aucune séance avec lactate sur cette période.', 'No session with lactate in this period.')}</p>
       ${chartSVG({ timeX: true, xRange: [x0, x1], yRange: [0, Math.max(4, gzTop() + .5, ...withLa.map(p => p.y))], xFmt: v => fdateShort(new Date(v).toISOString()), yTitle: 'mmol/L', h: 190,
         hbands: gzBands(), series: [{ pts: withLa.map(p => ({ act: 'edit-session', id: p.id, label: p.label, x: p.x, y: p.y, fill: p.gz ? GZ_COLOR : p.z ? ZHEX[p.z] : '#ffffff', r: p.gz ? 7.5 : 6 })), color: '#2A0A4A', line: false }] })}
-      <div class="legend">${ZONES.map(z => `<span><i style="background:${ZCOL[z.n]}"></i>I${z.n}</span>`).join('')}<span><i style="background:#FFC21A"></i>Golden Zone</span></div></section>`;
+      <div class="legend">${ZONES.map(z => `<span><i style="background:${ZCOL[z.n]}"></i>I${z.n}</span>`).join('')}${GZ_ON() ? '<span><i style="background:#FFC21A"></i>Golden Zone</span>' : ''}</div></section>`;
   }
   const steps = state.tests.filter(t => t.kind === 'steps');
   let trend = '';
@@ -1127,8 +1194,10 @@ function viewJournal() {
 }
 
 function viewGlobule() {
-  return hero(T('Mon labo, c\'est ton doigt. Je compte tes mmol et je ne mens jamais. Enfin, à 0,3 près.', 'My lab is your finger. I count your mmol and I never lie. Well, give or take 0.3.'), 150) + `
-  <details class="panel proto golden-proto" open>
+  return `<div class="page-head"><h2 class="title">${T('Le labo', 'The lab')}</h2><button type="button" class="icon-btn" data-act="settings" aria-label="${T('Réglages', 'Settings')}"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h0a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v0a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button></div>` + hero(T('Mon labo, c\'est ton doigt. Je compte tes mmol et je ne mens jamais. Enfin, à 0,3 près.', 'My lab is your finger. I count your mmol and I never lie. Well, give or take 0.3.'), 150) + `
+  <h2 class="section-label">${T('Méthode', 'Method')}</h2>
+  ${GZ_ON() ? `
+  <details class="panel proto golden-proto">
     <summary><span><span class="t">★ Golden Zone</span><span class="s">${T('Méthode norvégienne, le cœur du double seuil', 'Norwegian method, the heart of double threshold')}</span></span><span class="plus">+</span></summary>
     <p class="say">${T('Mon expérience préférée : juste sous ton 2e seuil (LT2). Jamais dessus.', "My favorite experiment: just below your 2nd threshold (LT2). Never above.")}</p>
     <ol>
@@ -1140,7 +1209,7 @@ function viewGlobule() {
       <li>${T('Double seuil : le matin plus prudent (bas de la plage), le soir un peu plus haut. Le reste de la semaine en I1.', 'Double threshold: more cautious in the morning (low end of the range), a bit higher in the evening. The rest of the week in I1.')}</li>
     </ol>
     <p>${T(`${bk('Tes watts sont lus', 'Ta vitesse est lue')} sur ta dernière courbe de lactate, là où elle traverse chaque plage, et plafonnée à ton LT2.`, `${bk('Your watts are read', 'Your speed is read')} from your latest lactate curve, where it crosses each range, and capped at your LT2.`)}</p>
-  </details>
+  </details>` : ''}
   <details class="panel proto">
     <summary><span><span class="t">${T('Test paliers 5 min + 30 s', 'Step test 5 min + 30 s')}</span><span class="s">${T('Le seul test : il donne LT1 et LT2', 'The only test: it gives LT1 and LT2')}</span></span><span class="plus">+</span></summary>
     <p class="say">${T('Le protocole de base du labo : un test, deux seuils, cinq zones.', "The lab's core protocol: one test, two thresholds, five zones.")}</p>
@@ -1162,11 +1231,15 @@ function viewGlobule() {
     <p class="say">${T('Expérience bonus : jusqu\'où tu tiens ? Mwahaha.', 'Bonus experiment: how far can you go? Mwahaha.')}</p>
     <ol>
       <li>${T('Ton lactate a passé 5 mmol et les deux seuils sont trouvés : quitte le test.', 'Your lactate went past 5 mmol and both thresholds are found: quit the test.')}</li>
-      <li>${T('Lance la rampe à partir du palier suivant : dans Rouvy, c\'est la séance « Globule rampe 2 min dès … W », à exporter depuis la section « Rampes 2 min » plus bas dans cet onglet.', 'Start the ramp from the next step: in Rouvy it\'s the workout “Globule 2 min ramp from … W”, exported from the “2 min ramps” section further down this tab.')}</li>
+      <li>${T('Lance la rampe à partir du palier suivant : dans Rouvy, c\'est la séance « Globule rampe 2 min dès … W », à télécharger juste en dessous.', 'Start the ramp from the next step: in Rouvy it\'s the workout “Globule 2 min ramp from … W”, download it just below.')}</li>
       <li>${T(`Tiens chaque palier de 2 min, +${fxu(proto().step)} à chaque fois, jusqu'à ce que tu lâches.`, `Hold each 2 min step, +${fxu(proto().step)} each time, until you can't.`)}</li>
       <li>${T('Pas de lactate pendant la rampe : en 2 min, il n\'a pas le temps de se stabiliser, et tes seuils viennent des paliers de 5 min. Un prélèvement facultatif juste après l\'arrêt, par curiosité.', 'No lactate during the ramp: in 2 min it has no time to settle, and your thresholds come from the 5 min steps. One optional sample right after you stop, out of curiosity.')}</li>
       <li>${T('Note le dernier palier tenu en entier et les secondes tenues sur le suivant : je calcule ta puissance max.', 'Note the last full step and the seconds held on the next one: I compute your max power.')}</li>
     </ol>
+    <div class="ramp-pick">
+      <label class="field"><span>${T('Départ de ta rampe', 'Your ramp start')}</span><select class="inp" id="ramp-start">${rampStarts().map((w, i) => `<option value="${w}">${T(`Dès ${w} W, après le palier ${i + 1}`, `From ${w} W, after step ${i + 1}`)}</option>`).join('')}</select></label>
+      <button class="btn" data-act="ramp-pick" data-fmt="erg">.erg</button><button class="btn" data-act="ramp-pick" data-fmt="zwo">.zwo</button>
+    </div>
   </details>`}
   <details class="panel proto">
     <summary><span><span class="t">${T('Tes 5 zones', 'Your 5 zones')}</span><span class="s">${T('L\'échelle Olympiatoppen, calée sur ton test', 'The Olympiatoppen scale, set from your test')}</span></span><span class="plus">+</span></summary>
@@ -1175,8 +1248,14 @@ function viewGlobule() {
     <p class="muted">${T('Les plages en mmol (I1 0,7 à 1,5, I2 1,5 à 2,5, I3 2,5 à 4, I4 4 à 6, I5 6 à 10) sont les repères généraux d\'Olympiatoppen. Tes frontières à toi viennent de ta courbe.', 'The mmol ranges (I1 0.7 to 1.5, I2 1.5 to 2.5, I3 2.5 to 4, I4 4 to 6, I5 6 to 10) are general Olympiatoppen references. Your own boundaries come from your curve.')}</p>
     <p class="muted">${T(`${bk('Home trainer et capteur route', 'Tapis et montre GPS')} peuvent différer de quelques %. Je note la source de chaque mesure pour que tu compares ce qui est comparable.`, `${bk('Indoor trainer and road power meter', 'Treadmill and GPS watch')} can differ by a few %. I log the source of each measurement so you compare like with like.`)}</p>
   </details>
-  <section class="panel" style="margin-top:14px">
-    <h3 class="hand" style="margin:0 0 10px">${T('Réglages', 'Settings')}</h3>
+  ${isRun() ? '' : `<h2 class="section-label">${T('Exporter vers Rouvy et Zwift', 'Export to Rouvy and Zwift')}</h2><section class="panel export-panel">${rouvyPanel()}</section>`}
+  <div class="grid2" style="margin-top:16px">
+    <button class="btn rose" data-act="share-app">${T('Partager Globule', 'Share Globule')}</button>
+    <button class="btn jaune" data-act="a2hs">${T('Écran d\'accueil', 'Home screen')}</button>
+  </div>`;
+}
+function settingsSheet() {
+  openSheet(T('Réglages', 'Settings'), `
     <label class="field"><span>${T('Comment je t\'appelle ?', 'What should I call you?')}</span><input class="inp" id="set-name" value="${esc(state.name)}" placeholder="${T('Ton prénom', 'Your first name')}" autocomplete="given-name"></label>
     <button class="btn violet block" data-act="save-name">${T('Enregistrer le prénom', 'Save name')}</button>
     <div style="height:14px"></div>
@@ -1184,32 +1263,31 @@ function viewGlobule() {
     <p class="muted" style="font-size:13px;margin:0 0 8px">${(state.sports || ['bike']).map(k => SPORTS[k].label).join(T(' et ', ' and '))}. ${T('Chaque sport a ses tests, ses zones et ses séances.', 'Each sport has its own tests, zones and sessions.')}</p>
     <button class="btn block" data-act="edit-sports">${T('Changer mes sports', 'Change my sports')}</button>
     <div style="height:14px"></div>
-    <p class="hand" style="margin:0 0 6px">Golden Zone (mmol)</p>
+    <p class="hand" style="margin:0 0 6px">Golden Zone</p>
+    <div class="seg" data-layout-id="gzon" role="group" aria-label="${T('Golden Zone', 'Golden Zone')}" style="margin-bottom:8px">
+      <button type="button" data-act="set-gzon" data-val="1" aria-pressed="${GZ_ON()}">${T('Je m\'entraîne avec', 'I train with it')}</button>
+      <button type="button" data-act="set-gzon" data-val="0" aria-pressed="${!GZ_ON()}">${T('Pas pour moi', 'Not for me')}</button></div>
+    <p class="muted" style="font-size:13px;margin:0 0 10px">${T('Désactivée, je cache la Golden Zone de l\'accueil, des graphiques et des explications. Tes 5 zones restent.', 'When off, I hide the Golden Zone from home, the charts and the guides. Your 5 zones stay.')}</p>
+    ${GZ_ON() ? `
     <div class="grid2"><label class="field"><span>${T('De (mmol)', 'From (mmol)')}</span><input class="inp" id="set-gz-lo" inputmode="decimal" value="${inVal(state.gz.lo)}"></label>
     <label class="field"><span>${T('À (mmol)', 'To (mmol)')}</span><input class="inp" id="set-gz-hi" inputmode="decimal" value="${inVal(state.gz.hi)}"></label></div>
     <p class="muted" style="font-size:13px;margin:-4px 0 10px">${T('Par défaut 2,3 à 3,0 mmol (Marius Bakken).', 'Default 2.3 to 3.0 mmol (Marius Bakken).')}</p>
-    <button class="btn block" style="background:#FFC21A;color:#2A0A4A" data-act="save-gz">${T('Enregistrer ma Golden Zone', 'Save my Golden Zone')}</button>
+    <button class="btn block" style="background:#FFC21A;color:#2A0A4A" data-act="save-gz">${T('Enregistrer ma Golden Zone', 'Save my Golden Zone')}</button>` : ''}
     <div style="height:14px"></div>
     <p class="hand" style="margin:0 0 6px">${T(`Mon protocole paliers ${SP().label.toLowerCase()} (5 min + 30 s de pause)`, `My ${SP().label.toLowerCase()} step test protocol (5 min + 30 s rest)`)}</p>
     <div class="grid3"><label class="field"><span>${T(`Départ (${SP().u})`, `Start (${SP().u})`)}</span><input class="inp" id="set-p-start" inputmode="${SP().im}" value="${inVal(proto().start)}"></label>
     <label class="field"><span>${T(`+ par palier (${SP().u})`, `+ per step (${SP().u})`)}</span><input class="inp" id="set-p-step" inputmode="${SP().im}" value="${inVal(proto().step)}"></label>
     <label class="field"><span>${T('Paliers max', 'Max steps')}</span><input class="inp" id="set-p-n" inputmode="numeric" value="${proto().n}"></label></div>
     <button class="btn violet block" data-act="save-proto">${T('Enregistrer mon protocole', 'Save my protocol')}</button>
-    ${isRun() ? '' : rouvyPanel() + rampPanel()}
     <div style="height:10px"></div>
     <button class="btn block" data-act="export">${T('Exporter toutes mes données (CSV)', 'Export all my data (CSV)')}</button>
     <div style="height:14px"></div>
     <p class="hand" style="margin:0 0 6px">${T('Langue', 'Language')}</p>
     ${langSwitch()}
-    <div style="height:14px"></div>
-    <div class="grid2">
-      <button class="btn rose" data-act="share-app">${T('Partager Globule', 'Share Globule')}</button>
-      <button class="btn jaune" data-act="a2hs">${T('Mettre sur l\'écran d\'accueil', 'Add to Home Screen')}</button>
-    </div>
     ${DEMO ? `<p class="muted" style="font-size:14px;margin:12px 0 0">${T('Mode démo : les données restent sur cet appareil, avec des exemples pour jouer. Ajoute les clés Supabase dans config.js pour la synchro iPhone et ordi.', 'Demo mode: data stays on this device, with examples to play with. Add the Supabase keys in config.js to sync between iPhone and computer.')}</p>
       <div style="height:10px"></div><button class="btn danger block" data-act="reset-demo">${T('Vider la démo', 'Clear the demo')}</button>`
       : `<div style="height:10px"></div><button class="btn ghost block" data-act="logout">${T('Me déconnecter', 'Log out')}${state.user && state.user.email ? ' (' + esc(state.user.email) + ')' : ''}</button>`}
-  </section>`;
+`, root => { root.dataset.settings = '1'; $$('.seg', root).forEach(g => syncPill(g, false)); });
 }
 
 /* ---------- Feuilles modales ---------- */
@@ -1370,6 +1448,7 @@ function saveSteps(root) {
 /* Test paliers : détail + choix manuel de LT1 ou LT2 */
 // Golden Zone lue sur un test donné, plafonnée à son LT2
 function testGZ(a) {
+  if (!GZ_ON()) return null;
   const { lo, hi } = state.gz;
   let wLo = crossW(a.steps, lo), wHi = crossW(a.steps, hi);
   if (wLo != null && wHi == null && a.lt2W != null) wHi = a.lt2W;
@@ -1528,8 +1607,16 @@ function fmtDur(sec) {
   return r ? `${m} min ${String(r).padStart(2, '0')}` : `${m} min`;
 }
 const tgtLabel = k => (k === 'Intervalles' ? T(TARGETS[k], 'Other intensity') : TARGETS[k] ? kindLabel(TARGETS[k]) : kindLabel(k));
-const tplLine = t => `${t.reps} × ${fmtDur(t.work)}${t.rest ? `, ${T('récup', 'recovery')} ${fmtDur(t.rest)}` : ''}, ${tgtLabel(t.target)}`;
-const validTpl = t => !!t && String(t.name || '').trim().length > 0 && num(t.reps) >= 1 && num(t.reps) <= 60 && num(t.work) >= 10 && num(t.work) <= 7200 && num(t.rest) >= 0 && num(t.rest) <= 3600 && !!TARGETS[t.target];
+// Séries : sets × (reps × effort, récup entre répétitions), récup entre séries. Un modèle sans séries = 1 série.
+const setsOf = t => Math.max(1, Math.round(num(t.sets) || 1));
+const totalReps = t => setsOf(t) * t.reps;
+const tplSec = t => setsOf(t) * (t.reps * t.work + Math.max(0, t.reps - 1) * (t.rest || 0)) + (setsOf(t) - 1) * (num(t.setRest) || 0);
+const tplLine = t => (setsOf(t) > 1
+  ? `${setsOf(t)} × ${t.reps} × ${fmtDur(t.work)}${t.rest ? `, ${T('récup', 'recovery')} ${fmtDur(t.rest)}` : ''}${num(t.setRest) ? `, ${T('récup série', 'set recovery')} ${fmtDur(num(t.setRest))}` : ''}`
+  : `${t.reps} × ${fmtDur(t.work)}${t.rest ? `, ${T('récup', 'recovery')} ${fmtDur(t.rest)}` : ''}`) + `, ${tgtLabel(t.target)}`;
+const tplBadge = t => (setsOf(t) > 1 ? `${setsOf(t)}×${t.reps}` : `${t.reps}×`);
+const validTpl = t => !!t && String(t.name || '').trim().length > 0 && num(t.reps) >= 1 && num(t.reps) <= 60 && num(t.work) >= 10 && num(t.work) <= 7200 && num(t.rest) >= 0 && num(t.rest) <= 3600 && !!TARGETS[t.target]
+  && (t.sets == null || (num(t.sets) >= 1 && num(t.sets) <= 10)) && (t.setRest == null || (num(t.setRest) >= 0 && num(t.setRest) <= 3600)) && setsOf(t) * num(t.reps) <= 100;
 function loadTemplates(raw) { state.templates = Array.isArray(raw) ? raw.filter(validTpl) : []; }
 async function saveTemplates(list) {
   if (DEMO) { try { localStorage.setItem('globule:templates', JSON.stringify(list)); } catch { /* stockage bloqué */ } }
@@ -1541,7 +1628,7 @@ function pickSession() {
   openSheet(T('Choisis ta séance', 'Pick your session'), `
     <div class="list">${templates().map(t => `<div class="tpl-row">
       <button class="item" data-act="use-tpl" data-id="${esc(t.id)}">
-        <span class="badge" style="background:${t.target === 'Golden Zone' ? GZ_COLOR : 'var(--z2)'}">${t.reps}×</span>
+        <span class="badge" style="background:${t.target === 'Golden Zone' ? GZ_COLOR : 'var(--z2)'}">${tplBadge(t)}</span>
         <span class="main"><strong>${esc(tplLabel(t.name))}</strong><span>${esc(tplLine(t))}</span></span><span></span></button>
       ${t.id.startsWith('d-') ? '' : `<button class="del" type="button" data-act="del-tpl" data-id="${esc(t.id)}" aria-label="${T(`Supprimer le modèle ${esc(t.name)}`, `Delete template ${esc(t.name)}`)}">×</button>`}</div>`).join('')}</div>
     <div style="height:12px"></div>
@@ -1550,20 +1637,34 @@ function pickSession() {
 function tplForm() {
   openSheet(T('Nouveau modèle', 'New template'), `
     <label class="field"><span>${T('Nom', 'Name')}</span><input class="inp" id="t-name" placeholder="${T('ex. 6 × 6 min GZ', 'e.g. 6 × 6 min GZ')}"></label>
-    <div class="grid3"><label class="field"><span>${T('Répétitions', 'Reps')}</span><input class="inp" id="t-reps" inputmode="numeric" value="6"></label>
-    <label class="field"><span>${T('Effort', 'Work')}</span><input class="inp" id="t-work" value="6"></label>
-    <label class="field"><span>${T('Récup', 'Recovery')}</span><input class="inp" id="t-rest" value="1"></label></div>
-    <p class="muted" style="font-size:13px;margin:-4px 0 10px">${T('Durées en minutes (« 6 ») ou en secondes (« 45 s », « 1:30 »).', 'Durations in minutes (“6”) or seconds (“45 s”, “1:30”).')}</p>
-    <div class="field"><span class="muted" style="font-size:13px;font-weight:600">${T('Intensité visée', 'Target intensity')}</span>
+    <div class="grid3"><label class="field"><span>${T('Séries', 'Sets')}</span><input class="inp" id="t-sets" inputmode="numeric" value="1"></label>
+    <label class="field"><span>${T('Répétitions', 'Reps')}</span><input class="inp" id="t-reps" inputmode="numeric" value="6"></label>
+    <label class="field"><span>${T('Effort', 'Work')}</span><input class="inp" id="t-work" value="6"></label></div>
+    <div class="grid2"><label class="field"><span>${T('Récup entre répétitions', 'Rest between reps')}</span><input class="inp" id="t-rest" value="1"></label>
+    <label class="field"><span>${T('Récup entre séries', 'Rest between sets')}</span><input class="inp" id="t-setrest" value="3"></label></div>
+    <p class="muted" style="font-size:13px;margin:-4px 0 10px">${T('Durées en minutes (« 6 ») ou en secondes (« 45 s », « 1:30 »). Exemple : 2 séries de 6 × 1 min, récup 1 min, et 3 min entre les séries.', 'Durations in minutes (“6”) or seconds (“45 s”, “1:30”). Example: 2 sets of 6 × 1 min, 1 min rest, and 3 min between sets.')}</p>
+    <p class="hand" id="t-sum" style="margin:-2px 0 10px"></p>
+    <div class="field"><span class="muted lbl-info" style="font-size:13px;font-weight:600">${T('Intensité visée', 'Target intensity')} <button type="button" class="info" data-act="info" data-for="tgt-info" aria-expanded="false" aria-label="${T('À quoi ça sert ?', 'What is this for?')}">i</button></span>
+      <p class="info-text" id="tgt-info" hidden>${T('<b>Golden Zone</b> : pendant la séance, Globule compare chaque lactate à ta plage (', '<b>Golden Zone</b>: during the session, Globule checks each lactate against your range (')}${fmt(state.gz.lo, 1)}–${fmt(state.gz.hi, 1)} mmol${T('), la dessine sur le graphique, et règle les fichiers Rouvy et Zwift au milieu de ta Golden Zone. <b>Autre intensité</b> : pas de cible, tu notes simplement tes valeurs (VO2max, sprints, tempo…).', '), draws it on the chart, and sets the Rouvy and Zwift files to the middle of your Golden Zone. <b>Other intensity</b>: no target, you simply log your values (VO2max, sprints, tempo…).')}</p>
       <div class="seg" role="group" aria-label="${T('Intensité visée', 'Target intensity')}" data-seg="target">${Object.entries(TARGETS).map(([k, l]) => `<button type="button" data-val="${k}" aria-pressed="${k === 'Golden Zone'}">${tgtLabel(k)}</button>`).join('')}</div></div>
     <p class="err" role="alert"></p>
     <button class="btn rose block" data-act="save-tpl">${T('Enregistrer le modèle', 'Save template')}</button>
-    <div style="height:10px"></div><button class="btn ghost block" data-act="new-session">${T('Retour aux séances', 'Back to sessions')}</button>`, root => wireSeg(root));
+    <div style="height:10px"></div><button class="btn ghost block" data-act="new-session">${T('Retour aux séances', 'Back to sessions')}</button>`, root => {
+    wireSeg(root);
+    const upd = () => {
+      if (!$('#t-sets', root)) return; // feuille déjà fermée
+      const t = { sets: num($('#t-sets', root).value) || 1, reps: Math.round(num($('#t-reps', root).value) || 0), work: parseDur($('#t-work', root).value), rest: parseDur($('#t-rest', root).value) ?? 0, setRest: parseDur($('#t-setrest', root).value) ?? 0, target: segVal(root, 'target') || 'Golden Zone' };
+      $('#t-setrest', root).closest('.field').style.opacity = t.sets > 1 ? '1' : '.45';
+      $('#t-sum', root).textContent = t.reps && t.work ? T(`Recette : ${tplLine(t)}. Environ ${Math.round(tplSec(t) / 60)} min d'effort et de récup.`, `Recipe: ${tplLine(t)}. About ${Math.round(tplSec(t) / 60)} min of work and rest.`) : '';
+    };
+    root.addEventListener('input', upd); root.addEventListener('click', () => setTimeout(upd, 0)); upd();
+  });
 }
 async function saveTpl(root) {
-  const t = { id: 'u-' + uid(), name: $('#t-name', root).value.trim(), reps: Math.round(num($('#t-reps', root).value)), work: parseDur($('#t-work', root).value), rest: parseDur($('#t-rest', root).value) ?? 0, target: segVal(root, 'target') || 'Golden Zone' };
+  const sets = Math.round(num($('#t-sets', root).value) || 1);
+  const t = { id: 'u-' + uid(), name: $('#t-name', root).value.trim(), sets, reps: Math.round(num($('#t-reps', root).value)), work: parseDur($('#t-work', root).value), rest: parseDur($('#t-rest', root).value) ?? 0, setRest: sets > 1 ? (parseDur($('#t-setrest', root).value) ?? 0) : 0, target: segVal(root, 'target') || 'Golden Zone' };
   if (!t.name) { $('.err', root).textContent = T('Donne un nom à ton modèle.', 'Give your template a name.'); return; }
-  if (!validTpl(t)) { $('.err', root).textContent = T('Vérifie les valeurs : 1 à 60 répétitions, effort de 10 s à 2 h, récup jusqu’à 1 h.', 'Check the values: 1 to 60 reps, work from 10 s to 2 h, recovery up to 1 h.'); return; }
+  if (!validTpl(t)) { $('.err', root).textContent = T('Vérifie les valeurs : 1 à 10 séries, 1 à 60 répétitions (100 au total), effort de 10 s à 2 h, récups jusqu’à 1 h.', 'Check the values: 1 to 10 sets, 1 to 60 reps (100 in total), work from 10 s to 2 h, rests up to 1 h.'); return; }
   try { await saveTemplates([...state.templates, t]); toast(T('Modèle enregistré', 'Template saved')); pickSession(); }
   catch (e) { $('.err', root).textContent = T('Pas enregistré : ', 'Not saved: ') + (e.message || T('erreur réseau', 'network error')); }
 }
@@ -1574,8 +1675,9 @@ async function delTpl(id) {
   catch (e) { toast(T('Suppression impossible : ', 'Could not delete: ') + (e.message || T('erreur', 'error'))); }
 }
 
-function ivRow(r, i) {
-  return `<div class="step-row"><span class="n">${i + 1}</span>
+function ivRow(r, i, per) {
+  const lab = per ? `${Math.floor(i / per) + 1}.${(i % per) + 1}` : i + 1;
+  return `<div class="step-row${per && i > 0 && i % per === 0 ? ' set-start' : ''}"><span class="n">${lab}</span>
     <input class="inp" data-k="w" inputmode="${SP().im}" placeholder="${SP().u}" value="${inVal(r.w)}" aria-label="${T(`${SP().Name} intervalle ${i + 1}`, `${SP().Name} interval ${i + 1}`)}">
     <input class="inp" data-k="hr" inputmode="numeric" placeholder="${T('FC', 'HR')}" value="${inVal(r.hr)}" aria-label="${T(`FC intervalle ${i + 1}`, `HR interval ${i + 1}`)}">
     <input class="inp" data-k="la" inputmode="decimal" placeholder="mmol" value="${inVal(r.la)}" aria-label="${T(`Lactate intervalle ${i + 1}`, `Lactate interval ${i + 1}`)}">
@@ -1608,9 +1710,10 @@ function sessionChart(all, isGZ) {
 const avgOf = (rows, k, d = 0) => { const v = rows.map(r => r[k]).filter(x => x != null); return v.length ? +(v.reduce((a, b) => a + b, 0) / v.length).toFixed(d) : null; };
 function intervalForm(tpl, s) {
   const TP = (s && s.template) || tpl;
-  const x = s || { date: todayISO(), source: lastSource(), note: '', duration_min: Math.round(TP.reps * (TP.work + TP.rest) / 60) };
+  const x = s || { date: todayISO(), source: lastSource(), note: '', duration_min: Math.round(tplSec(TP) / 60) };
   const saved = (s && Array.isArray(s.intervals)) ? s.intervals : [];
-  const rows = Array.from({ length: Math.max(TP.reps, saved.length) }, (_, i) => saved[i] || {});
+  const per = setsOf(TP) > 1 ? TP.reps : 0;
+  const rows = Array.from({ length: Math.max(totalReps(TP), saved.length) }, (_, i) => saved[i] || {});
   const isGZ = GZ_KINDS.includes(TP.target), G = goldenZone(currentZones()), r1 = v => fmt(v, 1);
   const target = !isGZ ? '' : G.wLo != null ? T(` Cible : <b>${fx(G.wLo)} à ${fxu(G.wHi)}</b>, ${r1(state.gz.lo)} à ${r1(state.gz.hi)} mmol.`, ` Target: <b>${fx(G.wLo)} to ${fxu(G.wHi)}</b>, ${r1(state.gz.lo)} to ${r1(state.gz.hi)} mmol.`) : T(` Cible : ${r1(state.gz.lo)} à ${r1(state.gz.hi)} mmol.`, ` Target: ${r1(state.gz.lo)} to ${r1(state.gz.hi)} mmol.`);
   openSheet(s ? T(`Modifier : ${tplLabel(TP.name)}`, `Edit: ${tplLabel(TP.name)}`) : tplLabel(TP.name), `
@@ -1619,7 +1722,7 @@ function intervalForm(tpl, s) {
     <p class="proto-line">${esc(tplLine(TP))}.${target} ${T(`Remplis au fil de la séance : ${SP().name}, FC, lactate quand tu piques, RPE. Les intervalles vides ne sont pas enregistrés.`, `Fill it in as you go: ${SP().name}, HR, lactate when you prick, RPE. Empty intervals aren't saved.`)}</p>
     <div id="preview"></div>
     <div class="steps-head"><span></span><span>${SP().col}</span><span>${T('FC', 'HR')}</span><span>Lactate</span><span>RPE</span><span></span></div>
-    <div id="rows">${rows.map(ivRow).join('')}</div>
+    <div id="rows">${rows.map((r, i) => ivRow(r, i, per)).join('')}</div>
     <button class="btn block" type="button" data-act="add-iv">+ ${T('Ajouter un intervalle', 'Add an interval')}</button>
     <div class="field"><span class="muted" style="font-size:13px;font-weight:600">${SP().measured}</span>${segHTML('src', x.source)}</div>
     <label class="field"><span>Note</span><textarea class="inp" id="f-note" placeholder="${T('Sensations, conditions, lecteur...', 'Feel, conditions, meter...')}">${esc(x.note)}</textarea></label>
@@ -1628,7 +1731,7 @@ function intervalForm(tpl, s) {
     ${s ? `<div style="height:10px"></div><button class="btn danger block" data-act="del-session" data-id="${s.id}">${T('Supprimer', 'Delete')}</button>` : ''}`, root => {
     wireSeg(root);
     root.dataset.id = s ? s.id : '';
-    root.dataset.tpl = JSON.stringify({ name: TP.name, reps: TP.reps, work: TP.work, rest: TP.rest, target: TP.target });
+    root.dataset.tpl = JSON.stringify({ name: TP.name, sets: setsOf(TP), reps: TP.reps, work: TP.work, rest: TP.rest, setRest: num(TP.setRest) || 0, target: TP.target });
     const upd = () => {
       const iv = readIntervals(root), las = iv.map(r => r.la).filter(v => v != null);
       if (!iv.length) { $('#preview', root).innerHTML = '<p class="hand" style="margin:12px 0">' + T('Pique après le 2e intervalle, puis vers la fin. Mes instruments te disent où tu en es.', "Prick after the 2nd interval, then near the end. My instruments will tell you where you stand.") + '</p>'; return; }
@@ -1651,7 +1754,8 @@ function intervalForm(tpl, s) {
 function addIv(root) {
   const rows = $('#rows', root), n = $$('.step-row', rows).length;
   const lastW = $$('.step-row [data-k="w"]', rows).map(i => num(i.value)).filter(v => v != null).pop();
-  rows.insertAdjacentHTML('beforeend', ivRow({ w: lastW }, n));
+  const TP = root.dataset.tpl ? JSON.parse(root.dataset.tpl) : null;
+  rows.insertAdjacentHTML('beforeend', ivRow({ w: lastW }, n, TP && setsOf(TP) > 1 ? TP.reps : 0));
   $('.step-row:last-child [data-k="w"]', rows).focus();
 }
 function saveIntervals(root) {
@@ -1697,15 +1801,14 @@ async function saveFtp(v) {
   if (!DEMO && state.user) { const { data, error } = await sb.auth.updateUser({ data: { ftp: v } }); if (!error && data && data.user) state.user = data.user; }
 }
 function rouvyPanel() {
-  return `<div style="height:14px"></div>
-    <p class="hand" style="margin:0 0 6px">${T('Test paliers pour Zwift', 'Step test for Zwift')}</p>
+  return `<p class="hand" style="margin:0 0 6px">${T('Test paliers pour Zwift', 'Step test for Zwift')}</p>
     <button class="btn block" style="background:#FC6719;color:#fff" data-act="zwift">${T('Exporter le test vers Zwift', 'Export the test to Zwift')}</button>
     <div style="height:14px"></div>
     <p class="hand" style="margin:0 0 6px">${T('Séances pour Rouvy', 'Workouts for Rouvy')}</p>
     <p class="muted" style="font-size:13px;margin:0 0 8px">${T('Un fichier .erg en watts exacts (ou .zwo) à importer dans Rouvy : ton home trainer en mode ERG tient les watts tout seul.', 'An .erg file in exact watts (or .zwo) to import into Rouvy: your trainer in ERG mode holds the watts for you.')}</p>
     <div class="list">
       <button class="item" data-act="rouvy" data-id="steps"><span class="badge" style="background:var(--violet);color:#fff">5'</span><span class="main"><strong>${T('Test paliers', 'Step test')}</strong><span>${esc(T(`Départ ${fxu(proto().start)}, +${fxu(proto().step)}, ${proto().n} paliers`, `Start ${fxu(proto().start)}, +${fxu(proto().step)}, ${proto().n} steps`))}</span></span><span class="num">.erg</span></button>
-      ${templates().map(t => `<button class="item" data-act="rouvy" data-id="${esc(t.id)}"><span class="badge" style="background:${t.target === 'Golden Zone' ? GZ_COLOR : 'var(--z2)'}">${t.reps}×</span><span class="main"><strong>${esc(tplLabel(t.name))}</strong><span>${esc(tplLine(t))}</span></span><span class="num">.erg</span></button>`).join('')}
+      ${templates().map(t => `<button class="item" data-act="rouvy" data-id="${esc(t.id)}"><span class="badge" style="background:${t.target === 'Golden Zone' ? GZ_COLOR : 'var(--z2)'}">${tplBadge(t)}</span><span class="main"><strong>${esc(tplLabel(t.name))}</strong><span>${esc(tplLine(t))}</span></span><span class="num">.erg</span></button>`).join('')}
     </div>`;
 }
 const xmlEsc = v => String(v).replace(/[<>&"']/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&apos;' }[c]));
@@ -1748,7 +1851,8 @@ function zwoSteps(ftp, start, override) {
 function zwoTemplate(t, ftp) {
   const tw = targetWatts(t, ftp), G = goldenZone(currentZones());
   const blocks = [`<Warmup Duration="900" PowerLow="0.450" PowerHigh="0.700"/>`,
-    `<IntervalsT Repeat="${t.reps}" OnDuration="${t.work}" OffDuration="${t.rest}" OnPower="${frac(tw.w, ftp)}" OffPower="0.500"/>`,
+    ...Array.from({ length: setsOf(t) }, (_, k) => [`<IntervalsT Repeat="${t.reps}" OnDuration="${t.work}" OffDuration="${t.rest}" OnPower="${frac(tw.w, ftp)}" OffPower="0.500"/>`,
+      ...(k < setsOf(t) - 1 && num(t.setRest) ? [`<SteadyState Duration="${num(t.setRest)}" Power="0.450"/>`] : [])]).flat(),
     `<Cooldown Duration="600" PowerLow="0.550" PowerHigh="0.350"/>`];
   const name = `Globule ${tplLabel(t.name)}`;
   const why = tw.from === 'gz' ? T(`milieu de ta Golden Zone (${fmt(G.wLo)} à ${fmt(G.wHi)} W)`, `middle of your Golden Zone (${fmt(G.wLo)} to ${fmt(G.wHi)} W)`)
@@ -1794,7 +1898,10 @@ function ergSteps(start) {
 }
 function ergTemplate(t, w) {
   const segs = [{ dur: 900, from: Math.round(w * 0.5), to: Math.round(w * 0.75) }];
-  for (let i = 0; i < t.reps; i++) { segs.push({ dur: t.work, from: w }); if (i < t.reps - 1 && t.rest) segs.push({ dur: t.rest, from: Math.round(w * 0.55) }); }
+  for (let k = 0; k < setsOf(t); k++) {
+    for (let i = 0; i < t.reps; i++) { segs.push({ dur: t.work, from: w }); if (i < t.reps - 1 && t.rest) segs.push({ dur: t.rest, from: Math.round(w * 0.55) }); }
+    if (k < setsOf(t) - 1 && num(t.setRest)) segs.push({ dur: num(t.setRest), from: Math.round(w * 0.45) });
+  }
   segs.push({ dur: 600, from: Math.round(w * 0.6), to: Math.round(w * 0.4) });
   const name = `Globule ${tplLabel(t.name)}`;
   const slug = String(t.name).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'seance';
@@ -1830,7 +1937,7 @@ function rouvySheet(id, fmtSel) {
         if (!v || v < 80 || v > 600) { pv.innerHTML = `<span class="hand">${T('Entre ta FTP Rouvy pour voir les watts.', 'Enter your Rouvy FTP to see the watts.')}</span>`; return; }
         if (!t) { const P = proto(); pv.innerHTML = `<div class="kv"><div><b>${P.n}</b><span>${T('paliers de 5 min', '5 min steps')}</span></div><div><b>${fmt(P.start)} → ${fmt(P.start + (P.n - 1) * P.step)}</b><span>W</span></div><div><b>30 s</b><span>${T('pause lactate', 'lactate pause')}</span></div></div>`; return; }
         const z = zwoTemplate(t, v);
-        pv.innerHTML = `<div class="kv"><div><b>${t.reps} × ${fmtDur(t.work)}</b><span>${T('intervalles', 'intervals')}</span></div><div><b>${z.target}</b><span>W (${Math.round(z.target / v * 100)} % FTP)</span></div><div><b>${fmtDur(t.rest)}</b><span>${T('récup', 'recovery')}</span></div></div>`;
+        pv.innerHTML = `<div class="kv"><div><b>${setsOf(t) > 1 ? setsOf(t) + ' × ' : ''}${t.reps} × ${fmtDur(t.work)}</b><span>${T('intervalles', 'intervals')}</span></div><div><b>${z.target}</b><span>W (${Math.round(z.target / v * 100)} % FTP)</span></div><div><b>${fmtDur(t.rest)}</b><span>${T('récup', 'recovery')}</span></div></div>`;
         return;
       }
       if (!t) {
@@ -1841,7 +1948,7 @@ function rouvySheet(id, fmtSel) {
       }
       const w = num($('#r-w', root).value);
       if (!w || w < 50 || w > 600) { pv.innerHTML = `<span class="hand">${T('Entre les watts des intervalles.', 'Enter the interval watts.')}</span>`; return; }
-      pv.innerHTML = `<div class="kv"><div><b>${t.reps} × ${fmtDur(t.work)}</b><span>${T('intervalles', 'intervals')}</span></div><div><b>${Math.round(w)}</b><span>W</span></div><div><b>${fmtDur(t.rest)}</b><span>${T('récup', 'recovery')}</span></div></div>`;
+      pv.innerHTML = `<div class="kv"><div><b>${setsOf(t) > 1 ? setsOf(t) + ' × ' : ''}${t.reps} × ${fmtDur(t.work)}</b><span>${T('intervalles', 'intervals')}</span></div><div><b>${Math.round(w)}</b><span>W</span></div><div><b>${fmtDur(t.rest)}</b><span>${T('récup', 'recovery')}</span></div></div>`;
     };
     root.addEventListener('input', upd); upd();
   };
@@ -2072,7 +2179,7 @@ function enter(user) {
   try { localStorage.setItem('globule:has-account', '1'); } catch { /* stockage bloqué */ }
   if (location.hash) history.replaceState(null, '', SITE_URL);
   state.user = user; state.name = (user.user_metadata && user.user_metadata.name) || '';
-  loadGz(user); loadProto(user); loadSports(user.user_metadata); loadTemplates(user.user_metadata && user.user_metadata.templates);
+  loadGz(user); loadGzOn(user.user_metadata); loadProto(user); loadSports(user.user_metadata); loadTemplates(user.user_metadata && user.user_metadata.templates);
   start();
 }
 
@@ -2084,6 +2191,12 @@ document.addEventListener('click', async e => {
   const act = el.dataset.act, id = el.dataset.id, root = $('.sheet:not(.leaving)');
   switch (act) {
     case 'close': closeSheet(); break;
+    case 'settings': settingsSheet(); break;
+    case 'set-gzon': { const v = el.dataset.val === '1'; if (v !== GZ_ON()) { await saveGzOn(v); render(); settingsSheet(); toast(v ? T('Golden Zone activée', 'Golden Zone on') : T('Golden Zone masquée', 'Golden Zone hidden'), true); } break; }
+    case 'zones-toggle': state.zonesOpen = !state.zonesOpen; try { localStorage.setItem('globule:zones-open', state.zonesOpen ? '1' : '0'); } catch (e) {} render(); break;
+    case 'j-range': if (J_RANGES.hasOwnProperty(el.dataset.val)) { state.jRange = el.dataset.val; try { localStorage.setItem('globule:jrange', state.jRange); } catch (e) {} render(); } break;
+    case 'info': { const t = document.getElementById(el.dataset.for); if (t) { t.hidden = !t.hidden; el.setAttribute('aria-expanded', String(!t.hidden)); } break; }
+    case 'ramp-pick': { const sel = $('#ramp-start'); if (sel) rampDownload(+sel.value, el.dataset.fmt); break; }
     case 'set-lang': setLang(el.dataset.val); break;
     case 'share-app': shareApp(); break;
     case 'a2hs': a2hsTuto(); break;
@@ -2207,6 +2320,16 @@ function loadProto(u) {
   const pick = (p, k) => (validProto(p, k) ? { start: num(p.start), step: num(p.step), n: num(p.n) } : null);
   state.protos = { bike: pick(m.proto, 'bike'), run: pick(m.protoRun, 'run') };
 }
+function loadGzOn(meta) {
+  let v = meta && typeof meta.gzOn === 'boolean' ? meta.gzOn : null;
+  if (v == null) { try { const l = localStorage.getItem('globule:gzon'); if (l != null) v = l === '1'; } catch (e) { /* défaut */ } }
+  state.gzOn = v == null ? true : v;
+}
+async function saveGzOn(v) {
+  state.gzOn = v;
+  try { localStorage.setItem('globule:gzon', v ? '1' : '0'); } catch (e) { /* gardé en mémoire */ }
+  if (!DEMO && state.user) { const { error } = await sb.auth.updateUser({ data: { gzOn: v } }); if (error) toast(T('Pas enregistré : ', 'Not saved: ') + error.message); }
+}
 function loadGz(u) { const g = u && u.user_metadata && u.user_metadata.gz3; state.gz = validGz(g) ? { lo: num(g.lo), hi: num(g.hi) } : { ...GZ_DEFAULT }; }
 async function boot() {
   if (DEMO) {
@@ -2216,6 +2339,7 @@ async function boot() {
     try { const pr = JSON.parse(localStorage.getItem('globule:proto') || 'null'); if (validProto(pr, 'bike')) state.protos.bike = pr; } catch { /* protocole déduit */ }
     try { const pr = JSON.parse(localStorage.getItem('globule:proto-run') || 'null'); if (validProto(pr, 'run')) state.protos.run = pr; } catch { /* protocole déduit */ }
     try { loadSports({ sports: JSON.parse(localStorage.getItem('globule:sports') || 'null') }); } catch { loadSports(null); }
+    loadGzOn(null);
     try { loadTemplates(JSON.parse(localStorage.getItem('globule:templates') || '[]')); } catch { /* pas de modèles perso */ }
     return start();
   }
