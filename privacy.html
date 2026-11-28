@@ -27,6 +27,16 @@ a{ color:var(--violet); font-weight:600; }
 section[lang]{ display:none; } section[lang].show{ display:block; }
 ul{ padding-left:20px; } li{ margin-bottom:6px; }
 .muted{ color:var(--muted); font-size:14px; }
+@media (max-width:600px){
+  .card{ padding:16px 14px; border-radius:18px; }
+  h1{ font-size:26px; overflow-wrap:anywhere; }
+  table, tbody, tr, td{ display:block; width:100%; }
+  tr:first-child{ display:none; }
+  tr{ padding:8px 0; border-bottom:2px dashed rgba(42,10,74,.2); }
+  td{ border:0; padding:2px 0; overflow-wrap:anywhere; }
+  td:first-child{ font-weight:700; }
+}
+a{ overflow-wrap:anywhere; }
 </style>
 </head>
 <body>
@@ -57,7 +67,7 @@ ul{ padding-left:20px; } li{ margin-bottom:6px; }
 
     <h2>3. Pourquoi et sur quelle base</h2>
     <ul>
-      <li><b>Fournir le service</b> : enregistrer tes tests et séances, calculer LT1, LT2, tes zones et ta Golden Zone, afficher ton journal, produire tes exports (CSV, fichiers Rouvy et Zwift). Base : exécution du contrat d'utilisation (RGPD art. 6 al. 1 let. b).</li>
+      <li><b>Fournir le service</b> : enregistrer tes tests et séances, calculer LT1, LT2, tes zones et ta Golden Zone, afficher ton journal, produire tes exports (fichiers Rouvy et Zwift). Base : exécution du contrat d'utilisation (RGPD art. 6 al. 1 let. b).</li>
       <li><b>Traiter tes données de santé</b> : uniquement avec ton <b>consentement explicite</b>, donné en cochant la case à l'inscription (nLPD art. 6 al. 7 ; RGPD art. 9 al. 2 let. a). Tu peux le retirer à tout moment en supprimant ton compte.</li>
       <li><b>Partager ton labo avec ton entraîneur</b> : seulement si tu lui envoies un code d'invitation. Base : ton consentement, que tu retires avec le bouton « Retirer ».</li>
       <li><b>Envoyer les e-mails de compte</b> (confirmation, mot de passe oublié). Base : exécution du contrat.</li>
@@ -83,7 +93,7 @@ ul{ padding-left:20px; } li{ margin-bottom:6px; }
 
     <h2>7. Tes droits</h2>
     <ul>
-      <li><b>Accès et portabilité</b> : Réglages ⚙, « Exporter toutes mes données (CSV) ».</li>
+      <li><b>Accès et portabilité</b> : écris à <a href="mailto:globule@vortexrace.ch">globule@vortexrace.ch</a>, je t'envoie toutes tes données dans un fichier lisible (CSV).</li>
       <li><b>Rectification</b> : modifie ou supprime n'importe quel test ou séance dans l'app.</li>
       <li><b>Effacement et retrait du consentement</b> : Réglages ⚙, « Supprimer mon compte et mes données ».</li>
       <li><b>Retirer l'accès d'un entraîneur</b> : Réglages ⚙, « Mon entraîneur », « Retirer ».</li>
@@ -124,7 +134,7 @@ ul{ padding-left:20px; } li{ margin-bottom:6px; }
 
     <h2>3. Why, and on what legal basis</h2>
     <ul>
-      <li><b>Providing the service</b>: storing your tests and sessions, computing LT1, LT2, your zones and Golden Zone, showing your log, producing your exports (CSV, Rouvy and Zwift files). Basis: performance of the user agreement (GDPR art. 6(1)(b)).</li>
+      <li><b>Providing the service</b>: storing your tests and sessions, computing LT1, LT2, your zones and Golden Zone, showing your log, producing your exports (Rouvy and Zwift files). Basis: performance of the user agreement (GDPR art. 6(1)(b)).</li>
       <li><b>Processing your health data</b>: only with your <b>explicit consent</b>, given by ticking the box when you sign up (FADP art. 6(7); GDPR art. 9(2)(a)). You can withdraw it at any time by deleting your account.</li>
       <li><b>Sharing your lab with your coach</b>: only if you send them an invitation code. Basis: your consent, which you withdraw with the “Remove” button.</li>
       <li><b>Sending account e-mails</b> (confirmation, forgotten password). Basis: performance of the agreement.</li>
@@ -150,7 +160,7 @@ ul{ padding-left:20px; } li{ margin-bottom:6px; }
 
     <h2>7. Your rights</h2>
     <ul>
-      <li><b>Access and portability</b>: Settings ⚙, “Export all my data (CSV)”.</li>
+      <li><b>Access and portability</b>: write to <a href="mailto:globule@vortexrace.ch">globule@vortexrace.ch</a> and I'll send you all your data in a readable file (CSV).</li>
       <li><b>Rectification</b>: edit or delete any test or session in the app.</li>
       <li><b>Erasure and withdrawal of consent</b>: Settings ⚙, “Delete my account and data”.</li>
       <li><b>Removing a coach's access</b>: Settings ⚙, “My coach”, “Remove”.</li>

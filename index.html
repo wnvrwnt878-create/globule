@@ -295,7 +295,26 @@ input.inp[type="date"]::-webkit-date-and-time-value{ text-align:left; }
 .thermo-btn:active .thermo{ transform:scale(.99); }
 .zvals{ display:flex; margin-top:6px; font-size:12px; font-weight:700; font-variant-numeric:tabular-nums; }
 .zvals span{ text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding:0 1px; }
-.zvals.hr{ margin-top:2px; font-weight:500; color:var(--muted); font-size:11px; }
+.zvals.hr{ margin-top:6px; font-weight:500; color:var(--muted); font-size:11px; }
+.zvals.hr + .zvals{ margin-top:2px; }
+.switch-row{ display:flex; align-items:center; justify-content:space-between; gap:12px; width:100%; padding:10px 14px; border:2.5px solid var(--line); border-radius:16px; background:var(--surface-2); font:inherit; font-weight:700; color:var(--text); cursor:pointer; min-height:52px; margin:0 0 8px; text-align:left; }
+.switch-row:active{ transform:scale(.97); }
+.switch-row .sw{ position:relative; flex:none; width:52px; height:30px; border-radius:999px; border:2.5px solid var(--line); background:var(--surface); transition:background .2s ease-out; }
+.switch-row .sw::after{ content:''; position:absolute; top:2px; left:2px; width:21px; height:21px; border-radius:50%; background:var(--line); transition:transform .2s ease-out, background .2s ease-out; }
+.switch-row[aria-checked="true"] .sw{ background:var(--violet); }
+.switch-row[aria-checked="true"] .sw::after{ transform:translateX(22px); background:#fff; }
+.switch-row .sw-lang{ width:80px; display:flex; align-items:center; background:var(--surface) !important; }
+.switch-row .sw-lang b{ position:relative; z-index:1; flex:1; text-align:center; font-size:12px; font-style:normal; transition:color .2s ease-out; }
+.switch-row .sw-lang::after{ width:36px; height:21px; border-radius:999px; background:var(--violet) !important; }
+.switch-row[aria-checked="true"] .sw-lang::after{ transform:translateX(38px); }
+.switch-row[aria-checked="false"] .sw-lang b:first-child, .switch-row[aria-checked="true"] .sw-lang b:last-child{ color:#fff; }
+.sport-btn{ display:flex; justify-content:space-between; align-items:center; }
+.scrub{ position:relative; }
+.scrub svg{ touch-action:pan-y; -webkit-user-select:none; user-select:none; }
+.bubble-tip{ position:absolute; z-index:6; pointer-events:none; background:var(--line); color:#fff; font-size:13px; font-weight:700; line-height:1.3; padding:7px 11px; border-radius:12px; white-space:nowrap; box-shadow:3px 3px 0 rgba(42,10,74,.25); }
+.chart .hit.on{ fill:rgba(255,255,255,.35); stroke:#2A0A4A; stroke-width:3; }
+.coach-news{ display:flex; align-items:center; gap:10px; width:100%; margin:8px 0 0; padding:10px 12px; border:2.5px solid var(--line); border-radius:14px; background:#FFE45C; color:#2A0A4A; font:inherit; font-weight:700; text-align:left; cursor:pointer; }
+.coach-news small{ display:block; font-weight:500; font-size:12px; }
 .zunit{ display:flex; justify-content:space-between; gap:8px; font-size:12px; color:var(--muted); margin-top:4px; }
 .zmore{ font-weight:700; color:var(--violet); }
 .zone-detail{ margin-top:6px; }
@@ -649,7 +668,7 @@ async function viewAthlete(id) {
     const pf = pr || {};
     const gzp = pf.gz || {}, isNew = gzp && (gzp.mode || gzp.fixed || gzp.off);
     const meta = { name: pf.name || l.athlete_name || '', gz3: isNew ? gzp.fixed : pf.gz, gzMode: isNew ? gzp.mode : 'lt2', gzOff: isNew ? gzp.off : null, gzOn: pf.gz_on, proto: pf.protos && pf.protos.bike, protoRun: pf.protos && pf.protos.run, sports: pf.sports, templates: pf.templates };
-    state.viewAs = id; state.viewName = meta.name || T('ton athlète', 'your athlete');
+    state.viewAs = id; state.viewName = meta.name || T('ton athlète', 'your athlete'); markSeen(id);
     state.name = meta.name;
     loadGz({ user_metadata: meta }); loadGzOn(meta); loadProto({ user_metadata: meta }); loadSports(meta); loadTemplates(meta.templates);
     if (!state.sports) state.sports = ['bike', 'run'];
@@ -664,8 +683,38 @@ function coachBar() {
   const opt = (v, l) => `<option value="${esc(v)}"${(state.viewAs || uidMe()) === v ? ' selected' : ''}>${esc(l)}</option>`;
   return `<div class="coach-bar"><label class="field"><span>${T('Profil affiché', 'Profile shown')}</span><select class="inp athlete-pick" aria-label="${T('Profil affiché', 'Profile shown')}">
     ${opt(uidMe(), T('Moi', 'Me'))}${myAthletes().map(l => opt(l.athlete_id, l.athlete_name || T('Athlète', 'Athlete'))).join('')}</select></label>
-    ${state.viewAs ? `<p class="viewing">${T(`Lecture seule : tu regardes le labo de <b>${esc(state.viewName)}</b>.`, `Read only: you are looking at <b>${esc(state.viewName)}</b>'s lab.`)}</p>` : ''}</div>`;
+    ${state.viewAs ? `<p class="viewing">${T(`Lecture seule : tu regardes le labo de <b>${esc(state.viewName)}</b>.`, `Read only: you are looking at <b>${esc(state.viewName)}</b>'s lab.`)}</p>` : ''}
+    ${(state.news || []).map(x => `<button type="button" class="coach-news" data-act="see-news" data-id="${esc(x.a)}"><span aria-hidden="true">🧪</span><span>${T(`Nouveau test de ${esc(x.name)}`, `New test from ${esc(x.name)}`)}<small>${x.n > 1 ? T(`${x.n} tests depuis ta dernière visite`, `${x.n} tests since your last visit`) : T(`du ${fdate(x.date)}, touche pour voir`, `from ${fdate(x.date)}, tap to view`)}</small></span></button>`).join('')}</div>`;
 }
+// Codes déjà envoyés : on ne les montre plus, seulement « Annuler »
+const sentCodes = () => { try { return JSON.parse(localStorage.getItem('globule:sent-codes') || '[]'); } catch (e) { return []; } };
+const markSent = c => { try { localStorage.setItem('globule:sent-codes', JSON.stringify([...new Set([...sentCodes(), c])].slice(-20))); } catch (e) { /* stockage bloqué */ } };
+// Nouveaux tests de tes athlètes depuis ta dernière visite de leur labo
+const seenKey = a => `globule:seen:${uidMe()}:${a}`;
+async function checkAthleteNews() {
+  if (DEMO || !state.user || !myAthletes().length) { state.news = []; return; }
+  const ids = myAthletes().map(l => l.athlete_id);
+  const { data, error } = await sb.from('tests').select('id,user_id,date,created_at').in('user_id', ids).order('created_at', { ascending: false }).limit(50);
+  if (error || !data) return;
+  const now = new Date().toISOString(), news = [];
+  ids.forEach(a => {
+    let seen = null; try { seen = localStorage.getItem(seenKey(a)); } catch (e) { /* stockage bloqué */ }
+    if (!seen) { try { localStorage.setItem(seenKey(a), now); } catch (e) { /* stockage bloqué */ } return; }
+    const fresh = data.filter(t => t.user_id === a && Date.parse(t.created_at) > Date.parse(seen));
+    if (fresh.length) { const l = myAthletes().find(x => x.athlete_id === a); news.push({ a, name: (l && l.athlete_name) || T('Ton athlète', 'Your athlete'), n: fresh.length, date: fresh[0].date }); }
+  });
+  const before = (state.news || []).map(x => x.a + x.n).join();
+  state.news = news;
+  if (news.map(x => x.a + x.n).join() !== before) {
+    if (news.length && !state.viewAs) toast(T(`Nouveau test de ${news[0].name} !`, `New test from ${news[0].name}!`), true);
+    if (state.user && !sheetEl) render();
+  }
+}
+function markSeen(a) {
+  try { localStorage.setItem(seenKey(a), new Date().toISOString()); } catch (e) { /* stockage bloqué */ }
+  state.news = (state.news || []).filter(x => x.a !== a);
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && state.user) checkAthleteNews(); });
 const genCode = () => Array.from(crypto.getRandomValues(new Uint8Array(6)), b => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[b % 32]).join('');
 function coachSection() {
   if (DEMO) return `<p class="hand" style="margin:0 0 6px">${T('Entraîneur', 'Coach')}</p><p class="muted" style="font-size:13px;margin:0 0 14px">${T('Le mode entraîneur marche avec un vrai compte, pas en démo.', 'Coach mode works with a real account, not in the demo.')}</p>`;
@@ -674,8 +723,10 @@ function coachSection() {
   return `<p class="hand" style="margin:0 0 6px">${T('Mon entraîneur', 'My coach')}</p>
     <p class="muted" style="font-size:13px;margin:0 0 8px">${T('Ton entraîneur pourra lire tes tests, tes séances et tes zones, sans rien modifier. Tu peux retirer l\'accès quand tu veux.', 'Your coach can read your tests, sessions and zones, without changing anything. You can remove access any time.')}</p>
     ${myCoaches().map(l => row(l, l.coach_name, T('lit ton labo', 'reads your lab'))).join('')}
-    ${myCodes().map(l => `<div class="link-row"><span><b class="code">${esc(l.code)}</b><small>${T('code à donner à ton entraîneur, valable 7 jours', 'code for your coach, valid 7 days')}</small></span><button type="button" class="btn" data-act="share-code" data-code="${esc(l.code)}">${T('Envoyer', 'Send')}</button><button type="button" class="btn ghost" data-act="unlink" data-id="${esc(l.id)}">×</button></div>`).join('')}
-    <button class="btn block" data-act="invite-coach">${T('Inviter mon entraîneur', 'Invite my coach')}</button>
+    ${myCodes().map(l => sentCodes().includes(l.code)
+      ? `<div class="link-row"><span><b>${T('Invitation envoyée', 'Invite sent')}</b><small>${T('en attente que ton entraîneur entre le code', 'waiting for your coach to enter the code')}</small></span><button type="button" class="btn ghost" data-act="unlink" data-id="${esc(l.id)}">${T('Annuler', 'Cancel')}</button></div>`
+      : `<div class="link-row"><span><b class="code">${esc(l.code)}</b><small>${T('code à donner à ton entraîneur, valable 7 jours', 'code for your coach, valid 7 days')}</small></span><button type="button" class="btn" data-act="share-code" data-code="${esc(l.code)}">${T('Envoyer', 'Send')}</button><button type="button" class="btn ghost" data-act="unlink" data-id="${esc(l.id)}">×</button></div>`).join('')}
+    ${myCodes().length ? '' : `<button class="btn block" data-act="invite-coach">${T('Inviter mon entraîneur', 'Invite my coach')}</button>`}
     <div style="height:14px"></div>
     <p class="hand" style="margin:0 0 6px">${T('Je suis entraîneur', "I'm a coach")}</p>
     ${myAthletes().map(l => row(l, l.athlete_name, T('athlète que tu suis', 'athlete you follow'))).join('')}
@@ -716,14 +767,14 @@ async function saveSports(list) {
   applySport(); return true;
 }
 const sportToggles = sel => `<div class="sport-pick" role="group" aria-label="${T('Mes sports', 'My sports')}">${Object.values(SPORTS).map(S =>
-  `<button type="button" class="btn ${sel.includes(S.key) ? 'violet' : ''}" data-act="toggle-sport" data-val="${S.key}" aria-pressed="${sel.includes(S.key)}">${S.key === 'bike' ? '🚴' : '🏃'} ${S.label}<small>${S.u === 'W' ? T('tests en watts', 'tests in watts') : T('tests en km/h', 'tests in km/h')}</small></button>`).join('')}</div>`;
+  `<button type="button" class="btn ${sel.includes(S.key) ? 'violet' : ''}" data-act="toggle-sport" data-val="${S.key}" aria-pressed="${sel.includes(S.key)}">${S.key === 'bike' ? '🚴' : '🏃'} ${S.label}</button>`).join('')}</div>`;
 function profileSheet(first) {
   const sel = state.sports ? [...state.sports] : [];
-  openSheet(first ? T('Ton profil', 'Your profile') : T('Mes sports', 'My sports'), `
-    <p class="hand" style="margin:0 0 10px">${first ? T('Nouvelle recrue au labo ! Vélo, course, ou les deux ? J\'adapte tes tests : watts sur le vélo, km/h en course.', 'New recruit in the lab! Bike, run, or both? I\'ll adapt your tests: watts on the bike, km/h for running.') : T('Coche un sport ou les deux. Chaque sport a sa paillasse : ses propres tests, zones et séances.', 'Pick one sport or both. Each sport gets its own lab bench: its own tests, zones and sessions.')}</p>
+  openSheet(first ? T('Ton profil', 'Your profile') : T('Sport', 'Sport'), `
+    ${first ? `<p class="hand" style="margin:0 0 10px">${T('Nouvelle recrue au labo ! Vélo, course, ou les deux ?', 'New recruit in the lab! Bike, run, or both?')}</p>` : ''}
     ${sportToggles(sel)}
     <p class="err" role="alert"></p>
-    <button class="btn rose block" data-act="save-sports">${T('C\'est mon profil', 'That\'s me')}</button>`, root => { root.dataset.sel = JSON.stringify(sel); });
+    <button class="btn rose block" data-act="save-sports">${first ? T('C\'est mon profil', 'That\'s me') : T('Enregistrer', 'Save')}</button>`, root => { root.dataset.sel = JSON.stringify(sel); });
 }
 
 function seedDemo() {
@@ -864,7 +915,7 @@ function crossW(steps, la) {
 // Le bas ne descend jamais sous le lactate de LT1 : la Golden Zone reste entre tes deux seuils.
 const GZ_OFF_DEFAULT = { lo: 60, hi: 80 };
 function gzRangeFor(a) {
-  if (state.gzMode === 'lt2' && a && a.lt2W != null) {
+  if (a && a.lt2W != null) {
     const la2 = laAt(a.steps, a.lt2W);
     if (la2 != null) {
       const la1 = a.lt1W != null ? laAt(a.steps, a.lt1W) : null;
@@ -933,13 +984,26 @@ const ZONES = [
   { n: 5, get name() { return T('VO2max', 'VO2max'); }, get what() { return T('Efforts courts et très durs.', 'Short, very hard efforts.'); }, get ref() { return T('6 à 10 mmol', '6 to 10 mmol'); } }
 ];
 const LA_I5 = 6;
+// Repères de lactate individuels : lactate à LT1, bas de la Golden Zone, lactate à LT2,
+// et début d'I5 à 1,5 fois le lactate de LT2 (6 mmol au minimum, comme Olympiatoppen pour un LT2 vers 4 mmol)
+function zoneLa(Z) {
+  const curve = Z.s2 || Z.s;
+  if (!curve) return null;
+  const la1 = Z.lt1 != null ? laAt(curve.steps, Z.lt1) : null;
+  const la2 = Z.lt2 != null ? laAt(curve.steps, Z.lt2) : null;
+  const r = gzRangeFor(Z.s2);
+  return { la1, lo: r.lo, la2, la5: la2 != null ? Math.max(LA_I5, la2 * 1.5) : LA_I5 };
+}
 function zoneBounds(Z) {
-  const curve = Z.s2 || Z.s, G = goldenZone(Z);
-  const gzLo = G.wLo != null ? G.wLo : curve ? crossW(curve.steps, 2.5) : null;
-  let w6 = curve ? crossW(curve.steps, LA_I5) : null;
-  if (w6 != null && Z.lt2 != null && w6 <= Z.lt2) w6 = null;
+  const curve = Z.s2 || Z.s, G = goldenZone(Z), L = zoneLa(Z) || { la1: null, lo: 2.5, la2: null, la5: LA_I5 };
+  let gzLo = G.wLo != null ? G.wLo : curve ? crossW(curve.steps, L.lo) : null;
+  if (gzLo != null && ((Z.lt1 != null && gzLo < Z.lt1) || (Z.lt2 != null && gzLo >= Z.lt2))) gzLo = null;
+  // Courbe irrégulière : la frontière I2/I3 reste entre les deux seuils
+  if (gzLo == null && Z.lt1 != null && Z.lt2 != null && Z.lt2 > Z.lt1) gzLo = Z.lt1 + (Z.lt2 - Z.lt1) / 2;
+  let w5 = curve ? crossW(curve.steps, L.la5) : null;
+  if (w5 != null && Z.lt2 != null && w5 <= Z.lt2) w5 = null;
   const hr = w => (curve && w != null ? interpHr(curve.steps, w) : null);
-  return { b: [Z.lt1, gzLo, Z.lt2, w6], hr: [Z.lt1Hr, hr(gzLo), Z.lt2Hr, hr(w6)], G };
+  return { b: [Z.lt1, gzLo, Z.lt2, w5], hr: [Z.lt1Hr, hr(gzLo), Z.lt2Hr, hr(w5)], G, L };
 }
 function zoneOf(w, Z) {
   if (w == null || !Z || (Z.lt1 == null && Z.lt2 == null)) return null;
@@ -998,7 +1062,7 @@ function applyMascot() {
   if (!svg) return;
   const ev = state.mascotEvent; state.mascotEvent = null;
   setMascot(svg, ev || mascotMood());
-  if (ev && window.scrollY > 120) window.scrollTo({ top: 0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+  if (ev && !sheetEl && window.scrollY > 120) window.scrollTo({ top: 0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
   setMascotLactate(svg, lastLactate());
 }
 function bestMarks() {
@@ -1019,7 +1083,7 @@ function niceTicks(min, max, count = 5) {
   return { lo, hi, ticks };
 }
 // series : [{ pts:[{x,y,attrs}], color, dash, right, dots, line }]
-function chartSVG({ series, xRange, yRange, y2Range, xFmt = v => fmt(v), yFmt = v => fmt(v, 1), y2Fmt = v => fmt(v), xTitle = '', yTitle = '', y2Title = '', h = 220, vlines = [], hbands = [], timeX = false, extra = '' }) {
+function chartSVG({ series, xRange, yRange, y2Range, xFmt = v => fmt(v), yFmt = v => fmt(v, 1), y2Fmt = v => fmt(v), xTitle = '', yTitle = '', y2Title = '', h = 220, vlines = [], hbands = [], timeX = false, extra = '', scrub = false }) {
   const W = 340, P = { l: 38, r: y2Range ? 38 : 12, t: 18, b: 34 };
   const X = timeX ? { lo: xRange[0], hi: xRange[1], ticks: [] } : niceTicks(xRange[0], xRange[1], 5);
   if (timeX) { const k = 4; for (let i = 0; i < k; i++) X.ticks.push(X.lo + (X.hi - X.lo) * i / (k - 1)); }
@@ -1059,7 +1123,8 @@ function chartSVG({ series, xRange, yRange, y2Range, xFmt = v => fmt(v), yFmt = 
       if (p.act) g += `<circle class="hit" cx="${sx(p.x).toFixed(1)}" cy="${f(p.y).toFixed(1)}" r="16" fill="transparent" data-act="${p.act}" data-id="${esc(p.id)}" role="button" tabindex="0" aria-label="${esc(p.label || T('Ouvrir', 'Open'))}"><title>${esc(p.label || '')}</title></circle>`;
     });
   });
-  return `<svg class="chart" viewBox="0 0 ${W} ${h}" role="img">${g}${extra ? extra(sx, sy) : ''}</svg>`;
+  const svg = `<svg class="chart" viewBox="0 0 ${W} ${h}" role="img">${g}${extra ? extra(sx, sy) : ''}</svg>`;
+  return scrub ? `<div class="scrub">${svg}<div class="bubble-tip" hidden></div></div>` : svg;
 }
 const TEST_COLORS = ['#FF2D8E', '#6A2BF0', '#13B98A', '#F2A100', '#3AA0FF', '#B03AC9'];
 
@@ -1078,7 +1143,7 @@ function setLang(l) {
   state.lang = l; document.documentElement.lang = l;
   try { localStorage.setItem('globule:lang', l); } catch (e) { /* préférence non gardée */ }
   const inSettings = !!($('.sheet:not(.leaving)') && $('.sheet:not(.leaving)').dataset.settings);
-  if (state.user || DEMO) { if (sheetEl) closeSheet(); render(); if (inSettings) settingsSheet(); } else renderLogin();
+  if (state.user || DEMO) { if (sheetEl && !inSettings) closeSheet(); render(); if (inSettings) settingsSheet(true); } else renderLogin();
 }
 async function shareApp() {
   const data = { title: 'Globule', text: T('Globule, le labo lactate : tests paliers et zones d\'entraînement.', 'Globule, the lactate lab: step tests and training zones.'), url: SITE_URL };
@@ -1233,7 +1298,9 @@ function hero(text, size = 140) {
 }
 function render() {
   const v = { home: viewHome, journal: viewJournal, globule: viewGlobule }[state.tab] || viewHome;
+  const keep = $$('#app details[open][data-key]').map(d => d.dataset.key);
   app().innerHTML = header() + v();
+  keep.forEach(k => { const d = $(`#app details[data-key="${k}"]`); if (d) d.open = true; });
   $$('.tab').forEach(b => b.setAttribute('aria-current', b.dataset.tab === state.tab ? 'page' : 'false'));
   applyMascot();
   const TAB = { home: 'Zones', journal: T('Journal', 'Log'), globule: 'Globule' };
@@ -1250,8 +1317,17 @@ function zonesPanel(Z) {
     return `<section class="panel empty"><p class="hand">${T('Pas encore de zones. Un test paliers jusqu\'à 5 mmol et mes instruments trouvent tes deux seuils d\'un coup.', "No zones yet. One step test up to 5 mmol and my instruments find both your thresholds at once.")}</p>
       <button class="btn rose" data-act="new-steps">${T('Saisir un test paliers', 'Log a step test')}</button></section>`;
   }
-  const { b, hr, G } = zoneBounds(Z);
+  const { b, hr, G, L } = zoneBounds(Z);
   const W = v => fxu(v);
+  // Ton repère en mmol pour chaque zone, lu sur ta courbe
+  const m = v => fmt(v, 1);
+  const laRef = i => {
+    if (!L) return null;
+    const lims = [L.la1, L.lo, L.la2, L.la5], lo = i > 0 ? lims[i - 1] : null, hi = i < 4 ? lims[i] : null;
+    if (i === 0) return hi != null ? `&lt; ${m(hi)} mmol` : null;
+    if (i === 4) return lo != null ? `&gt; ${m(lo)} mmol` : null;
+    return lo != null && hi != null && hi > lo ? T(`${m(lo)} à ${m(hi)} mmol`, `${m(lo)} to ${m(hi)} mmol`) : null;
+  };
   const HR = v => (v != null ? fmt(v) : null);
   // Valeur courte sous chaque zone : watts en vélo, allure en course à pied
   const short = i => {
@@ -1274,7 +1350,7 @@ function zonesPanel(Z) {
     const pc = (a, b) => (isRun() ? (a != null && b != null ? paceRange(a, b) : a != null ? `${paceRaw(a)} /km` : '') : '');
     const j = (...x) => x.filter(Boolean).join('<br>');
     if (i === 0) return { w: `&lt; ${W(hi)}`, h: j(isRun() && hi != null ? `&gt; ${paceRaw(hi)} /km` : '', HR(hr[0]) ? `${T('FC', 'HR')} &lt; ${HR(hr[0])}` : '') };
-    if (i === 4) return hi == null && lo == null ? { w: T('n.d.', 'n/a'), h: T('test arrêté sous 6 mmol', 'test stopped below 6 mmol') } : { w: `&gt; ${W(lo)}`, h: j(isRun() ? `&lt; ${pc(lo)}` : '', HR(hr[3]) ? `${T('FC', 'HR')} &gt; ${HR(hr[3])}` : '') };
+    if (i === 4) return hi == null && lo == null ? { w: T('n.d.', 'n/a'), h: T(`test arrêté sous ${fmt(L ? L.la5 : LA_I5, 1)} mmol`, `test stopped below ${fmt(L ? L.la5 : LA_I5, 1)} mmol`) } : { w: `&gt; ${W(lo)}`, h: j(isRun() ? `&lt; ${pc(lo)}` : '', HR(hr[3]) ? `${T('FC', 'HR')} &gt; ${HR(hr[3])}` : '') };
     if (i === 3 && hi == null) return { w: `&gt; ${W(lo)}`, h: j(isRun() ? `&lt; ${pc(lo)}` : '', HR(hr[2]) ? `${T('FC', 'HR')} &gt; ${HR(hr[2])}` : '') };
     return { w: T(`${fx(lo)} à ${W(hi)}`, `${fx(lo)} to ${W(hi)}`), h: j(pc(lo, hi), HR(hr[i - 1]) && HR(hr[i]) ? T(`FC ${HR(hr[i - 1])} à ${HR(hr[i])}`, `HR ${HR(hr[i - 1])} to ${HR(hr[i])}`) : '') };
   };
@@ -1291,19 +1367,19 @@ function zonesPanel(Z) {
     <h3>${T('Tes 5 zones', 'Your 5 zones')}</h3>
     <button type="button" class="thermo-btn" data-act="zones-toggle" aria-expanded="${open}" aria-label="${T('Afficher le détail des zones', 'Show zone details')}">
       <div class="thermo">${ZONES.map((z, i) => `<div class="zi" style="width:${ZW[i]}%;background:${ZCOL[z.n]}"><span>I${z.n}</span></div>`).join('')}${gzThermo(Z)}</div>
+      ${hr.some(v => v != null) ? `<div class="zvals hr">${ZONES.map((z, i) => `<span style="width:${ZW[i]}%">${shortHr(i)}</span>`).join('')}</div>` : ''}
       <div class="zvals">${ZONES.map((z, i) => `<span style="width:${ZW[i]}%">${short(i)}</span>`).join('')}</div>
-      <div class="zvals hr">${ZONES.map((z, i) => `<span style="width:${ZW[i]}%">${shortHr(i)}</span>`).join('')}</div>
-      <span class="zunit">${unit}${hr.some(v => v != null) ? T(' · FC en bpm', ' · HR in bpm') : ''}<span class="zmore">${open ? T('Masquer le détail', 'Hide details') : T('Toucher pour le détail', 'Tap for details')} ${open ? '▲' : '▼'}</span></span>
+      <span class="zunit">${hr.some(v => v != null) ? T('FC en bpm · ', 'HR in bpm · ') : ''}${unit}<span class="zmore">${open ? T('Masquer le détail', 'Hide details') : T('Toucher pour le détail', 'Tap for details')} ${open ? '▲' : '▼'}</span></span>
     </button>
     ${gzLeg}
     <div class="zone-detail"${open ? '' : ' hidden'}>
       <div class="marks" aria-hidden="true">
-        ${['LT1', GZ_ON() ? 'GZ' : '2,5 mmol', 'LT2', '6 mmol'].map((l, i) => `<div class="mark" style="left:${ZX[i]}%"><b>${b[i] != null ? fx(b[i]) : '?'}</b><span>${l}</span></div>`).join('')}
+        ${['LT1', GZ_ON() ? 'GZ' : `${fmt(L ? L.lo : 2.5, 1)} mmol`, 'LT2', `${fmt(L ? L.la5 : LA_I5, 1)} mmol`].map((l, i) => `<div class="mark" style="left:${ZX[i]}%"><b>${b[i] != null ? fx(b[i]) : '?'}</b><span>${l}</span></div>`).join('')}
       </div>
       <div class="zone-rows">
-        ${ZONES.map((z, i) => { const r = range(i); return `<div class="zrow"><span class="zdot" style="background:${ZCOL[z.n]}">I${z.n}</span><span class="what"><strong>${z.name}</strong>${z.what}<span class="ref">${T('Repère : ', 'Reference: ')}${z.ref}</span></span><span class="val">${r.w}<small>${r.h}</small></span></div>`; }).join('')}
+        ${ZONES.map((z, i) => { const r = range(i); return `<div class="zrow"><span class="zdot" style="background:${ZCOL[z.n]}">I${z.n}</span><span class="what"><strong>${z.name}</strong>${z.what}<span class="ref">${laRef(i) ? T('Ton repère : ', 'Your reference: ') + laRef(i) : T('Repère : ', 'Reference: ') + z.ref}</span></span><span class="val">${r.w}<small>${r.h}</small></span></div>`; }).join('')}
       </div>
-      <p class="zones-note">${T(`Échelle d'intensité Olympiatoppen. Les mmol sont des repères généraux, tes ${SP().name === 'watts' ? 'watts' : 'vitesses'} et FC viennent de ton test.`, `Olympiatoppen intensity scale. The mmol values are general references, your ${SP().name === 'watts' ? 'watts' : 'speeds'} and HR come from your test.`)}</p>
+      <p class="zones-note">${T(`Échelle d'intensité Olympiatoppen, calée sur toi : tes mmol, tes ${SP().name === 'watts' ? 'watts' : 'vitesses'} et ta FC viennent de ta courbe.`, `Olympiatoppen intensity scale, set to you: your mmol, ${SP().name === 'watts' ? 'watts' : 'speeds'} and HR come from your curve.`)}</p>
     </div>
     <div class="extras">
       ${Z.sTest ? `<span class="chip">${T(`Test du ${fdate(Z.sTest.date)}`, `Test of ${fdate(Z.sTest.date)}`)}</span>` : ''}
@@ -1406,21 +1482,22 @@ function viewJournal() {
   if (withLa.length || state.sessions.some(s => num(s.lactate) != null)) {
     // L'axe va du début de la période choisie à aujourd'hui : il ne s'étire plus à l'infini
     let x0 = days ? since : withLa.length ? withLa[0].x : Date.now() - 7 * 864e5, x1 = Date.now(); if (x1 - x0 < 6 * 864e5) x0 = x1 - 7 * 864e5;
-    chart = `<section class="panel" style="margin-top:16px"><h3 class="hand" style="margin:0 0 6px">${T('Lactate à l\'entraînement', 'Lactate in training')}</h3>${rangeSeg}<p class="tap-hint" style="margin:6px 0 4px">${withLa.length ? T('Touche un point pour ouvrir la séance. Couleur : la zone de ton lactate, d\'après ton dernier test.', 'Tap a dot to open the session. Color: the zone of your lactate, from your latest test.') : T('Aucune séance avec lactate sur cette période.', 'No session with lactate in this period.')}</p>
-      ${chartSVG({ timeX: true, xRange: [x0, x1], yRange: [0, Math.max(4, gzTop() + .5, ...withLa.map(p => p.y))], xFmt: v => fdateShort(new Date(v).toISOString()), yTitle: 'mmol/L', h: 190,
+    chart = `<section class="panel" style="margin-top:16px"><h3 class="hand" style="margin:0 0 6px">${T('Lactate à l\'entraînement', 'Lactate in training')}</h3>${rangeSeg}<p class="tap-hint" style="margin:6px 0 4px">${withLa.length ? T('Glisse le doigt sur le graphique pour lire les valeurs, touche un point pour ouvrir la séance. Couleur : la zone de ton lactate.', 'Slide your finger along the chart to read values, tap a dot to open the session. Color: the zone of your lactate.') : T('Aucune séance avec lactate sur cette période.', 'No session with lactate in this period.')}</p>
+      ${chartSVG({ timeX: true, xRange: [x0, x1], yRange: [0, Math.max(4, gzTop() + .5, ...withLa.map(p => p.y))], xFmt: v => fdateShort(new Date(v).toISOString()), yTitle: 'mmol/L', h: 190, scrub: true,
         hbands: gzBands(), series: [{ pts: withLa.map(p => ({ act: 'edit-session', id: p.id, label: p.label, x: p.x, y: p.y, fill: p.gz ? GZ_COLOR : p.z ? ZHEX[p.z] : '#ffffff', r: p.gz ? 7.5 : 6 })), color: '#2A0A4A', line: false }] })}
       <div class="legend">${ZONES.map(z => `<span><i style="background:${ZCOL[z.n]}"></i>I${z.n}</span>`).join('')}${GZ_ON() ? '<span><i style="background:#FFC21A"></i>Golden Zone</span>' : ''}</div></section>`;
   }
   const steps = state.tests.filter(t => t.kind === 'steps');
   let trend = '';
-  const l1 = steps.map(t => ({ act: 'open-steps', id: t.id, label: T(`Test du ${fdate(t.date)}`, `Test of ${fdate(t.date)}`), x: Date.parse(t.date), y: analyzeSteps(t).lt1W })).filter(p => p.y != null).sort((a, b) => a.x - b.x);
-  const l2 = steps.map(t => ({ act: 'open-steps', id: t.id, label: T(`Test du ${fdate(t.date)}`, `Test of ${fdate(t.date)}`), x: Date.parse(t.date), y: analyzeSteps(t).lt2W })).filter(p => p.y != null).sort((a, b) => a.x - b.x);
-  const l3 = steps.map(t => ({ act: 'open-steps', id: t.id, label: T(`Rampe du ${fdate(t.date)}`, `Ramp of ${fdate(t.date)}`), x: Date.parse(t.date), y: rampMax(t.data && t.data.ramp) })).filter(p => p.y != null).sort((a, b) => a.x - b.x);
+  const lab = (t, k, v) => `${k} ${v != null ? fxu(v) : ''}, ${fdate(t.date)}`;
+  const l1 = steps.map(t => { const v = analyzeSteps(t).lt1W; return { act: 'open-steps', id: t.id, label: lab(t, 'LT1', v), x: Date.parse(t.date), y: v }; }).filter(p => p.y != null).sort((a, b) => a.x - b.x);
+  const l2 = steps.map(t => { const v = analyzeSteps(t).lt2W; return { act: 'open-steps', id: t.id, label: lab(t, 'LT2', v), x: Date.parse(t.date), y: v }; }).filter(p => p.y != null).sort((a, b) => a.x - b.x);
+  const l3 = steps.map(t => { const v = rampMax(t.data && t.data.ramp); return { act: 'open-steps', id: t.id, label: lab(t, T('Max rampe', 'Ramp max'), v), x: Date.parse(t.date), y: v }; }).filter(p => p.y != null).sort((a, b) => a.x - b.x);
   if (l1.length + l2.length >= 2) {
     const all = [...l1, ...l2, ...l3], xs = all.map(p => p.x), ys = all.map(p => p.y);
     let x0 = Math.min(...xs), x1 = Math.max(...xs); if (x0 === x1) { x0 -= 7 * 864e5; x1 += 7 * 864e5; }
-    trend = `<section class="panel" style="margin-top:14px"><h3 class="hand" style="margin:0 0 6px">${T('Tes seuils dans le temps', 'Your thresholds over time')}</h3><p class="tap-hint" style="margin:0 0 4px">${T('Touche un point pour ouvrir le test.', 'Tap a dot to open the test.')}</p>
-      ${chartSVG({ timeX: true, xRange: [x0, x1], yRange: [Math.min(...ys) - 10, Math.max(...ys) + 10], xFmt: v => fdateShort(new Date(v).toISOString()), yFmt: v => fx(v), yTitle: SP().u, h: 170,
+    trend = `<section class="panel" style="margin-top:14px"><h3 class="hand" style="margin:0 0 6px">${T('Tes seuils dans le temps', 'Your thresholds over time')}</h3><p class="tap-hint" style="margin:0 0 4px">${T('Glisse le doigt pour lire les valeurs, touche un point pour ouvrir le test.', 'Slide your finger to read values, tap a dot to open the test.')}</p>
+      ${chartSVG({ timeX: true, xRange: [x0, x1], yRange: [Math.min(...ys) - 10, Math.max(...ys) + 10], xFmt: v => fdateShort(new Date(v).toISOString()), yFmt: v => fx(v), yTitle: SP().u, h: 170, scrub: true,
         series: [{ pts: l1, color: '#13B98A', r: 5.5 }, { pts: l2, color: '#FF2D8E', r: 5.5 }, ...(l3.length ? [{ pts: l3, color: '#FC6719', r: 5.5 }] : [])] })}
       <div class="legend"><span><i style="background:#13B98A"></i>LT1</span><span><i style="background:#FF2D8E"></i>LT2</span>${l3.length ? `<span><i style="background:#FC6719"></i>${T('Max rampe', 'Ramp max')}</span>` : ''}</div></section>`;
   }
@@ -1440,7 +1517,7 @@ function viewGlobule() {
   return `<div class="page-head"><h2 class="title">${T('Le labo', 'The lab')}</h2><button type="button" class="icon-btn" data-act="settings" aria-label="${T('Réglages', 'Settings')}"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h0a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v0a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button></div>` + hero(T('Mon labo, c\'est ton doigt. Je compte tes mmol et je ne mens jamais. Enfin, à 0,3 près.', 'My lab is your finger. I count your mmol and I never lie. Well, give or take 0.3.'), 150) + `
   <h2 class="section-label">${T('Méthode', 'Method')}</h2>
   ${GZ_ON() ? `
-  <details class="panel proto golden-proto">
+  <details class="panel proto golden-proto" data-key="gz">
     <summary><span><span class="t">★ Golden Zone</span><span class="s">${T('Méthode norvégienne, le cœur du double seuil', 'Norwegian method, the heart of double threshold')}</span></span><span class="plus">+</span></summary>
     <p class="say">${T('Mon expérience préférée : juste sous ton 2e seuil (LT2). Jamais dessus.', "My favorite experiment: just below your 2nd threshold (LT2). Never above.")}</p>
     <ol>
@@ -1454,14 +1531,14 @@ function viewGlobule() {
     </ol>
     <p>${T(`${bk('Tes watts sont lus', 'Ta vitesse est lue')} sur ta dernière courbe de lactate, là où elle traverse chaque plage, et plafonnée à ton LT2.`, `${bk('Your watts are read', 'Your speed is read')} from your latest lactate curve, where it crosses each range, and capped at your LT2.`)}</p>
   </details>` : ''}
-  <details class="panel proto">
+  <details class="panel proto" data-key="steps">
     <summary><span><span class="t">${T(`Test paliers ${proto().dur} min + 30 s`, `Step test ${proto().dur} min + 30 s`)}</span><span class="s">${T('Le seul test : il donne LT1 et LT2', 'The only test: it gives LT1 and LT2')}</span></span><span class="plus">+</span></summary>
     <p class="say">${T('Le protocole de base du labo : un test, deux seuils, cinq zones.', "The lab's core protocol: one test, two thresholds, five zones.")}</p>
     <ol>
       <li>${T('Mêmes conditions à chaque test : même heure, même repas, rien d\'intense la veille. Glycogène bas = courbe faussement flatteuse.', 'Same conditions every test: same time, same meal, nothing hard the day before. Low glycogen = a falsely flattering curve.')}</li>
       <li>${T('Échauffement 10 à 15 min très facile. Lactate de repos si tu veux une référence.', 'Warm up 10 to 15 min very easy. Take a resting lactate if you want a baseline.')}</li>
-      ${isRun() ? `<li>${T('<b>Course à pied : vise 5 à 6 paliers, pas plus.</b> Le test devient long quand on part trop lentement. Pars à environ 70 % de ta vitesse moyenne sur 10 km (calcul dans les réglages) : le 2e palier tombe vers ton footing, et LT2 arrive vers le 4e ou 5e. Paliers de 4 min sur tapis à 1 %, +1 km/h, environ 35 min échauffement compris.', '<b>Running: aim for 5 to 6 steps, no more.</b> The test gets long when you start too slow. Start at about 70% of your average 10 km speed (calculator in settings): step 2 lands near your easy pace, and LT2 comes around step 4 or 5. 4 min steps on a treadmill at 1%, +1 km/h, about 35 min including the warm-up.')}</li>` : ''}
-      <li>${T(`Ton protocole fixe : départ ${fxu(proto().start)}, +${fxu(proto().step)} par palier de ${proto().dur} min, ${bk('cadence stable', 'tapis à 1 % de pente')}. Toujours le même, pour que les courbes se comparent. Réglable en bas de page.`, `Your fixed protocol: start at ${fxu(proto().start)}, +${fxu(proto().step)} per ${proto().dur} min step, ${bk('steady cadence', 'treadmill at 1% incline')}. Always the same, so your curves can be compared. You can change it at the bottom of the page.`)}</li>
+      ${isRun() ? `<li>${T('<b>Course à pied : vise 5 à 6 paliers, pas plus.</b> Le test devient long quand on part trop lentement. Pars à environ 70 % de ta vitesse moyenne sur 10 km (calcul dans « Mon protocole ») : le 2e palier tombe vers ton footing, et LT2 arrive vers le 4e ou 5e. Paliers de 4 min sur tapis à 1 %, +1 km/h, environ 35 min échauffement compris.', '<b>Running: aim for 5 to 6 steps, no more.</b> The test gets long when you start too slow. Start at about 70% of your average 10 km speed (calculator in “My protocol”): step 2 lands near your easy pace, and LT2 comes around step 4 or 5. 4 min steps on a treadmill at 1%, +1 km/h, about 35 min including the warm-up.')}</li>` : ''}
+      <li>${T(`Ton protocole fixe : départ ${fxu(proto().start)}, +${fxu(proto().step)} par palier de ${proto().dur} min, ${bk('cadence stable', 'tapis à 1 % de pente')}. Toujours le même, pour que les courbes se comparent. Réglable dans « Mon protocole », juste en dessous.`, `Your fixed protocol: start at ${fxu(proto().start)}, +${fxu(proto().step)} per ${proto().dur} min step, ${bk('steady cadence', 'treadmill at 1% incline')}. Always the same, so your curves can be compared. You can change it in “My protocol”, just below.`)}</li>
       <li>${T('Entre chaque palier, <b>30 s de pause</b> pour prélever le lactate (protocole recommandé par Marius Bakken), puis repars sur le palier suivant. Doigt sec, première goutte essuyée : la sueur contient du lactate.', 'Between steps, take a <b>30 s break</b> to sample lactate (the protocol Marius Bakken recommends), then start the next step. Dry finger, wipe the first drop: sweat contains lactate.')}</li>
       <li>${T('Note FC de fin de palier, lactate et RPE.', 'Log end-of-step HR, lactate and RPE.')} ${bk(T('Les watts sont déjà remplis.', 'Watts are already filled in.'), T('Les vitesses sont déjà remplies.', 'Speeds are already filled in.'))}</li>
       <li>${T('<b>Va jusqu\'à 5 mmol</b>, au moins 2 paliers après le premier saut. Sans ça, pas de LT2 fiable.', '<b>Go up to 5 mmol</b>, at least 2 steps past the first jump. Without that, no reliable LT2.')}</li>
@@ -1472,7 +1549,19 @@ function viewGlobule() {
     <p>${T('Tu peux toujours déplacer LT1 ou LT2 à la main en touchant la courbe.', 'You can always move LT1 or LT2 by hand by tapping the curve.')}</p>
     ${isRun() ? `<p class="muted" style="font-size:13px">${T('Sources du protocole course : Olympiatoppen (4 à 5 paliers de 5 min, +1 km/h, 30 s de pause), Jamnick et al. 2018 (avec des paliers de 4 min, la méthode Dmax modifiée est la plus proche de l\'état stable du lactate), étude sur la vitesse de départ (70 % de la vitesse de course). Garde toujours la même durée de palier : les seuils changent avec elle.', 'Running protocol sources: Olympiatoppen (4 to 5 steps of 5 min, +1 km/h, 30 s pause), Jamnick et al. 2018 (with 4 min steps, the modified Dmax method lands closest to maximal lactate steady state), a study on start speed (70% of race speed). Always keep the same step length: thresholds shift with it.')}</p>` : ''}
   </details>
-  ${isRun() ? '' : `<details class="panel proto">
+  <details class="panel proto" data-key="myproto">
+    <summary><span><span class="t">${T('Mon protocole', 'My protocol')}</span><span class="s">${T(`${fxu(proto().start)}, +${fxu(proto().step)}, ${proto().n} paliers de ${proto().dur} min`, `${fxu(proto().start)}, +${fxu(proto().step)}, ${proto().n} steps of ${proto().dur} min`)}</span></span><span class="plus">+</span></summary>
+    <p class="say">${T(`Ton protocole paliers ${SP().label.toLowerCase()}, toujours le même pour comparer tes courbes.`, `Your ${SP().label.toLowerCase()} step protocol, always the same so your curves compare.`)}</p>
+    <div class="grid3"><label class="field"><span>${T(`Départ (${SP().u})`, `Start (${SP().u})`)}</span><input class="inp" id="set-p-start" inputmode="${SP().im}" value="${inVal(proto().start)}"></label>
+    <label class="field"><span>${T(`+ par palier (${SP().u})`, `+ per step (${SP().u})`)}</span><input class="inp" id="set-p-step" inputmode="${SP().im}" value="${inVal(proto().step)}"></label>
+    <label class="field"><span>${T('Paliers max', 'Max steps')}</span><input class="inp" id="set-p-n" inputmode="numeric" value="${proto().n}"></label></div>
+    <label class="field"><span>${T('Durée d\'un palier (min)', 'Step length (min)')}</span><input class="inp" id="set-p-dur" inputmode="numeric" value="${proto().dur}"></label>
+    ${isRun() ? `<div class="run-calc"><label class="field"><span>${T('Ton dernier 10 km (mm:ss ou h:mm:ss)', 'Your latest 10 km (mm:ss or h:mm:ss)')}</span><input class="inp" id="set-10k" placeholder="${T('ex. 48:30', 'e.g. 48:30')}"></label>
+      <button type="button" class="btn" data-act="calc-start">${T('Calculer le départ', 'Work out the start')}</button></div>
+      <p class="muted" style="font-size:13px;margin:-4px 0 10px">${T('Départ conseillé : 70 % de ta vitesse moyenne de course (10 km au marathon), arrondi à 0,5 km/h.', 'Suggested start: 70% of your average race speed (10 km to marathon), rounded to 0.5 km/h.')}</p>` : ''}
+    <button class="btn violet block" data-act="save-proto">${T('Enregistrer mon protocole', 'Save my protocol')}</button>
+  </details>
+  ${isRun() ? '' : `<details class="panel proto" data-key="ramp">
     <summary><span><span class="t">${T('Rampe 2 min', '2 min ramp')}</span><span class="s">${T('Le bonus : on cherche ta limite', 'The bonus: finding your limit')}</span></span><span class="plus">+</span></summary>
     <p class="say">${T('Expérience bonus : jusqu\'où tu tiens ? Mwahaha.', 'Bonus experiment: how far can you go? Mwahaha.')}</p>
     <ol>
@@ -1487,73 +1576,66 @@ function viewGlobule() {
       <button class="btn" data-act="ramp-pick" data-fmt="erg">.erg</button><button class="btn" data-act="ramp-pick" data-fmt="zwo">.zwo</button>
     </div>
   </details>`}
-  <details class="panel proto">
+  <details class="panel proto" data-key="zones">
     <summary><span><span class="t">${T('Tes 5 zones', 'Your 5 zones')}</span><span class="s">${T('L\'échelle Olympiatoppen, calée sur ton test', 'The Olympiatoppen scale, set from your test')}</span></span><span class="plus">+</span></summary>
     <p class="say">${T('Cinq zones, quatre frontières, toutes tirées de ton test. Classement officiel du labo :', 'Five zones, four boundaries, all taken from your test. The official lab classification:')}</p>
-    <p>${T('<b>I1</b> sous LT1 : endurance facile, lactate quasi au repos. La majorité du volume.<br><b>I2</b> de LT1 au bas de la Golden Zone : endurance moyenne.<br><b>I3</b> du bas de la Golden Zone à LT2 : le seuil, là où vivent les intervalles Bakken.<br><b>I4</b> de LT2 au point où ta courbe passe 6 mmol : au-dessus du seuil.<br><b>I5</b> au-delà de 6 mmol : VO2max. Si ton test s\'arrête avant, je ne peux pas la placer.', "<b>I1</b> below LT1: easy endurance, lactate near resting. Most of your volume.<br><b>I2</b> from LT1 to the bottom of the Golden Zone: moderate endurance.<br><b>I3</b> from the bottom of the Golden Zone to LT2: threshold, where Bakken intervals live.<br><b>I4</b> from LT2 to where your curve passes 6 mmol: above threshold.<br><b>I5</b> beyond 6 mmol: VO2max. If your test stops before that, I can't place it.")}</p>
-    <p class="muted">${T('Les plages en mmol (I1 0,7 à 1,5, I2 1,5 à 2,5, I3 2,5 à 4, I4 4 à 6, I5 6 à 10) sont les repères généraux d\'Olympiatoppen. Tes frontières à toi viennent de ta courbe.', 'The mmol ranges (I1 0.7 to 1.5, I2 1.5 to 2.5, I3 2.5 to 4, I4 4 to 6, I5 6 to 10) are general Olympiatoppen references. Your own boundaries come from your curve.')}</p>
+    <p>${T('<b>I1</b> sous LT1 : endurance facile, lactate quasi au repos. La majorité du volume.<br><b>I2</b> de LT1 au bas de la Golden Zone : endurance moyenne.<br><b>I3</b> du bas de la Golden Zone à LT2 : le seuil, là où vivent les intervalles Bakken.<br><b>I4</b> de LT2 au point où ton lactate atteint 1,5 fois celui de ton LT2 (6 mmol au minimum) : au-dessus du seuil.<br><b>I5</b> au-delà : VO2max. Si ton test s\'arrête avant, je ne peux pas la placer.', "<b>I1</b> below LT1: easy endurance, lactate near resting. Most of your volume.<br><b>I2</b> from LT1 to the bottom of the Golden Zone: moderate endurance.<br><b>I3</b> from the bottom of the Golden Zone to LT2: threshold, where Bakken intervals live.<br><b>I4</b> from LT2 to where your lactate reaches 1.5 times your LT2 lactate (at least 6 mmol): above threshold.<br><b>I5</b> beyond that: VO2max. If your test stops before that, I can't place it.")}</p>
+    <p class="muted">${T('Les plages générales d\'Olympiatoppen (I1 0,7 à 1,5, I2 1,5 à 2,5, I3 2,5 à 4, I4 4 à 6, I5 6 à 10 mmol) supposent un LT2 vers 4 mmol. Chacun a sa courbe : je cale les tiennes sur ton propre lactate.', 'The general Olympiatoppen ranges (I1 0.7 to 1.5, I2 1.5 to 2.5, I3 2.5 to 4, I4 4 to 6, I5 6 to 10 mmol) assume an LT2 around 4 mmol. Everyone has their own curve: I set yours on your own lactate.')}</p>
     <p class="muted">${T(`${bk('Home trainer et capteur route', 'Tapis et montre GPS')} peuvent différer de quelques %. Je note la source de chaque mesure pour que tu compares ce qui est comparable.`, `${bk('Indoor trainer and road power meter', 'Treadmill and GPS watch')} can differ by a few %. I log the source of each measurement so you compare like with like.`)}</p>
   </details>
-  ${isRun() ? '' : `<h2 class="section-label">${T('Exporter vers Rouvy et Zwift', 'Export to Rouvy and Zwift')}</h2><section class="panel export-panel">${rouvyPanel()}</section>`}
-  <div class="grid2" style="margin-top:16px">
-    <button class="btn rose" data-act="share-app">${T('Partager Globule', 'Share Globule')}</button>
-    <button class="btn jaune" data-act="a2hs">${T('Écran d\'accueil', 'Home screen')}</button>
-  </div>`;
+  ${isRun() ? '' : `<details class="panel proto export-panel" data-key="export">
+    <summary><span><span class="t">${T('Exporter vers le home trainer', 'Export to your smart trainer')}</span><span class="s">${T('Rouvy et Zwift : ton test et tes rampes', 'Rouvy and Zwift: your test and ramps')}</span></span><span class="plus">+</span></summary>
+    ${rouvyPanel()}
+  </details>`}`;
 }
-function settingsSheet() {
+// Interrupteur : une ligne, un libellé, un bouton à glisser
+const switchRow = (label, on, act, val, lang) => `<button type="button" class="switch-row" role="switch" aria-checked="${on}" data-act="${act}" data-val="${val}"><span>${label}</span><i class="sw${lang ? ' sw-lang' : ''}" aria-hidden="true">${lang ? '<b>FR</b><b>EN</b>' : ''}</i></button>`;
+function settingsSheet(keep) {
+  const cur = $('.sheet:not(.leaving)');
+  const G = GZR();
   openSheet(T('Réglages', 'Settings'), `
-    <label class="field"><span>${T('Ton pseudo au labo', 'Your lab nickname')}</span><input class="inp" id="set-name" value="${esc(state.name)}" placeholder="${T('ex. Cobaye n° 4821', 'e.g. Lab rat #4821')}" autocomplete="off" autocapitalize="off"></label>
-    <p class="muted" style="font-size:13px;margin:-4px 0 10px">${T('Pas besoin de ton vrai nom : un pseudo suffit. Ton entraîneur le verra aussi.', 'No need for your real name: a nickname is enough. Your coach sees it too.')}</p>
-    <button class="btn violet block" data-act="save-name">${T('Enregistrer le pseudo', 'Save nickname')}</button>
+    <div class="grid2" style="margin-bottom:14px">
+      <button class="btn rose" data-act="share-app">${T('Partager Globule', 'Share Globule')}</button>
+      <button class="btn jaune" data-act="a2hs">${T('Écran d\'accueil', 'Home screen')}</button>
+    </div>
+    <div class="run-calc"><label class="field"><span>${T('Ton pseudo au labo', 'Your lab nickname')}</span><input class="inp" id="set-name" value="${esc(state.name)}" placeholder="${T('ex. Cobaye n° 4821', 'e.g. Lab rat #4821')}" autocomplete="off" autocapitalize="off" maxlength="40"></label>
+      <button type="button" class="btn violet" data-act="save-name">${T('Modifier', 'Change')}</button></div>
+    <p class="muted" style="font-size:13px;margin:-6px 0 14px">${T('Pas besoin de ton vrai nom. Ton entraîneur le verra aussi.', 'No need for your real name. Your coach sees it too.')}</p>
+    <button class="btn block sport-btn" data-act="edit-sports"><span>${T('Sport', 'Sport')} : ${(state.sports || ['bike']).map(k => SPORTS[k].label).join(T(' et ', ' and '))}</span><span aria-hidden="true">›</span></button>
     <div style="height:14px"></div>
-    <p class="hand" style="margin:0 0 6px">${T('Mes sports', 'My sports')}</p>
-    <p class="muted" style="font-size:13px;margin:0 0 8px">${(state.sports || ['bike']).map(k => SPORTS[k].label).join(T(' et ', ' and '))}. ${T('Chaque sport a ses tests, ses zones et ses séances.', 'Each sport has its own tests, zones and sessions.')}</p>
-    <button class="btn block" data-act="edit-sports">${T('Changer mes sports', 'Change my sports')}</button>
+    ${switchRow('Golden Zone', GZ_ON(), 'set-gzon', GZ_ON() ? '0' : '1')}
+    <p class="muted" style="font-size:13px;margin:0 0 14px">${!GZ_ON() ? T('Masquée de l\'accueil, des graphiques et des explications. Tes 5 zones restent.', 'Hidden from home, the charts and the guides. Your 5 zones stay.')
+      : G.indiv ? T(`Calculée sur ton dernier test : ${fmt(G.lo, 1)} à ${fmt(G.hi, 1)} mmol, soit 60 à 80 % du lactate de ton LT2 (${fmt(G.la2, 1)} mmol).`, `Worked out from your latest test: ${fmt(G.lo, 1)} to ${fmt(G.hi, 1)} mmol, that is 60 to 80% of your LT2 lactate (${fmt(G.la2, 1)} mmol).`)
+      : T(`En attendant un test avec LT2, plage de Bakken : ${fmt(G.lo, 1)} à ${fmt(G.hi, 1)} mmol.`, `Until a test with LT2, Bakken's range: ${fmt(G.lo, 1)} to ${fmt(G.hi, 1)} mmol.`)}</p>
+    ${switchRow(T('Langue', 'Language'), state.lang === 'en', 'set-lang', state.lang === 'en' ? 'fr' : 'en', true)}
     <div style="height:14px"></div>
-    <p class="hand" style="margin:0 0 6px">Golden Zone</p>
-    <div class="seg" data-layout-id="gzon" role="group" aria-label="${T('Golden Zone', 'Golden Zone')}" style="margin-bottom:8px">
-      <button type="button" data-act="set-gzon" data-val="1" aria-pressed="${GZ_ON()}">${T('Je m\'entraîne avec', 'I train with it')}</button>
-      <button type="button" data-act="set-gzon" data-val="0" aria-pressed="${!GZ_ON()}">${T('Pas pour moi', 'Not for me')}</button></div>
-    <p class="muted" style="font-size:13px;margin:0 0 10px">${T('Désactivée, je cache la Golden Zone de l\'accueil, des graphiques et des explications. Tes 5 zones restent.', 'When off, I hide the Golden Zone from home, the charts and the guides. Your 5 zones stay.')}</p>
-    ${GZ_ON() ? `
-    <div class="seg" data-layout-id="gzmode" role="group" aria-label="${T('Calcul de la Golden Zone', 'Golden Zone method')}" style="margin-bottom:8px">
-      <button type="button" data-act="gz-mode" data-val="lt2" aria-pressed="${state.gzMode === 'lt2'}">${T('Individuelle', 'Individual')}</button>
-      <button type="button" data-act="gz-mode" data-val="fixed" aria-pressed="${state.gzMode !== 'lt2'}">${T('Plage fixe', 'Fixed range')}</button></div>
-    ${state.gzMode === 'lt2' ? `<div class="grid2"><label class="field"><span>${T('De (% du lactate à LT2)', 'From (% of LT2 lactate)')}</span><input class="inp" id="set-gz-olo" inputmode="decimal" value="${inVal(state.gzOff.lo)}"></label>
-    <label class="field"><span>${T('À (% du lactate à LT2)', 'To (% of LT2 lactate)')}</span><input class="inp" id="set-gz-ohi" inputmode="decimal" value="${inVal(state.gzOff.hi)}"></label></div>
-    <p class="muted" style="font-size:13px;margin:-4px 0 10px">${GZR().indiv ? T(`Avec ton dernier test : LT2 à ${fmt(GZR().la2, 1)} mmol, Golden Zone de ${fmt(GZR().lo, 1)} à ${fmt(GZR().hi, 1)} mmol.`, `With your latest test: LT2 at ${fmt(GZR().la2, 1)} mmol, Golden Zone from ${fmt(GZR().lo, 1)} to ${fmt(GZR().hi, 1)} mmol.`) : T('Il me faut un test avec LT2 ; en attendant j\'utilise la plage fixe.', 'I need a test with LT2; until then I use the fixed range.')} ${T('Par défaut 60 à 80 % : pour un LT2 vers 3,8 mmol, c\'est la plage de Bakken.', 'Default 60 to 80%: for an LT2 around 3.8 mmol, that is Bakken\'s range.')}</p>`
-    : `<div class="grid2"><label class="field"><span>${T('De (mmol)', 'From (mmol)')}</span><input class="inp" id="set-gz-lo" inputmode="decimal" value="${inVal(state.gz.lo)}"></label>
-    <label class="field"><span>${T('À (mmol)', 'To (mmol)')}</span><input class="inp" id="set-gz-hi" inputmode="decimal" value="${inVal(state.gz.hi)}"></label></div>
-    <p class="muted" style="font-size:13px;margin:-4px 0 10px">${T('Plage générale de Marius Bakken : 2,3 à 3,0 mmol.', 'Marius Bakken general range: 2.3 to 3.0 mmol.')}</p>`}
-    <button class="btn block" style="background:#FFC21A;color:#2A0A4A" data-act="save-gz">${T('Enregistrer ma Golden Zone', 'Save my Golden Zone')}</button>` : ''}
-    <div style="height:14px"></div>
-    <p class="hand" style="margin:0 0 6px">${T(`Mon protocole paliers ${SP().label.toLowerCase()} (${proto().dur} min + 30 s de pause)`, `My ${SP().label.toLowerCase()} step test protocol (${proto().dur} min + 30 s rest)`)}</p>
-    <div class="grid3"><label class="field"><span>${T(`Départ (${SP().u})`, `Start (${SP().u})`)}</span><input class="inp" id="set-p-start" inputmode="${SP().im}" value="${inVal(proto().start)}"></label>
-    <label class="field"><span>${T(`+ par palier (${SP().u})`, `+ per step (${SP().u})`)}</span><input class="inp" id="set-p-step" inputmode="${SP().im}" value="${inVal(proto().step)}"></label>
-    <label class="field"><span>${T('Paliers max', 'Max steps')}</span><input class="inp" id="set-p-n" inputmode="numeric" value="${proto().n}"></label></div>
-    <label class="field"><span>${T('Durée d\'un palier (min)', 'Step length (min)')}</span><input class="inp" id="set-p-dur" inputmode="numeric" value="${proto().dur}"></label>
-    ${isRun() ? `<div class="run-calc"><label class="field"><span>${T('Ton dernier 10 km (mm:ss ou h:mm:ss)', 'Your latest 10 km (mm:ss or h:mm:ss)')}</span><input class="inp" id="set-10k" placeholder="${T('ex. 48:30', 'e.g. 48:30')}"></label>
-      <button type="button" class="btn" data-act="calc-start">${T('Calculer le départ', 'Work out the start')}</button></div>
-      <p class="muted" style="font-size:13px;margin:-4px 0 10px">${T('Départ conseillé : 70 % de ta vitesse moyenne de course (10 km au marathon), arrondi à 0,5 km/h.', 'Suggested start: 70% of your average race speed (10 km to marathon), rounded to 0.5 km/h.')}</p>` : ''}
-    <button class="btn violet block" data-act="save-proto">${T('Enregistrer mon protocole', 'Save my protocol')}</button>
-    <div style="height:10px"></div>
     ${coachSection()}
-    <button class="btn block" data-act="export">${T('Exporter toutes mes données (CSV)', 'Export all my data (CSV)')}</button>
-    <div style="height:10px"></div>
-    <a class="btn ghost block" style="text-align:center;text-decoration:none" href="${privacyUrl()}" target="_blank" rel="noopener">${T('Politique de confidentialité', 'Privacy policy')}</a>
-    <div style="height:14px"></div>
-    <p class="hand" style="margin:0 0 6px">${T('Langue', 'Language')}</p>
-    ${langSwitch()}
+    <a class="btn ghost block" style="display:block;text-align:center;text-decoration:none" href="${privacyUrl()}" target="_blank" rel="noopener">${T('Politique de confidentialité', 'Privacy policy')}</a>
     ${DEMO ? `<p class="muted" style="font-size:14px;margin:12px 0 0">${T('Mode démo : les données restent sur cet appareil, avec des exemples pour jouer. Ajoute les clés Supabase dans config.js pour la synchro iPhone et ordi.', 'Demo mode: data stays on this device, with examples to play with. Add the Supabase keys in config.js to sync between iPhone and computer.')}</p>
       <div style="height:10px"></div><button class="btn danger block" data-act="reset-demo">${T('Vider la démo', 'Clear the demo')}</button>`
       : `<div style="height:10px"></div><button class="btn danger block" data-act="delete-account">${T('Supprimer mon compte et mes données', 'Delete my account and data')}</button>
       <div style="height:10px"></div><button class="btn ghost block" data-act="logout">${T('Me déconnecter', 'Log out')}${state.user && state.user.email ? ' (' + esc(state.user.email) + ')' : ''}</button>`}
-`, root => { root.dataset.settings = '1'; $$('.seg', root).forEach(g => syncPill(g, false)); });
+`, root => { root.dataset.settings = '1'; }, { inPlace: !!(keep && cur && cur.dataset.settings) });
 }
 
 /* ---------- Feuilles modales ---------- */
 let sheetEl = null, sheetRefresh = null;
-function openSheet(title, body, mount) {
+function openSheet(title, body, mount, opts = {}) {
+  // Mise à jour sur place : même feuille, même défilement, pas d'animation d'entrée
+  if (opts.inPlace && sheetEl) {
+    const cur = $('.sheet:not(.leaving)', sheetEl);
+    if (cur) {
+      const st = cur.scrollTop;
+      $('h3 > span', cur).textContent = title; $('h3 .x', cur).textContent = T('Fermer', 'Close');
+      cur.setAttribute('aria-label', title);
+      Object.keys(cur.dataset).forEach(k => { delete cur.dataset[k]; });
+      $('.sheet-body', cur).innerHTML = body;
+      if (mount) mount(cur);
+      $$('.seg', cur).forEach(g => syncPill(g, false));
+      cur.scrollTop = st;
+      return;
+    }
+  }
   let old = null;
   if (sheetEl) old = $('.sheet:not(.leaving)', sheetEl);
   else {
@@ -1617,8 +1699,11 @@ async function persist(table, id, row, msg, event, after) {
     const saved = id ? await Store().update(table, id, row) : await Store().insert(table, row);
     await loadAll();
     if (typeof event === 'function') state.mascotEvent = event(before);
-    closeSheet(); render(); toast(msg, true);
-    if (typeof after === 'function' && saved && saved.id) after(saved);
+    // Avec une suite (détail du test), la feuille se remplace sans refermer : la page derrière ne bouge pas
+    const next = typeof after === 'function' && saved && saved.id;
+    if (!next) closeSheet();
+    render(); toast(msg, true);
+    if (next) after(saved);
   } catch (e) { const er = $('.sheet:not(.leaving) .err'); if (er) er.textContent = T('Pas enregistré : ', 'Not saved: ') + (e.message || T('erreur réseau', 'network error')) + T('. Réessaie.', '. Try again.'); }
 }
 async function destroy(table, id, what) {
@@ -1738,8 +1823,9 @@ function liveStepChart(a) {
   return `<p class="hand" style="margin:0 0 4px">${T('Ta courbe en direct', 'Your live curve')}</p>` + chartSVG({ xRange: [Math.min(...ws), Math.max(...ws)], yRange: [0, Math.max(4, gzTop() + .5, ...las)], y2Range: hrs.length > 1 ? [Math.min(...hrs) - 5, Math.max(...hrs) + 5] : null,
     xTitle: SP().name, yTitle: 'mmol/L', y2Title: hrs.length > 1 ? T('FC', 'HR') : '', h: 200, series, vlines, hbands: gzBands() });
 }
-function stepDetail(id) {
+function stepDetail(id, keep) {
   const t = state.tests.find(x => x.id === id); if (!t) return;
+  const cur = $('.sheet:not(.leaving)');
   const a = analyzeSteps(t), pick = state.pick === 'lt2' ? 'lt2' : 'lt1';
   const prev = state.tests.filter(x => x.kind === 'steps' && x.id !== t.id && (x.date || '') <= (t.date || '')).sort(byDateDesc)[0];
   const pa = prev ? analyzeSteps(prev) : null;
@@ -1757,7 +1843,8 @@ function stepDetail(id) {
   if (a.lt2Manual != null && a.lt2Auto != null && a.lt2Auto !== a.lt2Manual) vlines.push({ x: a.lt2Auto, color: '#9A88B8', dash: '4 4' });
   const chart = a.steps.length > 1 ? chartSVG({ xRange: [Math.min(...ws), Math.max(...ws)], yRange: [0, Math.max(4, gzTop() + .5, ...las)], y2Range: hrs.length > 1 ? [Math.min(...hrs) - 5, Math.max(...hrs) + 5] : null,
     xTitle: SP().name, yTitle: 'mmol/L', y2Title: hrs.length > 1 ? T('FC', 'HR') : '', h: 230, series, vlines, hbands: gzBands(),
-    extra: (sx, sy) => a.steps.map(s => `<circle cx="${sx(s.w)}" cy="${sy(s.la)}" r="18" fill="transparent" data-act="set-thr" data-id="${t.id}" data-w="${s.w}" style="cursor:pointer"><title>${T(`Choisir ${fxu(s.w)} comme ${pick.toUpperCase()}`, `Set ${fxu(s.w)} as ${pick.toUpperCase()}`)}</title></circle>`).join('') }) : '';
+    extra: state.viewAs ? '' : (sx, sy) => { const xs = a.steps.map(s => sx(s.w)); return a.steps.map((s, i) => { const l = i ? (xs[i - 1] + xs[i]) / 2 : xs[i] - 20, r = i < xs.length - 1 ? (xs[i] + xs[i + 1]) / 2 : xs[i] + 20;
+      return `<rect x="${l.toFixed(1)}" y="0" width="${(r - l).toFixed(1)}" height="230" fill="transparent" data-act="set-thr" data-id="${t.id}" data-w="${s.w}" style="cursor:pointer"><title>${T(`Choisir ${fxu(s.w)} comme ${pick.toUpperCase()}`, `Set ${fxu(s.w)} as ${pick.toUpperCase()}`)}</title></rect>`; }).join(''); } }) : '';
   const m1 = {
     confirmed: a.auto ? T(`LT1 : saut de ${fmt(a.steps[a.auto.jumpIdx].la - a.steps[a.auto.idx].la, 1)} mmol entre ${fx(a.steps[a.auto.idx].w)} et ${fxu(a.steps[a.auto.jumpIdx].w)}, confirmé au palier suivant.`, `LT1: ${fmt(a.steps[a.auto.jumpIdx].la - a.steps[a.auto.idx].la, 1)} mmol jump between ${fx(a.steps[a.auto.idx].w)} and ${fxu(a.steps[a.auto.jumpIdx].w)}, confirmed at the next step.`) : '',
     toconfirm: T('LT1 : saut détecté mais pas confirmé. Regarde la courbe et tranche.', 'LT1: jump found but not confirmed. Look at the curve and decide.'),
@@ -1774,8 +1861,8 @@ function stepDetail(id) {
   openSheet(T(`Test paliers du ${fdate(t.date)}`, `Step test, ${fdate(t.date)}`), `
     ${chart}
     ${pa ? `<div class="legend"><span><i style="background:#FF2D8E"></i>${T('ce test', 'this test')}</span><span><i style="background:#9A88B8"></i>${T(`test du ${fdate(prev.date)}`, `test on ${fdate(prev.date)}`)}</span>${hrs.length > 1 ? '<span><i style="background:#6A2BF0"></i>' + T('FC', 'HR') + '</span>' : ''}</div>` : ''}
-    <div class="field" style="margin-top:10px"><span class="muted" style="font-size:13px;font-weight:600">${T('Touche un point de la courbe pour régler', 'Tap a point on the curve to set it')}</span>
-      <div class="seg" role="group" aria-label="${T('Seuil à régler', 'Threshold to set')}"><button type="button" data-act="pick" data-id="${t.id}" data-mode="lt1" aria-pressed="${pick === 'lt1'}">LT1</button><button type="button" data-act="pick" data-id="${t.id}" data-mode="lt2" aria-pressed="${pick === 'lt2'}">LT2</button></div></div>
+    ${state.viewAs ? '' : `<div class="field" style="margin-top:10px"><span class="muted" style="font-size:13px;font-weight:600">${T('Choisis le seuil, puis touche la courbe à hauteur d\'un palier pour le déplacer', 'Pick the threshold, then tap the curve at a step to move it')}</span>
+      <div class="seg" role="group" aria-label="${T('Seuil à régler', 'Threshold to set')}"><button type="button" data-act="pick" data-id="${t.id}" data-mode="lt1" aria-pressed="${pick === 'lt1'}">LT1</button><button type="button" data-act="pick" data-id="${t.id}" data-mode="lt2" aria-pressed="${pick === 'lt2'}">LT2</button></div></div>`}
     <div class="kv">${box(a.lt1W, a.lt1Hr, `LT1 (${SP().u})`)}${box(a.lt2W, a.lt2Hr, `LT2 (${SP().u})`)}<div><b>${a.maxLa != null ? fmt(a.maxLa, 1) : T('n.d.', 'n/a')}</b><span>${T('mmol max', 'mmol max')}</span></div></div>
     <div class="result"><span class="hand">${m1}<br>${m2}</span></div>
     ${(G => G ? `<div class="result gz-result" style="margin-top:0">★ ${T(`<b>Ta Golden Zone sur ce test : ${fx(G.wLo)} à ${fxu(G.wHi)}</b>${G.hrLo != null && G.hrHi != null ? `, FC ${fmt(G.hrLo)} à ${fmt(G.hrHi)}` : ''} (${fmt(GZR().lo, 1)} à ${fmt(GZR().hi, 1)} mmol).`, `<b>Your Golden Zone on this test: ${fx(G.wLo)} to ${fxu(G.wHi)}</b>${G.hrLo != null && G.hrHi != null ? `, HR ${fmt(G.hrLo)} to ${fmt(G.hrHi)}` : ''} (${fmt(GZR().lo, 1)} to ${fmt(GZR().hi, 1)} mmol).`)}</div>` : (GZ_ON() && a.steps.length && Math.min(...a.steps.map(x => x.la)) > gzRangeFor(a).hi + 1e-9
@@ -1789,11 +1876,12 @@ function stepDetail(id) {
     ${num(t.data.baseline) != null ? `<p class="muted" style="font-size:14px">${T(`Repos : ${fmt(num(t.data.baseline), 1)} mmol.`, `Resting: ${fmt(num(t.data.baseline), 1)} mmol.`)}</p>` : ''}
     ${t.source ? `<p class="muted" style="font-size:14px">${T(`Mesuré avec : ${SOURCES[t.source]}.`, `Measured with: ${SOURCES[t.source]}.`)}</p>` : ''}
     ${t.note ? `<p style="font-size:15px">${esc(t.note)}</p>` : ''}
-    <div class="row-btns"><button class="btn violet" data-act="edit-steps" data-id="${t.id}">${T('Modifier', 'Edit')}</button><button class="btn danger" data-act="del-test" data-id="${t.id}">${T('Supprimer', 'Delete')}</button></div>`);
+    <div class="row-btns"><button class="btn violet" data-act="edit-steps" data-id="${t.id}">${T('Modifier', 'Edit')}</button><button class="btn danger" data-act="del-test" data-id="${t.id}">${T('Supprimer', 'Delete')}</button></div>`,
+  root => { root.dataset.test = t.id; }, { inPlace: !!(keep && cur && cur.dataset.test === t.id) });
 }
 async function setThr(id, field, w) {
   try {
-    await Store().update('tests', id, { [field]: w }); await loadAll(); render(); stepDetail(id);
+    await Store().update('tests', id, { [field]: w }); await loadAll(); render(); stepDetail(id, true);
     const lab = field === 'lt2_manual' ? 'LT2' : 'LT1';
     toast(w == null ? T(`${lab} automatique`, `Automatic ${lab}`) : T(`${lab} fixé à ${fxu(w)}`, `${lab} set to ${fxu(w)}`));
   } catch (e) { toast(T('Pas enregistré : ', 'Not saved: ') + (e.message || T('erreur', 'error'))); }
@@ -2459,9 +2547,40 @@ function enter(user) {
   start();
 }
 
+/* ---------- Graphiques du journal : glisser le doigt affiche la valeur dans une bulle ---------- */
+let scrub = null;
+function scrubAt(w, x, y) {
+  const hits = $$('.hit', w); if (!hits.length) return;
+  let best = null, bd = Infinity;
+  hits.forEach(h => { const r = h.getBoundingClientRect(), d = Math.abs(r.left + r.width / 2 - x) + Math.abs(r.top + r.height / 2 - y) * 0.15; if (d < bd) { bd = d; best = h; } });
+  const tip = $('.bubble-tip', w), wr = w.getBoundingClientRect();
+  if (tip.textContent !== best.getAttribute('aria-label')) tip.textContent = best.getAttribute('aria-label');
+  tip.hidden = false;
+  tip.style.left = Math.max(-8, Math.min(wr.width - tip.offsetWidth + 8, x - wr.left - tip.offsetWidth / 2)) + 'px';
+  tip.style.top = (y - wr.top - tip.offsetHeight - 34) + 'px'; // au-dessus du doigt
+  $$('.hit.on', w).forEach(h => { if (h !== best) h.classList.remove('on'); }); best.classList.add('on');
+}
+function scrubEnd(w) { if (!w) return; const tip = $('.bubble-tip', w); if (tip) tip.hidden = true; $$('.hit.on', w).forEach(h => h.classList.remove('on')); }
+document.addEventListener('pointerdown', e => {
+  const w = e.target.closest && e.target.closest('.scrub'); if (!w) return;
+  scrub = { w, x: e.clientX, moved: false };
+  if (e.pointerType !== 'mouse') scrubAt(w, e.clientX, e.clientY);
+});
+document.addEventListener('pointermove', e => {
+  if (scrub) { if (Math.abs(e.clientX - scrub.x) > 6) scrub.moved = true; scrubAt(scrub.w, e.clientX, e.clientY); return; }
+  if (e.pointerType === 'mouse') { const w = e.target.closest && e.target.closest('.scrub'); $$('.scrub').forEach(x => { if (x !== w) scrubEnd(x); }); if (w) scrubAt(w, e.clientX, e.clientY); }
+});
+document.addEventListener('pointerup', e => {
+  if (!scrub) return; const s = scrub; scrub = null;
+  if (s.moved) { s.w.dataset.justScrubbed = '1'; later(() => { delete s.w.dataset.justScrubbed; }, 350); }
+  if (e.pointerType !== 'mouse') later(() => scrubEnd(s.w), s.moved ? 1400 : 900);
+});
+document.addEventListener('pointercancel', () => { if (scrub) { scrubEnd(scrub.w); scrub = null; } });
+
 /* ---------- Événements ---------- */
 document.addEventListener('change', e => { if (e.target.matches && e.target.matches('.athlete-pick')) viewAthlete(e.target.value); });
 document.addEventListener('click', async e => {
+  if (e.target.closest && e.target.closest('.scrub[data-just-scrubbed]')) return; // un glissé n'ouvre rien
   const tab = e.target.closest('[data-tab]');
   if (tab) { switchTab(tab.dataset.tab); return; }
   const el = e.target.closest('[data-act]'); if (!el) return;
@@ -2481,12 +2600,14 @@ document.addEventListener('click', async e => {
     case 'invite-coach': {
       const { error } = await sb.from('coach_links').insert({ code: genCode(), athlete_name: state.name || null });
       if (error) { toast(T('Invitation impossible : ', 'Could not invite: ') + error.message); break; }
-      await loadLinks(); settingsSheet(); toast(T('Code créé : envoie-le à ton entraîneur', 'Code created: send it to your coach'), true); break;
+      await loadLinks(); settingsSheet(true); toast(T('Code créé : envoie-le à ton entraîneur', 'Code created: send it to your coach'), true); break;
     }
     case 'share-code': {
       const c = el.dataset.code, text = T(`Mon code entraîneur Globule : ${c}. Ouvre ${SITE_URL}, réglages ⚙, « Je suis entraîneur ».`, `My Globule coach code: ${c}. Open ${SITE_URL}, settings ⚙, “I'm a coach”.`);
-      if (navigator.share) { try { await navigator.share({ title: 'Globule', text }); } catch (e) { /* annulé */ } }
-      else { try { await navigator.clipboard.writeText(text); toast(T('Message copié', 'Message copied'), true); } catch (e) { prompt(T('Copie ce message :', 'Copy this message:'), text); } }
+      let ok = false;
+      if (navigator.share) { try { await navigator.share({ title: 'Globule', text }); ok = true; } catch (e) { /* annulé */ } }
+      else { try { await navigator.clipboard.writeText(text); toast(T('Message copié, envoie-le à ton entraîneur', 'Message copied, send it to your coach'), true); ok = true; } catch (e) { prompt(T('Copie ce message :', 'Copy this message:'), text); ok = true; } }
+      if (ok) { markSent(c); settingsSheet(true); }
       break;
     }
     case 'claim-code': {
@@ -2494,18 +2615,19 @@ document.addEventListener('click', async e => {
       if (c.length < 4) { toast(T('Entre le code reçu de ton athlète', 'Enter the code from your athlete')); break; }
       const { data, error } = await sb.rpc('claim_coach_code', { p_code: c, p_coach_name: state.name || T('Entraîneur', 'Coach') });
       if (error) { toast(error.message); break; }
-      await loadLinks(); render(); settingsSheet(); toast(T(`Tu suis maintenant ${data || 'ton athlète'}. Choisis son profil en haut de l'écran.`, `You now follow ${data || 'your athlete'}. Pick their profile at the top of the screen.`), true); break;
+      await loadLinks(); render(); settingsSheet(true); checkAthleteNews(); toast(T(`Tu suis maintenant ${data || 'ton athlète'}. Choisis son profil en haut de l'écran.`, `You now follow ${data || 'your athlete'}. Pick their profile at the top of the screen.`), true); break;
     }
     case 'unlink': {
       const l = state.links.find(x => x.id === id); if (!l) break;
-      const msg = l.status === 'pending' ? T('Annuler ce code ?', 'Cancel this code?') : l.athlete_id === uidMe() ? T(`Retirer l'accès de ${l.coach_name || 'ton entraîneur'} à ton labo ?`, `Remove ${l.coach_name || 'your coach'}'s access to your lab?`) : T(`Arrêter de suivre ${l.athlete_name || 'cet athlète'} ?`, `Stop following ${l.athlete_name || 'this athlete'}?`);
+      const msg = l.status === 'pending' ? T('Annuler l\'invitation de ton entraîneur ?', 'Cancel your coach invite?') : l.athlete_id === uidMe() ? T(`Retirer l'accès de ${l.coach_name || 'ton entraîneur'} à ton labo ?`, `Remove ${l.coach_name || 'your coach'}'s access to your lab?`) : T(`Arrêter de suivre ${l.athlete_name || 'cet athlète'} ?`, `Stop following ${l.athlete_name || 'this athlete'}?`);
       if (!confirm(msg)) break;
       const { error } = await sb.from('coach_links').delete().eq('id', id);
       if (error) { toast(T('Pas fait : ', 'Not done: ') + error.message); break; }
-      await loadLinks(); render(); settingsSheet(); toast(T('C\'est fait', 'Done'), true); break;
+      await loadLinks(); render(); settingsSheet(true); toast(T('C\'est fait', 'Done'), true); break;
     }
     case 'settings': settingsSheet(); break;
-    case 'set-gzon': { const v = el.dataset.val === '1'; if (v !== GZ_ON()) { await saveGzOn(v); render(); settingsSheet(); toast(v ? T('Golden Zone activée', 'Golden Zone on') : T('Golden Zone masquée', 'Golden Zone hidden'), true); } break; }
+    case 'see-news': viewAthlete(id); break;
+    case 'set-gzon': { const v = el.dataset.val === '1'; if (v !== GZ_ON()) { el.setAttribute('aria-checked', String(v)); await saveGzOn(v); later(() => { render(); settingsSheet(true); }, 220); toast(v ? T('Golden Zone activée', 'Golden Zone on') : T('Golden Zone masquée', 'Golden Zone hidden'), true); } break; }
     case 'zones-toggle': state.zonesOpen = !state.zonesOpen; try { localStorage.setItem('globule:zones-open', state.zonesOpen ? '1' : '0'); } catch (e) {} render(); break;
     case 'j-range': if (J_RANGES.hasOwnProperty(el.dataset.val)) { state.jRange = el.dataset.val; try { localStorage.setItem('globule:jrange', state.jRange); } catch (e) {} render(); } break;
     case 'info': { const t = document.getElementById(el.dataset.for); if (t) { t.hidden = !t.hidden; el.setAttribute('aria-expanded', String(!t.hidden)); } break; }
@@ -2519,13 +2641,13 @@ document.addEventListener('click', async e => {
       break;
     }
     case 'ramp-pick': { const sel = $('#ramp-start'); if (sel) rampDownload(+sel.value, el.dataset.fmt); break; }
-    case 'set-lang': setLang(el.dataset.val); break;
+    case 'set-lang': if (el.classList.contains('switch-row')) { el.setAttribute('aria-checked', String(el.dataset.val === 'en')); later(() => setLang(el.dataset.val), 220); } else setLang(el.dataset.val); break;
     case 'share-app': shareApp(); break;
     case 'a2hs': a2hsTuto(); break;
     case 'a2hs-pf': a2hsTuto(el.dataset.val, 0); break;
     case 'a2hs-go': a2hsTuto(el.dataset.pf, +el.dataset.i); break;
     case 'set-sport': if (SPORTS[el.dataset.val] && el.dataset.val !== state.sport) { state.sport = el.dataset.val; try { localStorage.setItem('globule:sport', state.sport); } catch (e) {} applySport(); render(); } break;
-    case 'edit-sports': profileSheet(false); break;
+    case 'edit-sports': profileSheet(false); { const r2 = $('.sheet:not(.leaving)'); if (r2) r2.dataset.fromSettings = '1'; } break;
     case 'toggle-sport': {
       const sel = JSON.parse(root.dataset.sel || '[]'), k = el.dataset.val, i = sel.indexOf(k);
       if (i >= 0) sel.splice(i, 1); else sel.push(k);
@@ -2538,7 +2660,7 @@ document.addEventListener('click', async e => {
       const sel = JSON.parse(root.dataset.sel || '[]');
       if (!sel.length) { $('.err', root).textContent = T('Choisis au moins un sport.', 'Pick at least one sport.'); break; }
       if (!sel.includes(state.sport)) state.sport = sel[0];
-      if (await saveSports(sel)) { closeSheet(); render(); toast(sel.map(k => SPORTS[k].label).join(T(' et ', ' and ')), true); }
+      if (await saveSports(sel)) { const back = root.dataset.fromSettings; render(); if (back) settingsSheet(); else closeSheet(); toast(sel.map(k => SPORTS[k].label).join(T(' et ', ' and ')), true); }
       break;
     }
     case 'new-session': pickSession(); break;
@@ -2570,7 +2692,7 @@ document.addEventListener('click', async e => {
       if (sheetRefresh) sheetRefresh();
       break;
     }
-    case 'pick': state.pick = el.dataset.mode === 'lt2' ? 'lt2' : 'lt1'; stepDetail(id); break;
+    case 'pick': state.pick = el.dataset.mode === 'lt2' ? 'lt2' : 'lt1'; stepDetail(id, true); break;
     case 'set-thr': setThr(id, state.pick === 'lt2' ? 'lt2_manual' : 'lt1_manual', num(el.dataset.w)); break;
     case 'reset-thr': setThr(id, el.dataset.field === 'lt2_manual' ? 'lt2_manual' : 'lt1_manual', null); break;
     case 'del-test': destroy('tests', id, T('ce test', 'this test')); break;
@@ -2579,7 +2701,7 @@ document.addEventListener('click', async e => {
       state.name = name;
       if (DEMO) localStorage.setItem('globule:name', name);
       else { const { error } = await updMeta({ data: { name } }); if (error) { toast(T('Pas enregistré : ', 'Not saved: ') + error.message); break; } }
-      render(); toast(name ? T(`Salut ${name} !`, `Hi ${name}!`) : T('Pseudo effacé', 'Nickname cleared'));
+      render(); settingsSheet(true); toast(name ? T(`Salut ${name} !`, `Hi ${name}!`) : T('Pseudo effacé', 'Nickname cleared'), true);
       break;
     }
     case 'new-gz': pickSession(); break;
@@ -2641,7 +2763,7 @@ document.addEventListener('keydown', e => {
 async function start() {
   $('#tabbar').hidden = false;
   app().innerHTML = header() + hero(T('Je sors tes éprouvettes du frigo...', 'Getting your test tubes out of the fridge...'), 124);
-  try { await loadLinks(); await loadAll(); render(); if (!DEMO && !hasConsent()) consentSheet(); else if (!state.sports) profileSheet(true); else maybeA2hs(); }
+  try { await loadLinks(); await loadAll(); render(); checkAthleteNews(); if (!DEMO && !hasConsent()) consentSheet(); else if (!state.sports) profileSheet(true); else maybeA2hs(); }
   catch (e) {
     app().innerHTML = header() + hero(T('Petit couac au labo : impossible de récupérer tes données. Vérifie ta connexion.', "Small hiccup in the lab: couldn't load your data. Check your connection."), 124) + `<button class="btn rose block" onclick="start()">${T('Réessayer', 'Try again')}</button><p class="err">${esc(e.message || '')}</p>`;
   }
@@ -2665,15 +2787,14 @@ async function saveGzOn(v) {
 function loadGz(u) {
   const m = (u && u.user_metadata) || {}, g = m.gz3;
   state.gz = validGz(g) ? { lo: num(g.lo), hi: num(g.hi) } : { ...GZ_DEFAULT };
-  state.gzMode = m.gzMode === 'fixed' ? 'fixed' : 'lt2';
-  const o = m.gzOff; state.gzOff = o && num(o.lo) < num(o.hi) && num(o.lo) >= 30 && num(o.hi) <= 100 ? { lo: num(o.lo), hi: num(o.hi) } : { ...GZ_OFF_DEFAULT };
+  // Golden Zone automatique : toujours calculée sur le lactate de ton LT2, plus de réglage à la main
+  state.gzMode = 'lt2'; state.gzOff = { ...GZ_OFF_DEFAULT };
 }
 async function boot() {
   if (DEMO) {
     seedDemo();
     state.name = localStorage.getItem('globule:name') || '';
     try { const g = JSON.parse(localStorage.getItem('globule:gz3') || 'null'); if (validGz(g)) state.gz = { lo: num(g.lo), hi: num(g.hi) }; } catch { /* plages par défaut */ }
-    try { const gm = JSON.parse(localStorage.getItem('globule:gzmode') || 'null'); if (gm) { state.gzMode = gm.mode === 'fixed' ? 'fixed' : 'lt2'; if (gm.off) state.gzOff = gm.off; } } catch { /* mode par défaut */ }
     try { const pr = JSON.parse(localStorage.getItem('globule:proto') || 'null'); if (validProto(pr, 'bike')) state.protos.bike = pr; } catch { /* protocole déduit */ }
     try { const pr = JSON.parse(localStorage.getItem('globule:proto-run') || 'null'); if (validProto(pr, 'run')) state.protos.run = pr; } catch { /* protocole déduit */ }
     try { loadSports({ sports: JSON.parse(localStorage.getItem('globule:sports') || 'null') }); } catch { loadSports(null); }
